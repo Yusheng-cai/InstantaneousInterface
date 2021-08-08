@@ -10,9 +10,9 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     Ny_ = Ny;
     Nz_ = Nz;
 
-    Lx_ = x_range_[1] - x_range_[0];
-    Ly_ = y_range_[1] - y_range_[0];
-    Lz_ = z_range_[1] - z_range_[0];
+    setXrange(xrange);
+    setYrange(yrange);
+    setZrange(zrange);
 
     field_.resize(Nx*Ny*Nz);
 
@@ -46,7 +46,6 @@ void Field::fixIndex(index3& index)
         index[0] = index[0] - Nx_;
     }
     
-
     if (index[1] < 0 && index[1] >= -Ny_)
     {
         index[1] = index[1] + Ny_;
@@ -81,6 +80,28 @@ Field::Real3 Field::getPositionOnGrid(int i, int j, int k)
 
     ret[2] = Index[2]*dz_ + z_range_[0];
     ASSERT((ret[2] <= z_range_[1]), "z is larger than the Bounding Box, z = " << ret[2] << " and bounding box zrange = " << z_range_[1]);
+
+    return ret;
+}
+
+Field::index3 Field::getClosestGridIndex(const Real3& position)
+{
+    index3 ret;
+    Real3 PositionNormalized;
+    PositionNormalized.fill(0);
+
+    // Normalize the positions by subtracting the least of the xrange, yrange and zrange
+    PositionNormalized[0] = position[0] - x_range_[0];
+    int xindex = PositionNormalized[0]/dx_;
+    ret[0] = xindex;
+
+    PositionNormalized[1] = position[1] - y_range_[0];
+    int yindex = PositionNormalized[1]/dy_;
+    ret[1] = yindex;
+
+    PositionNormalized[2] = position[2] - z_range_[0];
+    int zindex = PositionNormalized[2]/dz_;
+    ret[2] = zindex;
 
     return ret;
 }

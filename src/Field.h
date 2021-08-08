@@ -17,14 +17,41 @@ class Field
 
         Real& operator()(int i, int j, int k);
 
-        void setXrange(Range& xrange) { x_range_ = xrange; Lx_ = x_range_[1] - x_range_[0];}
-        void setYrange(Range& yrange) { y_range_ = yrange; Ly_ = y_range_[1] - y_range_[0];}
-        void setZrange(Range& zrange) { z_range_ = zrange; Lz_ = z_range_[1] - z_range_[0];}
+        void setXrange(Range& xrange) 
+        {   
+            x_range_ = xrange;
+            Lx_ = x_range_[1] - x_range_[0];
+            center_[0] = (x_range_[0] + x_range_[1])*0.5;
+        }
+
+        void setYrange(Range& yrange) 
+        { 
+            y_range_ = yrange;
+            Ly_ = y_range_[1] - y_range_[0];
+            center_[1] = (y_range_[1] + y_range_[0])*0.5;
+        }
+
+        void setZrange(Range& zrange) 
+        { 
+            z_range_ = zrange; 
+            Lz_ = z_range_[1] - z_range_[0];
+            center_[2] = (z_range_[1] + z_range_[0])*0.5;
+        }
 
         void fixIndex(index3& index);
 
+        // zero the field
+        void zero() {std::fill(field_.begin(), field_.end(),0.0);}
+
+        Real getdx() const {return dx_;}
+        Real getdy() const {return dy_;}
+        Real getdz() const {return dz_;}
+
+
         Real3 getPositionOnGrid(int i, int j, int k);
-        index3 getClosestGridLattice(const Real3& position);
+
+        // This function assumes that the position has already been PBC corrected to the center of the bb
+        index3 getClosestGridIndex(const Real3& position);
 
     private:
         std::vector<Real> field_;
@@ -44,4 +71,6 @@ class Field
         Range x_range_ = {{ 0,0 }};
         Range y_range_ = {{ 0,0 }};
         Range z_range_ = {{ 0,0 }};
+
+        Real3 center_;
 };
