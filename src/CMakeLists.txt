@@ -20,6 +20,7 @@ set(src_HEADER
     "Field.h"
     "SimulationBox.h"
     "SimulationState.h"
+    "GaussianCoarseGrainFunction.h"
 )
 
 target_include_directories(src
