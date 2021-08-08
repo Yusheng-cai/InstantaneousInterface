@@ -28,7 +28,12 @@ class BoundingBox
         const Range& getYrange() const {return y_range_;}
         const Range& getZrange() const {return z_range_;}
 
-        bool isInside(Real3& position) const;
+        bool isInside(const Real3& position) const;
+
+        // A function that shifts the atom with respect to the center of the bounding box
+        Real3 PutInBoundingBox(const Real3& position) const;
+
+        std::string getName() const {return name_;}
     
     private:
         Real Lx_;
@@ -46,4 +51,6 @@ class BoundingBox
         SimulationBox& simBox_;
 
         Real3 center_;
+
+        std::string name_;
 };
