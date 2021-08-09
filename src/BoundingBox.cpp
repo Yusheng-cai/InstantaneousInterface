@@ -8,9 +8,9 @@ BoundingBox::BoundingBox(const BoundingBoxInput& input)
     input.pack_.ReadArrayNumber("yrange", ParameterPack::KeyType::Required, y_range_);
     input.pack_.ReadArrayNumber("zrange", ParameterPack::KeyType::Required, z_range_);
 
-    ASSERT((x_range_[1] > x_range_[0]), "The range needs to be provided with smaller value at first.");
-    ASSERT((y_range_[1] > y_range_[0]), "The range needs to be provided with smaller value at first.");
-    ASSERT((z_range_[1] > z_range_[0]), "The range needs to be provided with smaller value at first.");
+    ASSERT((x_range_[1] > x_range_[0]), "The range needs to be provided with smaller value at first and they can not be the same value.");
+    ASSERT((y_range_[1] > y_range_[0]), "The range needs to be provided with smaller value at first and they can not be the same value.");
+    ASSERT((z_range_[1] > z_range_[0]), "The range needs to be provided with smaller value at first and they can not be the same value.");
 
     Lx_ = x_range_[1] - x_range_[0];
     Ly_ = y_range_[1] - y_range_[0];
@@ -20,9 +20,9 @@ BoundingBox::BoundingBox(const BoundingBoxInput& input)
     halfLy_ = 0.5*Ly_;
     halfLz_ = 0.5*Lz_;
 
-    center_[0] = 0.5*(x_range_[1] - x_range_[0]);
-    center_[1] = 0.5*(y_range_[1] - y_range_[0]);
-    center_[2] = 0.5*(z_range_[1] - z_range_[0]);
+    center_[0] = 0.5*(x_range_[1] - x_range_[0]) + x_range_[0];
+    center_[1] = 0.5*(y_range_[1] - y_range_[0]) + y_range_[0];
+    center_[2] = 0.5*(z_range_[1] - z_range_[0]) + z_range_[0];
 }
 
 BoundingBox::Real3 BoundingBox::PutInBoundingBox(const Real3& position) const
