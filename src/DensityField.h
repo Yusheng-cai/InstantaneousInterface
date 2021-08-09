@@ -5,8 +5,13 @@
 #include "SimulationState.h"
 #include "BoundingBox.h"
 #include "Field.h"
+#include "parallel/OpenMP_buffer.h"
+#include "GaussianCoarseGrainFunction.h"
+#include "tools/GenericFactory.h"
+
 
 #include <vector>
+#include <map>
 #include <array>
 #include <string>
 #include <memory>
@@ -28,30 +33,62 @@ class DensityField
         DensityField(const DensityFieldInput& input);
         ~DensityField(){};
 
-        void addAtomGroup();
+        virtual void update() {};
+        virtual void calculate() = 0;
+        virtual void printOutputIfOnStep() {};
 
-    private:
+        void CalcOffsetIndex();
+
+        void addAtomGroup(std::string& name);
+        void registerAtomGroupID(std::string& name, int index);
+
+        int getAtomGroupID(std::string& name);
+        const AtomGroup& getAtomGroup(std::string& name);
+        AtomGroup& accessAtomGroup(std::string& name);
+
+    protected:
         std::vector<const AtomGroup*> AtomGroups_;
+
+        std::map<std::string, int> MapAtomGroupName2Id_;
 
         std::array<int,3> dimensions_;
 
-        std::vector<std::string> atomGroupNames_;
+        std::string atomGroupName_;
+
+        std::vector<OP::Atom> Allatoms_;
 
         SimulationState& simstate_;
 
         Real sigma_;
 
+        std::string output_name_="";
+
         // we cut off n sigmas away
         int n_ = 2.5;
-
         Real cutoff_;
 
+        // Name of the bounding box
         std::string boundingboxName_;
         const BoundingBox* bound_box_ = nullptr;
 
+        // Density field related things
         Field field_;
 
         Range x_range_;
         Range y_range_;
         Range z_range_;
+
+        std::vector<index3> offsetIndex_;
+        OpenMP::OpenMP_buffer<Field> FieldBuffer_;
+};
+
+namespace DensityFieldRegistry
+{
+    using Base = DensityField;
+    using Key  = std::string;
+
+    using Factory = GenericFactory<Base, Key, const DensityFieldInput&>;
+
+    template<typename D>
+    using registry_ = RegisterInFactory<Base,D, Key, const DensityFieldInput&>;
 };
