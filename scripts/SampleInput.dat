@@ -1,0 +1,28 @@
+grofile = {
+    path = test.gro
+}
+
+xdrfile = {
+    path = test.xtc
+}
+
+atomgroup = {
+    name = LC
+    selection = [ resname 5CB ]
+}
+
+densityfield = {
+    type = averagefield
+    dimensions = [ 50 50 50 ]
+    boundingbox = bb
+    sigma = 0.35
+    cutoff = 3
+    atomgroups = [ LC ]
+}
+
+boundingbox = {
+    name   = bb
+    xrange = [ 12 25 ]
+    yrange = [ 0 100 ]
+    zrange = [ 0 100 ]
+}
