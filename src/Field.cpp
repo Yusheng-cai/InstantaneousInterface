@@ -1,5 +1,10 @@
 #include "Field.h"
 
+Field::Field(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange)
+{
+    resize(Nx, Ny, Nz, xrange, yrange, zrange);
+}
+
 void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange)
 {
     ASSERT((Nx > 0), "Nx is not larger than 0 and it is " << Nx << ", the input dimension must be larger than 0.");
@@ -104,4 +109,15 @@ Field::index3 Field::getClosestGridIndex(const Real3& position)
     ret[2] = zindex;
 
     return ret;
+}
+
+Field::index3 Field::size() const 
+{
+    index3 index;
+
+    index[0] = Nx_;
+    index[1] = Ny_;
+    index[2] = Nz_;
+
+    return index;
 }

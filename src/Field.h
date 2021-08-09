@@ -13,6 +13,8 @@ class Field
         using index3 = CommonTypes::index3;
 
         Field(){};
+        Field(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
+
         void resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
 
         Real& operator()(int i, int j, int k);
@@ -42,10 +44,15 @@ class Field
 
         // zero the field
         void zero() {std::fill(field_.begin(), field_.end(),0.0);}
+        index3 size() const;
+
 
         Real getdx() const {return dx_;}
         Real getdy() const {return dy_;}
         Real getdz() const {return dz_;}
+        const Range& getXrange() const {return x_range_;}
+        const Range& getYrange() const {return y_range_;}
+        const Range& getZrange() const {return z_range_;}
 
 
         Real3 getPositionOnGrid(int i, int j, int k);
