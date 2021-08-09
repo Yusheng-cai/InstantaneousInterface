@@ -34,9 +34,11 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
 
 void Driver::initializeDensityField(const ParameterPack* densityPack)
 {
-    DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*densityPack)};
+    std::string densityType;
+    densityPack->ReadString("type", ParameterPack::KeyType::Required, densityType);
 
-    densityfield_ = DensityPtr(new DensityField(input));
+    DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*densityPack)};
+    densityfield_ = DensityPtr(DensityFieldRegistry::Factory::instance().create(densityType, input));
 }
 
 void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
@@ -125,5 +127,5 @@ AtomGroup& Driver::getAtomGroup(const std::string& name)
 
 void Driver::calculate()
 {
-
+    densityfield_->calculate();
 }
