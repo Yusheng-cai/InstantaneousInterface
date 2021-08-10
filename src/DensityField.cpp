@@ -16,6 +16,9 @@ DensityField::DensityField(const DensityFieldInput& input)
     // Read in the cut off value (n*sigma_)
     input.pack_.ReadNumber("cutoff", ParameterPack::KeyType::Optional, n_);
 
+    // Read in the isoSurface value
+    input.pack_.ReadNumber("isosurface", ParameterPack::KeyType::Required, isoSurfaceVal_);
+
     // Read in the bounding box
     input.pack_.ReadString("boundingbox", ParameterPack::KeyType::Required,boundingboxName_);
     bound_box_ = &simstate_.getBoundingBox(boundingboxName_);
@@ -24,7 +27,12 @@ DensityField::DensityField(const DensityFieldInput& input)
     z_range_ = bound_box_->getZrange();
 
     // Read in the output file
-    input.pack_.ReadString("output", ParameterPack::KeyType::Optional, output_name_);
+    bool outputread = input.pack_.ReadString("output", ParameterPack::KeyType::Optional, output_name_);
+    if (outputread)
+    {
+        ofs_.open(output_name_);
+        ASSERT((isOpen()), "The file with name " << output_name_ << " is not opened.");
+    }
 
     // calculate the actual cut off
     cutoff_ = n_*sigma_;
@@ -50,6 +58,11 @@ DensityField::DensityField(const DensityFieldInput& input)
     }
 }
 
+bool DensityField::isOpen()
+{
+    return ofs_.is_open();
+}
+
 
 void DensityField::CalcOffsetIndex()
 {
@@ -62,11 +75,11 @@ void DensityField::CalcOffsetIndex()
     int Ny_offset = cutoff_/dy;
     int Nz_offset = cutoff_/dz;
 
-    for( int i=-Nx_offset/2; i<=Nx_offset/2;i++)
+    for( int i=-Nx_offset; i<=Nx_offset;i++)
     {
-        for (int j=-Ny_offset/2; j<=Ny_offset/2; j++)
+        for (int j=-Ny_offset; j<=Ny_offset; j++)
         {
-            for (int k=-Nz_offset/2; k<=Nz_offset/2;k++)
+            for (int k=-Nz_offset; k<=Nz_offset;k++)
             {
                 index3 id = {{ i,j,k}};
                 offsetIndex_.push_back(id);

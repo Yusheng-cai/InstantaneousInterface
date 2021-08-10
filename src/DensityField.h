@@ -8,6 +8,7 @@
 #include "parallel/OpenMP_buffer.h"
 #include "GaussianCoarseGrainFunction.h"
 #include "tools/GenericFactory.h"
+#include "MarchingCubesWrapper.h"
 
 
 #include <vector>
@@ -15,6 +16,8 @@
 #include <array>
 #include <string>
 #include <memory>
+#include <iostream>
+#include <sstream>
 
 struct DensityFieldInput
 {
@@ -35,7 +38,10 @@ class DensityField
 
         virtual void update() {};
         virtual void calculate() = 0;
+        virtual void finishCalculate() {};
         virtual void printOutputIfOnStep() {};
+
+        bool isOpen();
 
         void CalcOffsetIndex();
 
@@ -62,6 +68,8 @@ class DensityField
         Real sigma_;
 
         std::string output_name_="";
+        std::ofstream ofs_;
+        std::stringstream ss_;
 
         // we cut off n sigmas away
         int n_ = 2.5;
@@ -80,6 +88,12 @@ class DensityField
 
         std::vector<index3> offsetIndex_;
         OpenMP::OpenMP_buffer<Field> FieldBuffer_;
+
+        Real isoSurfaceVal_;
+
+        MarchingCubesWrapper MarchingCubes_;
+        std::vector<triangle> triangles_;
+        std::vector<vertex> vertices_;
 };
 
 namespace DensityFieldRegistry
