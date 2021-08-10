@@ -7,22 +7,24 @@ xdrfile = {
 }
 
 atomgroup = {
-    name = LC
+    name      = LC
     selection = [ resname 5CB ]
 }
 
 densityfield = {
-    type = averagefield
-    dimensions = [ 50 50 50 ]
+    type        = averagefield
+    isosurface  = 23.75
+    dimensions  = [ 200 50 50 ]
+    output      = test
     boundingbox = bb
-    sigma = 0.35
-    cutoff = 3
-    atomgroups = [ LC ]
+    sigma       = 0.35
+    cutoff      = 3
+    atomgroup   = LC
 }
 
 boundingbox = {
     name   = bb
     xrange = [ 12 25 ]
-    yrange = [ 0 100 ]
-    zrange = [ 0 100 ]
+    yrange = [ 0  7.2 ]
+    zrange = [ 0  10.2 ]
 }
