@@ -74,7 +74,7 @@ void AverageField::calculate()
     {
         auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
 
-        #pragma omp for simd
+        #pragma omp for 
         for (int i=0;i<AtomIndicesInside_.size();i++)
         {
             int indices = AtomIndicesInside_[i];
