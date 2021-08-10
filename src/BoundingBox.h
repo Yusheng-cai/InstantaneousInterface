@@ -30,10 +30,13 @@ class BoundingBox
 
         bool isInside(const Real3& position) const;
 
+        void calculateDistance(const Real3& x1, const Real3& x2, Real3& distance) const;
+
         // A function that shifts the atom with respect to the center of the bounding box
         Real3 PutInBoundingBox(const Real3& position) const;
 
         std::string getName() const {return name_;}
+
     
     private:
         Real Lx_;
@@ -49,8 +52,12 @@ class BoundingBox
         Range z_range_;
 
         SimulationBox& simBox_;
+        SimulationBox BoundBox_;
 
         Real3 center_;
 
         std::string name_;
+
+        bool calculateWithBoundBox_ = false;
+        std::vector<int> ignorePBCdims_;
 };

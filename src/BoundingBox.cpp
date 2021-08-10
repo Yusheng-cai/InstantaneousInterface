@@ -5,8 +5,10 @@ BoundingBox::BoundingBox(const BoundingBoxInput& input)
 {
     input.pack_.ReadString("name", ParameterPack::KeyType::Required, name_);
     input.pack_.ReadArrayNumber("xrange", ParameterPack::KeyType::Required, x_range_);
+    input.pack_.Readbool("calculatepbc", ParameterPack::KeyType::Optional, calculateWithBoundBox_);
     input.pack_.ReadArrayNumber("yrange", ParameterPack::KeyType::Required, y_range_);
     input.pack_.ReadArrayNumber("zrange", ParameterPack::KeyType::Required, z_range_);
+    input.pack_.ReadVectorNumber("ignore_dimension", ParameterPack::KeyType::Optional,ignorePBCdims_);
 
     ASSERT((x_range_[1] > x_range_[0]), "The range needs to be provided with smaller value at first and they can not be the same value.");
     ASSERT((y_range_[1] > y_range_[0]), "The range needs to be provided with smaller value at first and they can not be the same value.");
@@ -23,6 +25,8 @@ BoundingBox::BoundingBox(const BoundingBoxInput& input)
     center_[0] = 0.5*(x_range_[1] - x_range_[0]) + x_range_[0];
     center_[1] = 0.5*(y_range_[1] - y_range_[0]) + y_range_[0];
     center_[2] = 0.5*(z_range_[1] - z_range_[0]) + z_range_[0];
+
+    BoundBox_ = SimulationBox(Lx_, Ly_, Lz_);
 }
 
 BoundingBox::Real3 BoundingBox::PutInBoundingBox(const Real3& position) const
@@ -63,4 +67,26 @@ bool BoundingBox::isInside(const Real3& position) const
     }
 
     return true;
+}
+
+void BoundingBox::calculateDistance(const Real3& x1, const Real3& x2, Real3& distance) const
+{
+    Real sq_dist;
+
+    if (calculateWithBoundBox_)
+    {
+        BoundBox_.calculateDistance(x1, x2, distance, sq_dist);
+    }
+    else
+    {
+        simBox_.calculateDistance(x1, x2, distance, sq_dist);
+    }
+
+    if (ignorePBCdims_.size() != 0)
+    {
+        for (int i =0;i<ignorePBCdims_.size();i++)
+        {
+            distance[i] = x1[i] - x2[i];
+        }
+    }
 }
