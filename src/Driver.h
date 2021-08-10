@@ -36,6 +36,10 @@ class Driver
 
         void calculate();
 
+        void printOutputfile();
+
+        void finishCalculate();
+
         // get num frames
         int getNumFrames() const {return xdrfile_->getNframes();}
 

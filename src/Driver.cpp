@@ -61,6 +61,10 @@ void Driver::update()
 {
     xdrfile_ -> readNextFrame();
 
+    // set the simulation box
+    auto& simbox = xdrfile_->getSimulationBox(); 
+    simstate_.setSimulationBox(simbox);
+
     auto& positions_ = xdrfile_ -> getPositions();
 
     for (int i=0;i<AtomGroupNames_.size();i++)
@@ -128,4 +132,14 @@ AtomGroup& Driver::getAtomGroup(const std::string& name)
 void Driver::calculate()
 {
     densityfield_->calculate();
+}
+
+void Driver::finishCalculate()
+{
+    densityfield_->finishCalculate();
+}
+
+void Driver::printOutputfile()
+{
+    densityfield_->printOutputIfOnStep();
 }
