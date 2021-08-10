@@ -7,154 +7,132 @@ namespace DensityFieldRegistry
 
 AverageField::AverageField(const DensityFieldInput& input)
 :DensityField(input)
-{}
-
-void AverageField::precalculateDensity()
 {
-    DensityPreCalculate_.clear(); 
-    DensityPreCalculate_.resize(offsetIndex_.size());
-
-    Real3 originPos = field_.getPositionOnGrid(0,0,0);
-
-    #pragma omp parallel for
-    for (int i=0;i<offsetIndex_.size();i++)
+    // Read in the output file
+    bool outputread = input.pack_.ReadString("field_output", ParameterPack::KeyType::Optional, fieldOutputFileName_);
+    if (outputread)
     {
-        index3 index = offsetIndex_[i];
+        fieldofs_.open(fieldOutputFileName_);
+        ASSERT((fieldofs_.is_open()), "The file with name " << fieldOutputFileName_ << " is not opened.");
+    }
 
-        Real3 pos = field_.getPositionOnGrid(index[0], index[1], index[2]);
+    bool triangleoutput = input.pack_.ReadString("triangle_output", ParameterPack::KeyType::Optional, triangleIndicesFileName_);
+    if (triangleoutput)
+    {
+        triangleIndicesofs_.open(triangleIndicesFileName_);
+        ASSERT((triangleIndicesofs_.is_open()), "The file with name " << triangleIndicesFileName_ << " is not opened.");
+    }
 
-        Real3 distance;
-        Real sq_dist;
-        simstate_.getSimulationBox().calculateDistance(pos, originPos, distance, sq_dist);
+    bool vertexoutput = input.pack_.ReadString("vertex_output", ParameterPack::KeyType::Optional, vertexFileName_);
+    if (vertexoutput)
+    {
+        vertexofs_.open(vertexFileName_);
+        ASSERT((vertexofs_.is_open()), "The file with name " << vertexFileName_ << " is not opened.");
+    }
 
-        Real val = GaussianCoarseGrain::GaussianCoarseGrainFunction(distance, sigma_);
-        DensityPreCalculate_[i] = val;
+    bool vertexNormalOutput = input.pack_.ReadString("normal_output", ParameterPack::KeyType::Optional, vertexNormalFileName_);
+    if (vertexNormalOutput)
+    {
+        vertexNormalofs_.open(vertexNormalFileName_);
+        ASSERT((vertexNormalofs_.is_open()), "The file with name " << vertexNormalFileName_ << " is not opened.");
     }
 }
 
 void AverageField::calculate()
 {
-    precalculateDensity();
-
-    auto atomgroup = getAtomGroup(atomGroupName_);
-    auto& atoms = atomgroup.getAtoms();
-
-    // set up the omp buffers
-    FieldBuffer_.set_master_object(field_);
-    AtomIndicesInside_.clear();
-    AtomIndicesBuffer_.set_master_object(AtomIndicesInside_);
-
-    #pragma omp parallel
+    if (PreCalculateDensity_)
     {
-        auto& indices_buffer = AtomIndicesBuffer_.access_buffer_by_id();
-        #pragma omp for
-        for(int i=0;i<atoms.size();i++)
-        {
-            if (bound_box_ -> isInside(atoms[i].position))
-            {
-                indices_buffer.push_back(i);
-            }
-        }
+        CalculateUsingPreCalculatedDensity(); 
     }
-
-    int size = AtomIndicesInside_.size();
-    for (auto it = AtomIndicesBuffer_.beginworker();it != AtomIndicesBuffer_.endworker();it++)
+    else
     {
-        size += it -> size();
-    }
-
-    AtomIndicesInside_.reserve(size);
-
-    for (auto it = AtomIndicesBuffer_.beginworker();it != AtomIndicesBuffer_.endworker();it++)
-    {
-        AtomIndicesInside_.insert(AtomIndicesInside_.end(), it->begin(), it -> end());
-    }
-
-    #pragma omp parallel
-    {
-        auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
-
-        #pragma omp for 
-        for (int i=0;i<AtomIndicesInside_.size();i++)
-        {
-            int indices = AtomIndicesInside_[i];
-            //std::cout << "Position before correction = " << atoms[indices].position[0] << " " << atoms[indices].position[1] << " " << \
-            atoms[indices].position[2] << std::endl;
-
-            Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
-
-            //std::cout << "Positon after correction = " << correctedPos[0] << " " << correctedPos[1] << " " << correctedPos[2] << std::endl;
-            index3 Index       = fieldbuf.getClosestGridIndex(correctedPos);
-            //std::cout << "Closest position = " << Index[0] << " " << Index[1] << " " << Index[2] << std::endl;
-
-            for(int j=0;j<offsetIndex_.size();j++)
-            {
-                index3 RealIndex;
-                for (int k=0;k<3;k++)
-                {
-                    RealIndex[k] = Index[k] + offsetIndex_[j][k];
-                }
-
-                // std::cout << "Index = " << RealIndex[0] << " " << RealIndex[1] << " " << RealIndex[2] << std::endl;
-                Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
-                // std::cout << "Position on grid = " << latticepos[0] << " " << latticepos[1] << " " << latticepos[2] << std::endl;
-
-                // Real3 diff;
-                // diff.fill(0);
-
-                // for (int k=0;k<3;k++)
-                // {
-                //     diff[k] = std::abs(latticepos[k] - correctedPos[k]);
-                // }
-
-                // Real val = GaussianCoarseGrain::GaussianCoarseGrainFunction(diff, sigma_);
-
-                Real val = DensityPreCalculate_[j];
-                // std::cout << "val = " << val << std::endl;
-                // std::cout << "index = " << RealIndex[0] << " " << RealIndex[1] << " " << RealIndex[2] << std::endl;
-
-                // std::cout << "The value of the field = " << val << std::endl;
-
-                fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
-            }
-        }    
-    }
-
-    #pragma omp parallel for
-    for (int i=0;i<field_.totalSize();i++)
-    {
-        for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-        {
-            field_.accessField()[i] += it->accessField()[i];
-        }
+        CalculateOnTheFly();
     }
 }
 
 void AverageField::finishCalculate()
 {
-    MarchingCubes_.calculate(field_, vertices_, triangles_, isoSurfaceVal_);
+    auto& fieldVec = field_.accessField();
+    std::cout << "Total frames to be calculated = " << simstate_.getTotalFramesToBeCalculated() << std::endl;
+    Real avgFac = 1.0/simstate_.getTotalFramesToBeCalculated();
 
-    // for (int i=0;i<vertices_.size();i++)
-    // {
-    //     for (int j=0;j<3;j++)
-    //     {
-    //         std::cout << vertices_[i].position_[j] << " ";
-    //     }
-    //     std::cout << "\n";
-    // }
+    // performing average on the field
+    for (int i=0;i<fieldVec.size();i++)
+    {
+        fieldVec[i] = avgFac*fieldVec[i]; 
+    }
+
+    MarchingCubes_.calculate(field_, vertices_, triangles_, isoSurfaceVal_);
 }
 
 void AverageField::printOutputIfOnStep()
+{}
+
+void AverageField::printFinalOutput()
 {
     index3 N = field_.getN();
     int Nx = N[0];
     int Ny = N[1];
     int Nz = N[2];
 
-    for (int i=0;i<field_.accessField().size();i++) 
+    if (fieldofs_.is_open())
     {
-        ofs_ << field_.accessField()[i];
+        for (int i=0;i<field_.accessField().size();i++) 
+        {
+            fieldofs_ << field_.accessField()[i];
 
-        ofs_ << " ";
+            fieldofs_ << " ";
+        }
+        fieldofs_.close();
     }
+
+
+    if (vertexofs_.is_open())
+    {
+        for (int i=0;i<vertices_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                vertexofs_ << vertices_[i].position_[j];
+
+                vertexofs_ << " ";
+            }
+
+            vertexofs_ << "\n";
+        }
+        vertexofs_.close();
+    }
+
+    if (vertexNormalofs_.is_open())
+    {
+        for (int i=0;i<vertices_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                vertexNormalofs_ << vertices_[i].normals_[j];
+                
+                vertexNormalofs_ << " ";
+            }
+
+            vertexNormalofs_ << "\n";
+        }
+        vertexNormalofs_.close();
+    }
+
+    if (triangleIndicesofs_.is_open())
+    {
+        for (int i=0;i<triangles_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                triangleIndicesofs_ << triangles_[i].triangleindices_[j];
+
+                triangleIndicesofs_ << " ";
+            }
+            triangleIndicesofs_ << "\n";
+        }
+
+        triangleIndicesofs_.close();
+    }
+
 }

@@ -15,13 +15,17 @@ class AverageField:public DensityField
         virtual void update() {};
         virtual void finishCalculate() override;
         virtual void printOutputIfOnStep() override; 
+        virtual void printFinalOutput() override;
 
-        void precalculateDensity();
 
     private:
-        std::vector<int> AtomIndicesInside_;
-        OpenMP::OpenMP_buffer<std::vector<int>> AtomIndicesBuffer_;
-        std::string outputFileName_;
+        std::string fieldOutputFileName_;
+        std::string triangleIndicesFileName_;
+        std::string vertexFileName_;
+        std::string vertexNormalFileName_;
 
-        std::vector<Real> DensityPreCalculate_;
+        std::ofstream fieldofs_;
+        std::ofstream triangleIndicesofs_;
+        std::ofstream vertexofs_;
+        std::ofstream vertexNormalofs_;
 };
