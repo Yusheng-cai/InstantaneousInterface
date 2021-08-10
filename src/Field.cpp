@@ -20,6 +20,7 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     setZrange(zrange);
 
     field_.resize(Nx*Ny*Nz);
+    zero();
 
     dx_ = Lx_/Nx_;
     dy_ = Ly_/Ny_;
