@@ -10,6 +10,7 @@ target_sources(src PRIVATE
     "Field.cpp"
     "SimulationBox.cpp"
     "SimulationState.cpp"
+    "MarchingCubesWrapper.cpp"
 )
 
 set(src_HEADER
@@ -23,6 +24,7 @@ set(src_HEADER
     "SimulationBox.h"
     "SimulationState.h"
     "GaussianCoarseGrainFunction.h"
+    "MarchingCubesWrapper.h"
 )
 
 target_include_directories(src
@@ -31,7 +33,7 @@ target_include_directories(src
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
-target_link_libraries(src PUBLIC xdr tools parallel)
+target_link_libraries(src PUBLIC xdr tools parallel MarchingCubes)
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(src 
