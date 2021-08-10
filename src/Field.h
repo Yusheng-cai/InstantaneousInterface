@@ -55,6 +55,16 @@ class Field
         Real getdx() const {return dx_;}
         Real getdy() const {return dy_;}
         Real getdz() const {return dz_;}
+        Real3 getLength() const
+        {
+            Real3 length_;
+            length_[0] = Lx_;
+            length_[1] = Ly_;
+            length_[2] = Lz_;
+
+            return length_;
+        }
+
         Real3 getSpacing() const 
         {
             Real3 space;
