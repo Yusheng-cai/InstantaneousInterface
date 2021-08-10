@@ -25,6 +25,8 @@ AtomGroup::AtomGroup(const AtomGroupInput& input)
 
 void AtomGroup::update(const VectorReal3& total_atoms)
 {
+    strategy_->update(AtomGroupGlobalIndices_);
+
     // atoms_.clear();
     // atoms_.reserve(numAtomGroupatoms_);
     // atoms_buffer_.clearBuffer();
