@@ -12,7 +12,7 @@ void MarchingCubesWrapper::calculate(Field& field_, std::vector<vertex>& vertice
     marchingCubesalgo_.Triangulate(field_.data(), vertex_data, triangle_indices, index.data(), spacing.data(), &NumberVertex,\
         &NumberTriangle, isoSurfaceVal, 0);
     
-    Real3 minRange = field_.getMinRange();
+    Real3 Length = field_.getLength();
 
     vertices.clear();
     triangles.clear();
@@ -23,11 +23,21 @@ void MarchingCubesWrapper::calculate(Field& field_, std::vector<vertex>& vertice
     for (int i=0;i<vertices.size();i++)
     {
         vertex vert;
+        Real normal_sq = 0.0;
         for (int j=0;j<3;j++)
         {
-            vert.position_[j] = vertex_data[6*i+j] + 0.5*minRange[j];
+            vert.position_[j] = vertex_data[6*i+j] + 0.5*Length[j];
             vert.normals_[j]  = vertex_data[6*i+3+j];
+            normal_sq += vert.normals_[j]*vert.normals_[j];
         }
+
+        Real norm = std::sqrt(normal_sq);
+
+        for (int j=0;j<3;j++)
+        {
+            vert.normals_[j] = vert.normals_[j]/norm;
+        }
+
         vertices[i] = vert;
     }
 
