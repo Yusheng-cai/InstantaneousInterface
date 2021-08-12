@@ -11,6 +11,8 @@ target_sources(src PRIVATE
     "SimulationBox.cpp"
     "SimulationState.cpp"
     "MarchingCubesWrapper.cpp"
+    "AverageCurvature.cpp"
+    "LinAlgTools.cpp"
 )
 
 set(src_HEADER
@@ -25,6 +27,8 @@ set(src_HEADER
     "SimulationState.h"
     "GaussianCoarseGrainFunction.h"
     "MarchingCubesWrapper.h"
+    "AverageCurvature.h"
+    "LinAlgTools.h"
 )
 
 target_include_directories(src
