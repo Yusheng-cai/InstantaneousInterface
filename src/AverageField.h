@@ -17,6 +17,11 @@ class AverageField:public DensityField
         virtual void printOutputIfOnStep() override; 
         virtual void printFinalOutput() override;
 
+        void printField();
+        void printTriangleIndices();
+        void printVertices();
+        void printNormals();
+
 
     private:
         std::string fieldOutputFileName_;

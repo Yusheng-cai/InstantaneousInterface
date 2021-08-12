@@ -68,15 +68,11 @@ void AverageField::finishCalculate()
 void AverageField::printOutputIfOnStep()
 {}
 
-void AverageField::printFinalOutput()
+void AverageField::printField()
 {
-    index3 N = field_.getN();
-    int Nx = N[0];
-    int Ny = N[1];
-    int Nz = N[2];
-
     if (fieldofs_.is_open())
     {
+        std::cout << "field size = " << field_.accessField().size() << std::endl;
         for (int i=0;i<field_.accessField().size();i++) 
         {
             fieldofs_ << field_.accessField()[i];
@@ -85,8 +81,10 @@ void AverageField::printFinalOutput()
         }
         fieldofs_.close();
     }
+}
 
-
+void AverageField::printVertices()
+{
     if (vertexofs_.is_open())
     {
         for (int i=0;i<vertices_.size();i++)
@@ -102,23 +100,10 @@ void AverageField::printFinalOutput()
         }
         vertexofs_.close();
     }
+}
 
-    if (vertexNormalofs_.is_open())
-    {
-        for (int i=0;i<vertices_.size();i++)
-        {
-            for (int j=0;j<3;j++)
-            {
-                vertexNormalofs_ << vertices_[i].normals_[j];
-                
-                vertexNormalofs_ << " ";
-            }
-
-            vertexNormalofs_ << "\n";
-        }
-        vertexNormalofs_.close();
-    }
-
+void AverageField::printTriangleIndices()
+{
     if (triangleIndicesofs_.is_open())
     {
         for (int i=0;i<triangles_.size();i++)
@@ -134,5 +119,31 @@ void AverageField::printFinalOutput()
 
         triangleIndicesofs_.close();
     }
+}
 
+void AverageField::printNormals()
+{
+   if (vertexNormalofs_.is_open())
+    {
+        for (int i=0;i<vertices_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                vertexNormalofs_ << vertices_[i].normals_[j];
+
+                vertexNormalofs_ << " ";
+            }
+
+            vertexNormalofs_ << "\n";
+        }
+        vertexNormalofs_.close();
+    }
+}
+
+void AverageField::printFinalOutput()
+{
+    printField();
+    printVertices(); 
+    printTriangleIndices();
+    printNormals();
 }
