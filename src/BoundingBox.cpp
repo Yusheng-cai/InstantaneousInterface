@@ -56,12 +56,12 @@ bool BoundingBox::isInside(const Real3& position) const
         return false;
     }
 
-    if (std::abs(distance[1] > halfLy_))
+    if (std::abs(distance[1]) > halfLy_)
     {
         return false;
     }
 
-    if (std::abs(distance[2] > halfLz_))
+    if (std::abs(distance[2]) > halfLz_)
     {
         return false;
     }
