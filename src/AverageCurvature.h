@@ -10,6 +10,7 @@ class AverageCurvature:public AverageField
 {
     public:
         AverageCurvature(const DensityFieldInput& input);
+        virtual ~AverageCurvature(){};
 
         virtual void finishCalculate() override;
         virtual void printFinalOutput() override;

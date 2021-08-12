@@ -10,9 +10,10 @@ class AverageField:public DensityField
 {
     public:
         AverageField(const DensityFieldInput& input);
+        virtual ~AverageField(){};
 
         virtual void calculate() override;
-        virtual void update() {};
+        virtual void update() override{};
         virtual void finishCalculate() override;
         virtual void printOutputIfOnStep() override; 
         virtual void printFinalOutput() override;
