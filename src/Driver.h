@@ -32,13 +32,23 @@ class Driver
 
         void initializeDensityField(const ParameterPack* densityPack);
 
+        void initializeDriver(const ParameterPack* driverPack);
+
+        // Read information from xdr
+        void readFrameXdr();
+
         void update();
 
         void calculate();
 
-        void printOutputfile();
+        void printOutputfileIfOnStep();
+
+        void printFinalOutput();
 
         void finishCalculate();
+
+        // check if the step is valid
+        bool CheckValidStep();
 
         // get num frames
         int getNumFrames() const {return xdrfile_->getNframes();}
@@ -66,4 +76,13 @@ class Driver
         DensityPtr densityfield_;
 
         BBPtr boundingbox_;
+
+        int Totalframes_;
+
+        // The starting frame_ + how many frames to skip for calculation
+        // This is 1 based counting
+        int starting_frame_ = 1;
+        // the number of frames to be skipped between 2 calculation
+        // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3
+        int skip_ = 0;
 };
