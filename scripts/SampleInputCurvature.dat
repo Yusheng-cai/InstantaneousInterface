@@ -12,7 +12,7 @@ atomgroup = {
 }
 
 densityfield = {
-    type        = averagefield
+    type        = averagecurvature
     isosurfacevalue  = 23.75
     dimensions  = [ 100 50 50 ]
     output      = test.out
