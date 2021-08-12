@@ -92,6 +92,8 @@ class IndexFileParsing: public AtomGroupParsingStrategy
         int frame_count = 0;
 
         int totalFrames_;
+
+        std::vector<int> Frames_;
 };
 
 namespace AtomGroupParsingRegistry

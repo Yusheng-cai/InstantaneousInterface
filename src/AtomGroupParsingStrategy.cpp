@@ -6,6 +6,7 @@ namespace AtomGroupParsingRegistry
     registry_<ResidueNumberParsing> registerResidueParsing("resnum");
     registry_<AtomTypeParsing> registerAtomType("atomtype");
     registry_<ResidueNameParsing> registerResidueName("resname");
+    registry_<IndexFileParsing> registerIndexFile("indexfile");
 }
 
 void AtomGroupParsingStrategy::SortAndCheckNoDuplicate(std::vector<int>& indices)
@@ -277,11 +278,16 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
     std::string sentence;
     while(std::getline(ifs_, sentence))
     {
-        if (!(sentence.find_first_of(comment_symbol) == std::string::npos))
+        int found = sentence.find_first_of(comment_symbol);
+        if (found == std::string::npos)
         {
             ss_.str(sentence);
             int index;
             std::vector<int> index_for_sentence;
+
+            // The first one is always the time index
+            ss_ >> index;
+            Frames_.push_back(index);
 
             while (ss_ >> index)
             {
@@ -291,10 +297,11 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
             SortAndCheckNoDuplicate(index_for_sentence);
 
             Fileindices_.push_back(index_for_sentence);
+
+            ss_.clear();
         }
     }
-
-    ifs_.close();
+    ifs_.close(); 
 
     totalFrames_ = Fileindices_.size();
 
@@ -312,7 +319,7 @@ void IndexFileParsing::Parse(std::vector<int>& indices)
 
     indices.insert(indices.end(),Fileindices_[0].begin(), Fileindices_[0].end());
 
-    frame_count ++;
+    //frame_count ++;
 }
 
 void IndexFileParsing::update(std::vector<int>& indices)
