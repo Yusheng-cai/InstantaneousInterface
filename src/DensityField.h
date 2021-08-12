@@ -40,10 +40,18 @@ class DensityField
         virtual void calculate() = 0;
         virtual void finishCalculate() {};
         virtual void printOutputIfOnStep() {};
+        virtual void printFinalOutput() {};
+
+        void precalculateDensity();
+
+        void findAtomsIndicesInBoundingBox();
 
         bool isOpen();
 
         void CalcOffsetIndex();
+
+        void CalculateUsingPreCalculatedDensity();
+        void CalculateOnTheFly();
 
         void addAtomGroup(std::string& name);
         void registerAtomGroupID(std::string& name, int index);
@@ -68,8 +76,6 @@ class DensityField
         Real sigma_;
 
         std::string output_name_="";
-        std::ofstream ofs_;
-        std::stringstream ss_;
 
         // we cut off n sigmas away
         int n_ = 2.5;
@@ -94,6 +100,14 @@ class DensityField
         MarchingCubesWrapper MarchingCubes_;
         std::vector<triangle> triangles_;
         std::vector<vertex> vertices_;
+        std::vector<Real> norms_;
+
+        std::vector<Real> DensityPreCalculate_;
+
+        std::vector<int> AtomIndicesInside_;
+        OpenMP::OpenMP_buffer<std::vector<int>> AtomIndicesBuffer_;
+
+        bool PreCalculateDensity_ = false;
 };
 
 namespace DensityFieldRegistry
