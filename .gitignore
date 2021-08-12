@@ -32,6 +32,8 @@
 *.app
 
 build/
-build.sh
+# build.sh
 RELEASE/
 DEBUG/
+
+.DS_Store
