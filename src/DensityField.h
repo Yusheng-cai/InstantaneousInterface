@@ -34,7 +34,7 @@ class DensityField
         using Range= CommonTypes::Real2;
 
         DensityField(const DensityFieldInput& input);
-        ~DensityField(){};
+        virtual ~DensityField(){};
 
         virtual void update() {};
         virtual void calculate() = 0;
@@ -78,7 +78,7 @@ class DensityField
         std::string output_name_="";
 
         // we cut off n sigmas away
-        int n_ = 2.5;
+        Real n_ = 2.5;
         Real cutoff_;
 
         // Name of the bounding box
