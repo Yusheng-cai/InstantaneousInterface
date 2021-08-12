@@ -17,6 +17,45 @@ AverageCurvature::AverageCurvature(const DensityFieldInput& input)
     }
 }
 
+void AverageCurvature::CalcNeighborsOfVertex()
+{
+    Num_neighbors_.clear();
+    neighbor_indices_.clear();
+    vertex_triangle_indices_.clear();
+
+    Num_neighbors_.resize(vertices_.size());
+    vertex_triangle_indices_.resize(vertices_.size());
+    std::fill(Num_neighbors_.begin(), Num_neighbors_.end(), 0);
+    neighbor_indices_.resize(vertices_.size());
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            int index1 = t.triangleindices_[j];
+            for (int k=0;k<3;k++)
+            {
+                if (j != k)
+                {
+                    int index2 = t.triangleindices_[k];
+
+                    auto it = std::find(neighbor_indices_[index1].begin(), neighbor_indices_[index1].end(), index2);
+
+                    if (it == neighbor_indices_[index1].end())
+                    {
+                        neighbor_indices_[index1].push_back(index2);
+                        Num_neighbors_[index1] += 1;
+
+                        vertex_triangle_indices_[index1].push_back(i);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void AverageCurvature::CalcTriangleAreaAndFacetNormals()
 {
     TriangleAreas_.resize(triangles_.size());
@@ -91,99 +130,86 @@ void AverageCurvature::CalcVertexNormals()
         {
             vertexNormals_[i][j] = vertexNormals_[i][j]/norm;
         }
-        std::cout << "vertexNormals " << i << " = " << vertexNormals_[i][0] << " " << vertexNormals_[i][1] << " " << vertexNormals_[i][2] << std::endl;
     }
-
-    // for (int i=0;i<vertices_.size();i++)
-    // {
-    //     vertices_[i].normals_ = vertexNormals_[i];
-    // }
 }
 
 void AverageCurvature::CalcCurvature()
 {
+    curvature_.clear();
     curvature_.resize(vertices_.size());
-    Num_neighbors_.resize(vertices_.size());
-    std::fill(Num_neighbors_.begin(), Num_neighbors_.end(),0);
-    std::fill(curvature_.begin(), curvature_.end(),1.0);
+    std::fill(curvature_.begin(), curvature_.end(),0.0);
+
+
+    neighborAreaTotlist_.clear();
+    neighborAreaTotlist_.resize(vertices_.size());
+    std::fill(neighborAreaTotlist_.begin(), neighborAreaTotlist_.end(),0.0);
 
     // Now we calculate the curvature
-    for (int i=0;i<triangles_.size();i++)
+    for (int i=0;i<vertices_.size();i++)
     {
-        auto& t = triangles_[i];
-        for (int j=0;j<3;j++)
+        auto& v1 = vertices_[i];
+        auto& neighbors = neighbor_indices_[i];
+        auto& triangleInd = vertex_triangle_indices_[i];
+
+        ASSERT(( triangleInd.size() == neighbors.size()), "The neighbor triangle indices does not match the number of neighbors.");
+
+        Real neighborAreaTot = 0.0;
+        for (int j=0;j<neighbors.size();j++)
         {
-            int index1 = t.triangleindices_[j];
-            auto& v1 = vertices_[index1];
-            for (int k=j+1;k<3;k++)
+            int id = triangleInd[j];
+            neighborAreaTot += TriangleAreas_[id];
+        }
+        neighborAreaTotlist_[i] = neighborAreaTot;
+
+        for (int j=0;j<neighbors.size();j++)
+        { 
+            auto& v2 = vertices_[neighbors[j]];
+            auto& triangleI = triangleInd[j];
+
+            Real3 diff;
+            Real3 diffn;
+            Real sq_diff=0.0;
+            Real dot_product = 0.0;
+            Real curve_Val;
+            diff.fill(0);
+            diffn.fill(0);
+            
+            for(int m=0;m<3;m++)
             {
-                int index2 = t.triangleindices_[k];
-                auto& v2 = vertices_[index2];
-
-                Real3 diff;
-                Real3 diffn;
-                Real sq_diff=0.0;
-                Real dot_product = 0.0;
-                Real curve_Val;
-                diff.fill(0);
-                diffn.fill(0);
-                
-                for(int m=0;m<3;m++)
-                {
-                    diff[m] = v2.position_[m] - v1.position_[m];
-                    diffn[m] = v2.normals_[m] - v1.normals_[m];
-                }
-
-                Real diffnnorm = LinAlg3x3::norm(diffn); 
-
-                for (int m=0;m<3;m++)
-                {
-                    sq_diff += diff[m]*diff[m];
-                }
-
-                for (int m=0;m<3;m++)
-                {
-                    dot_product += diff[m]*diffn[m];
-                }
-
-                curve_Val = dot_product/sq_diff;
-
-                
-
-                Num_neighbors_[index1] += 1;
-                Num_neighbors_[index2] += 1;
-
-                curvature_[index1]  *= std::abs(curve_Val);
-                curvature_[index2]  *= std::abs(curve_Val);
-
-                if (v2.position_[0] > 6.8)
-                {
-                    std::cout << "normal2 = " << v2.normals_[0] << " " << v2.normals_[1] << " " << v2.normals_[2] << std::endl;
-                    std::cout << "normal1 = " << v1.normals_[0] << " " << v1.normals_[1] << " " << v1.normals_[2] << std::endl;
-                    std::cout << "diff = " << diff[0] << " " << diff[1] << " " << diff[2] << std::endl;
-                    std::cout << "diffn = " << diffn[0] << " " << diffn[1] << " " << diffn[2] << std::endl;
-                    std::cout << "dot_product = " << dot_product << std::endl;
-                    std::cout << "sq_diff = " << sq_diff << std::endl;
-                    std::cout << "val = " << curve_Val << std::endl;
-                    std::cout << "curvature1, index =  " << index1 << " = " << curvature_[index1] << std::endl;
-                    std::cout << "curvature2, index = " << index2 << " = " << curvature_[index2] << std::endl; 
-                }
+                diff[m] = v2.position_[m] - v1.position_[m];
+                diffn[m] = v2.normals_[m] - v1.normals_[m];
             }
+
+            Real diffnnorm = LinAlg3x3::norm(diffn); 
+
+            for (int m=0;m<3;m++)
+            {
+                sq_diff += diff[m]*diff[m];
+            }
+
+            for (int m=0;m<3;m++)
+            {
+                dot_product += diff[m]*diffn[m];
+            }
+
+            curve_Val = dot_product/sq_diff;
+
+            std::cout << "For vertex " << i << " triangle area " << j << "="<< TriangleAreas_[triangleI];
+            std::cout << "Total area = " << neighborAreaTotlist_[i] << std::endl;
+            curvature_[i]  += std::abs(curve_Val) * TriangleAreas_[triangleI]/neighborAreaTotlist_[i];
         }
     }
 
     for (int i=0;i<curvature_.size();i++)
-    {
-        std::cout << "Curvature before = " << curvature_[i] << std::endl;
-        std::cout << "Num neighbors = " << Num_neighbors_[i] << std::endl;
-        curvature_[i] = std::pow(curvature_[i], 1.0/Num_neighbors_[i]);
-        std::cout << "After calc = " << curvature_[i] << std::endl;
+    { 
+        curvature_[i] = std::exp(curvature_[i]);
     }    
 }
 
 void AverageCurvature::finishCalculate()
 {
     auto& fieldVec = field_.accessField();
+    std::cout << "The number of frames to be averaged = " << simstate_.getTotalFramesToBeCalculated() << std::endl;
     Real avgFac = 1.0/simstate_.getTotalFramesToBeCalculated();
 
     // performing average on the field
@@ -195,6 +221,7 @@ void AverageCurvature::finishCalculate()
     // calculate the vertices of the system from the averaged density field
     MarchingCubes_.calculate(field_, vertices_, triangles_, isoSurfaceVal_);
 
+    CalcNeighborsOfVertex();
     CalcTriangleAreaAndFacetNormals();
     CalcVertexNormals();
     CalcCurvature(); 
