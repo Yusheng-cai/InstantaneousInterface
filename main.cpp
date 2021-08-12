@@ -17,23 +17,28 @@ int main(int argc, char** argv)
 
     Driver d(pack, cmd);
 
+    for (int i=0;i<d.getNumFrames();i++)
+    {
+        d.readFrameXdr();
+
+        if (d.CheckValidStep())
+        {
+            d.update();
+
+            auto start = std::chrono::high_resolution_clock::now();
+            d.calculate();
+            auto end = std::chrono::high_resolution_clock::now();
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+            std::cout << "Time it took for calculate is " << diff.count() << std::endl;
+        }
+
+        d.printOutputfileIfOnStep();
+    }
     auto start = std::chrono::high_resolution_clock::now();
-    d.update();
+    d.finishCalculate();
     auto end = std::chrono::high_resolution_clock::now();
     auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-    std::cout << "Time it took for update is " << diff.count() << std::endl;
+    std::cout << "Time it took for finish calculate is " << diff.count() << std::endl;
 
-    start = std::chrono::high_resolution_clock::now();
-    d.calculate();
-    end = std::chrono::high_resolution_clock::now();
-    auto diff2 = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-    std::cout << "Time it took for calculate is " << diff2.count() << std::endl;
-
-    start = std::chrono::high_resolution_clock::now();
-    d.finishCalculate();
-    end = std::chrono::high_resolution_clock::now();
-    auto diff3 = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-    std::cout << "Time it took for finish calc is " << diff3.count() << std::endl;
-
-    d.printOutputfile();
+    d.printFinalOutput();
 }
