@@ -4,22 +4,24 @@ target_sources(src PRIVATE
     "AtomGroup.cpp"
     "AtomGroupParsingStrategy.cpp"
     "BoundingBox.cpp"
-    "AverageField.cpp"
     "DensityField.cpp"
     "Driver.cpp"
     "Field.cpp"
     "SimulationBox.cpp"
     "SimulationState.cpp"
     "MarchingCubesWrapper.cpp"
-    "AverageCurvature.cpp"
+    "AverageField.cpp"
     "LinAlgTools.cpp"
+    "Mesh.cpp"
+    "Curvature.cpp"
+    "CurvatureFDM.cpp"
+    "CurvatureTensor.cpp"
 )
 
 set(src_HEADER
     "AtomGroup.h"
     "AtomGroupParsingStrategy.h"
     "BoundingBox.h"
-    "AverageField.h"
     "DensityField.h"
     "Driver.h"
     "Field.h"
@@ -27,8 +29,12 @@ set(src_HEADER
     "SimulationState.h"
     "GaussianCoarseGrainFunction.h"
     "MarchingCubesWrapper.h"
-    "AverageCurvature.h"
     "LinAlgTools.h"
+    "AverageField.h"
+    "Mesh.h"
+    "Curvature.cpp"
+    "CurvatureFDM.cpp"
+    "CurvatureTensor.cpp"
 )
 
 target_include_directories(src
