@@ -92,7 +92,7 @@ std::vector<const std::vector<std::string>*> ParameterPack::findVectors(const st
 
     if (num_matches == 0)
     {
-        ASSERT((keytype != ParameterPack::KeyType::Required), "The required key for vector is not provided.");
+        ASSERT((keytype != ParameterPack::KeyType::Required), "The required key " << key << " for vector is not provided.");
     }
 
     std::vector<const std::vector<std::string>*> vector_ptrs;
@@ -133,7 +133,7 @@ std::vector<const ParameterPack*> ParameterPack::findParamPacks(const std::strin
 
     if (num_matches == 0)
     {
-        ASSERT((keytype != ParameterPack::KeyType::Required), "The required key for ParamPack is not provided.");
+        ASSERT((keytype != ParameterPack::KeyType::Required), "The required key " << key << " for ParamPack is not provided.");
     }
 
     std::vector<const ParameterPack*> vec_param;
@@ -226,6 +226,28 @@ bool ParameterPack::ReadVectorString(const std::string& key, const KeyType keyty
     }
 
     return false;
+}
+
+void ParameterPack::print()
+{
+    for (auto it = value_.begin(); it !=value_.end();it++)
+    {
+        std::cout << "Key for value is " << it -> first << std::endl;
+    }
+
+    for (auto it = vectors_.begin(); it != vectors_.end();it++)
+    {
+        std::cout << "Key for vector is " << it -> first << std::endl;
+    }
+
+    for (auto it = parampacks_.begin();it != parampacks_.end(); it++)
+    {
+        std::cout << "Key for param pack is " << it ->first << std::endl;
+        for (auto it2 = it->second.parampacks_.begin(); it2 != it->second.parampacks_.end();it2++)
+        {
+            std::cout << "Key in param pack " << it -> first << " is " << it2 -> first << std::endl;
+        }
+    }
 }
 
                                         //// TokenStream ////
@@ -334,8 +356,6 @@ TokenStream::Status InputParser::ParseNextToken(TokenStream& toks, ParameterPack
         status = ParseParamPack(toks, new_param);
 
         ASSERT((status == TokenStream::Status::Close_Brace), "Missing Ending Brace.");
-
-        return status;
     }
     else if (value == "[")
     {

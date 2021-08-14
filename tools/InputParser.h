@@ -72,6 +72,8 @@ class ParameterPack
 
         template<typename T, std::size_t dim>
         bool ReadArrayNumber(const std::string& key, const KeyType, std::array<T,dim>& arrval) const;
+
+        void print();
  
     private:
         std::multimap<std::string, std::string> value_;
