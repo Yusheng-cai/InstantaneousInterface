@@ -52,7 +52,6 @@ class BoundingBox
         Range z_range_;
 
         SimulationBox& simBox_;
-        SimulationBox BoundBox_;
 
         Real3 center_;
 
