@@ -173,3 +173,130 @@ void Mesh::CalcVertexNormals()
         }
     }
 }
+
+
+bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
+{
+    std::ifstream ifs_;
+    std::stringstream ss_;
+
+    ifs_.open(filename);
+    ASSERT((ifs_.is_open()), "The file with name " << filename << " is not opened.");
+
+    auto& vertices = mesh_.accessvertices();
+
+    std::string sentence;
+    while (std::getline(ifs_, sentence))
+    {
+        ss_.str(sentence);
+        std::string token;
+        
+        ss_ >> token;
+
+        if (token.empty())
+        {
+            continue;
+        }
+
+        double num;
+        if (StringTools::StringToType<double>(token, num))
+        {
+            continue;
+        }
+        else
+        {
+            std::vector<double> NumberPerLine;
+            double number;
+            StringTools::StringToType<double>(token, number);
+            NumberPerLine.push_back(number);
+
+            while (ss_ >> token)
+            {
+                bool fail = StringTools::StringToType<double>(token, number);
+
+                ASSERT((fail == false), "The read operation failed.");
+                NumberPerLine.push_back(number);
+            }
+
+            ASSERT((NumberPerLine.size()==6), "There are " << NumberPerLine.size() << " numbers on each line while it is required to have x,y,z,nx,ny,nz only");
+
+            vertex v;
+
+            for (int i=0;i<3;i++)
+            {
+                v.position_[i] = NumberPerLine[i];
+            }
+
+            for (int i=0;i<3;i++)
+            {
+                v.normals_[i] = NumberPerLine[i+3];
+            }
+
+            vertices.push_back(v);
+        }
+
+        ss_.clear();
+    }
+
+    return true;
+}
+
+bool MeshTools::readTriangle(std::string& filename, Mesh& mesh_)
+{
+    std::ifstream ifs_;
+    std::stringstream ss_;
+
+    ifs_.open(filename);
+    ASSERT((ifs_.is_open()), "The file with name " << filename << " is not opened.");
+
+    auto& triangles= mesh_.accesstriangles();
+
+    std::string sentence;
+    while (std::getline(ifs_, sentence))
+    {
+        ss_.str(sentence);
+        std::string token;
+        
+        ss_ >> token;
+
+        if (token.empty())
+        {
+            continue;
+        }
+
+        int num;
+        if (StringTools::StringToType<int>(token, num))
+        {
+            continue;
+        }
+        else
+        {
+            // ignore the first number
+            std::vector<int> NumberPerLine;
+            int number;
+
+            while (ss_ >> token)
+            {
+                bool fail = StringTools::StringToType<int>(token, number);
+
+                ASSERT((fail == false), "The read operation failed.");
+                NumberPerLine.push_back(number);
+            }
+
+            ASSERT((NumberPerLine.size()==3), "There are " << NumberPerLine.size() << " numbers on each line while it is required to have Id_x, Id_y, Id_z only");
+
+            triangle t;
+
+            for (int i=0;i<3;i++)
+            {
+                t.triangleindices_[i] = NumberPerLine[i];
+            }
+
+            triangles.push_back(t);
+        }
+
+        ss_.clear();
+    }
+
+    return true;
+}

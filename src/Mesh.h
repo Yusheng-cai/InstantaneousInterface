@@ -2,11 +2,13 @@
 #include "tools/Assert.h"
 #include "tools/CommonTypes.h"
 #include "LinAlgTools.h"
+#include "tools/InputParser.h"
 
 #include <vector>
 #include <array>
 #include <cmath>
 #include <algorithm>
+#include <sstream>
 
 class MarchingCubesWrapper;
 
@@ -86,4 +88,11 @@ class Mesh
 
         std::vector<Real3> PerVertexdir1_;
         std::vector<Real3> PerVertexdir2_;
+};
+
+
+namespace MeshTools
+{
+    bool readPLY(std::string& filename, Mesh& mesh_);
+    bool readTriangle(std::string& filename, Mesh& mesh_);
 };
