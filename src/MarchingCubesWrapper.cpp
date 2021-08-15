@@ -1,6 +1,6 @@
 #include "MarchingCubesWrapper.h"
 
-void MarchingCubesWrapper::calculate(Field& field_, std::vector<vertex>& vertices, std::vector<triangle>& triangles,Real isoSurfaceVal)
+void MarchingCubesWrapper::calculate(Field& field_, Mesh& mesh_,Real isoSurfaceVal)
 {
     index3 index = field_.getN();
     Real3 spacing= field_.getSpacing();
@@ -14,11 +14,15 @@ void MarchingCubesWrapper::calculate(Field& field_, std::vector<vertex>& vertice
     
     Real3 Length = field_.getLength();
 
+    auto& vertices = mesh_.accessvertices();
+    auto& triangles= mesh_.accesstriangles();
+
     vertices.clear();
     triangles.clear();
 
     vertices.resize(NumberVertex);
     triangles.resize(NumberTriangle);
+
 
     for (int i=0;i<vertices.size();i++)
     {
