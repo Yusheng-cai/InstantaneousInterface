@@ -42,15 +42,11 @@ class DensityField
         virtual void printOutputIfOnStep() {};
         virtual void printFinalOutput() {};
 
-        void precalculateDensity();
-
         void findAtomsIndicesInBoundingBox();
 
         bool isOpen();
 
         void CalcOffsetIndex();
-
-        void CalculateUsingPreCalculatedDensity();
         void CalculateOnTheFly();
 
         void addAtomGroup(std::string& name);
@@ -98,9 +94,8 @@ class DensityField
         Real isoSurfaceVal_;
 
         MarchingCubesWrapper MarchingCubes_;
-        std::vector<triangle> triangles_;
-        std::vector<vertex> vertices_;
-        std::vector<Real> norms_;
+        Mesh mesh_;
+
 
         std::vector<Real> DensityPreCalculate_;
 

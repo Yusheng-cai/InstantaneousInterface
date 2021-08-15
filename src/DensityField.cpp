@@ -27,9 +27,6 @@ DensityField::DensityField(const DensityFieldInput& input)
     z_range_ = bound_box_->getZrange();
 
 
-    // whether or not we are precalculating density to be reused throughout
-    input.pack_.Readbool("precalculatedensity", ParameterPack::KeyType::Optional, PreCalculateDensity_);
-
     // calculate the actual cut off
     cutoff_ = n_*sigma_;
 
@@ -39,21 +36,10 @@ DensityField::DensityField(const DensityFieldInput& input)
     // calculate the offset Index
     CalcOffsetIndex();
 
-    // for (int i=0;i<offsetIndex_.size();i++)
-    // {
-    //     for (int j=0;j<3;j++)
-    //     {
-    //         std::cout << offsetIndex_[i][j] << " ";
-    //     } 
-    //     std::cout << "\n";
-    // }
-
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
     {
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
-
-    precalculateDensity();
 }
 
 
@@ -122,32 +108,11 @@ AtomGroup& DensityField::accessAtomGroup(std::string& name)
     return const_cast<AtomGroup&>(*AtomGroups_[ID]);
 }
 
-void DensityField::precalculateDensity()
-{
-    DensityPreCalculate_.clear(); 
-    DensityPreCalculate_.resize(offsetIndex_.size());
-
-    Real3 originPos = field_.getPositionOnGrid(0,0,0);
-
-    #pragma omp parallel for
-    for (int i=0;i<offsetIndex_.size();i++)
-    {
-        index3 index = offsetIndex_[i];
-
-        Real3 pos = field_.getPositionOnGrid(index[0], index[1], index[2]);
-
-        Real3 distance;
-        bound_box_->calculateDistance(pos, originPos, distance);
-
-        Real val = GaussianCoarseGrain::GaussianCoarseGrainFunction(distance, sigma_);
-        DensityPreCalculate_[i] = val;
-    }
-}
-
 void DensityField::findAtomsIndicesInBoundingBox()
 {
     auto atomgroup = getAtomGroup(atomGroupName_);
     auto& atoms = atomgroup.getAtoms();
+    std::cout << "atoms.size = " << atoms.size() << std::endl;
 
     AtomIndicesInside_.clear();
     AtomIndicesBuffer_.clearBuffer();
@@ -180,55 +145,6 @@ void DensityField::findAtomsIndicesInBoundingBox()
     }
 }
 
-void DensityField::CalculateUsingPreCalculatedDensity()
-{
-    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-    {
-        it -> zero();
-    }
-    FieldBuffer_.set_master_object(field_);
-
-    findAtomsIndicesInBoundingBox(); 
-
-    auto atomgroup = getAtomGroup(atomGroupName_);
-    auto& atoms = atomgroup.getAtoms();
-
-    #pragma omp parallel
-    {
-        auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
-
-        #pragma omp for 
-        for (int i=0;i<AtomIndicesInside_.size();i++)
-        {
-            int indices = AtomIndicesInside_[i];
-
-            Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
-            index3 Index       = fieldbuf.getClosestGridIndex(correctedPos);
-
-            for(int j=0;j<offsetIndex_.size();j++)
-            {
-                index3 RealIndex;
-                for (int k=0;k<3;k++)
-                {
-                    RealIndex[k] = Index[k] + offsetIndex_[j][k];
-                }
-
-                Real val = DensityPreCalculate_[j];
-                fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
-            }
-        }    
-    }
-
-    #pragma omp parallel for
-    for (int i=0;i<field_.totalSize();i++)
-    {
-        for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-        {
-            field_.accessField()[i] += it->accessField()[i];
-        }
-    }
-}
-
 void DensityField::CalculateOnTheFly()
 {
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
@@ -252,6 +168,7 @@ void DensityField::CalculateOnTheFly()
             int indices = AtomIndicesInside_[i];;
             Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
             index3 Index       = fieldbuf.getClosestGridIndex(correctedPos);
+
 
             for(int j=0;j<offsetIndex_.size();j++)
             {
