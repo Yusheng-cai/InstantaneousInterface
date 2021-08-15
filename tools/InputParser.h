@@ -15,6 +15,9 @@
 namespace StringTools
 {
     template <typename T>
+    bool StringToType(std::string str, T& num);
+
+    template <typename T>
     T StringToType(std::string str);
 
     void to_lower(std::string& str);
@@ -121,15 +124,25 @@ class InputParser
 
 
 template <typename T>
+bool StringTools::StringToType(std::string str, T& num)
+{
+    std::stringstream ss(str);
+    ss >> num;
+
+    return ss.fail();
+}
+
+template <typename T>
 T StringTools::StringToType(std::string str)
 {
     std::stringstream ss(str);
-    T variable;
-    ss >> variable;
 
-    ASSERT((! ss.fail()), "Convert from string " << str <<" to number failed.");
+    T num;
+    ss >> num;
 
-    return variable;
+    ASSERT((! ss.fail()), "The conversion cannot be performed with string " << str);
+
+    return num;
 }
 
 template <typename T>
@@ -138,7 +151,10 @@ bool StringTools::VectorStringTransform(std::vector<std::string> vecstr, std::ve
     output.clear();
     for (auto str: vecstr)
     {
-        output.push_back(StringTools::StringToType<T>(str));
+        T num;
+        bool fail = StringTools::StringToType<T>(str, num);
+        ASSERT((fail == false), "The read operation failed.");
+        output.push_back(num);
     }
 
     return true;
@@ -151,7 +167,9 @@ bool ParameterPack::ReadNumber(const std::string& key, const ParameterPack::KeyT
 
     if (str != nullptr)
     {
-        val = StringTools::StringToType<T>(*str);
+        bool fail = StringTools::StringToType<T>(*str,val);
+
+        ASSERT((fail == false), "The read operation failed.");
 
         return true;
     }
@@ -169,7 +187,9 @@ bool ParameterPack::ReadVectorNumber(const std::string& key, const ParameterPack
     {
         for (int i =0; i< vecstr->size();i++)
         {
-            T val  = StringTools::StringToType<T>(vecstr->at(i));
+            T val;
+            bool fail = StringTools::StringToType<T>(vecstr->at(i), val);
+            ASSERT((fail == false), "The read operation failed.");
             vecval.push_back(val);
         }
 
