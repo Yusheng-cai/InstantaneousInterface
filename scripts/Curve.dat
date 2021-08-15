@@ -1,0 +1,12 @@
+vertexfile = {
+    name = sample_sphere.ply
+}
+
+trianglefile = {
+    name = triangle_indices.ply
+}
+
+curvature = {
+    type = tensor
+    output = c.out
+}
