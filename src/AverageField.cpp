@@ -36,18 +36,33 @@ AverageField::AverageField(const DensityFieldInput& input)
         vertexNormalofs_.open(vertexNormalFileName_);
         ASSERT((vertexNormalofs_.is_open()), "The file with name " << vertexNormalFileName_ << " is not opened.");
     }
+
+    auto CurvaturePack = input.pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+    initializeCurvature(CurvaturePack);
+}
+
+void AverageField::initializeCurvature(std::vector<const ParameterPack*>& pack)
+{
+    if( pack.size() != 0)
+    {
+        for (int i=0;i<pack.size();i++)
+        {
+            std::string curvatureType;
+            auto& p = pack[i];
+
+            p -> ReadString("type", ParameterPack::KeyType::Required, curvatureType);
+
+            CurvatureInput input = { const_cast<ParameterPack&>(*(p)), mesh_ };
+            CurvaturePtr ptr = CurvaturePtr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
+
+            curvatures_.push_back(std::move(ptr)); 
+        }
+    }
 }
 
 void AverageField::calculate()
 {
-    if (PreCalculateDensity_)
-    {
-        CalculateUsingPreCalculatedDensity(); 
-    }
-    else
-    {
-        CalculateOnTheFly();
-    }
+    CalculateOnTheFly();
 }
 
 void AverageField::finishCalculate()
@@ -62,7 +77,12 @@ void AverageField::finishCalculate()
         fieldVec[i] = avgFac*fieldVec[i]; 
     }
 
-    MarchingCubes_.calculate(field_, vertices_, triangles_, isoSurfaceVal_);
+    MarchingCubes_.calculate(field_, mesh_, isoSurfaceVal_);
+
+    for (int i=0;i<curvatures_.size();i++)
+    {
+        curvatures_[i]->calculate();
+    }
 }
 
 void AverageField::printOutputIfOnStep()
@@ -72,7 +92,6 @@ void AverageField::printField()
 {
     if (fieldofs_.is_open())
     {
-        std::cout << "field size = " << field_.accessField().size() << std::endl;
         for (int i=0;i<field_.accessField().size();i++) 
         {
             fieldofs_ << field_.accessField()[i];
@@ -86,7 +105,8 @@ void AverageField::printField()
 void AverageField::printVertices()
 {
     if (vertexofs_.is_open())
-    {
+    {  
+        const auto& vertices_ = mesh_.getvertices();
         for (int i=0;i<vertices_.size();i++)
         {
             for (int j=0;j<3;j++)
@@ -106,6 +126,7 @@ void AverageField::printTriangleIndices()
 {
     if (triangleIndicesofs_.is_open())
     {
+        const auto& triangles_ = mesh_.gettriangles();
         for (int i=0;i<triangles_.size();i++)
         {
             for (int j=0;j<3;j++)
@@ -125,6 +146,7 @@ void AverageField::printNormals()
 {
    if (vertexNormalofs_.is_open())
     {
+        const auto& vertices_ = mesh_.getvertices();
         for (int i=0;i<vertices_.size();i++)
         {
             for (int j=0;j<3;j++)
@@ -146,4 +168,9 @@ void AverageField::printFinalOutput()
     printVertices(); 
     printTriangleIndices();
     printNormals();
+
+    for (int i=0;i<curvatures_.size();i++)
+    {
+        curvatures_[i]->printOutput();
+    }
 }

@@ -1,14 +1,18 @@
 #include "DensityField.h"
 #include "parallel/OpenMP_buffer.h"
+#include "Curvature.h"
 
 #include <string>
 #include <vector>
 #include <iostream>
 #include <sstream>
+#include <memory>
 
 class AverageField:public DensityField
 {
     public:
+        using CurvaturePtr = std::unique_ptr<Curvature>;
+
         AverageField(const DensityFieldInput& input);
         virtual ~AverageField(){};
 
@@ -17,6 +21,8 @@ class AverageField:public DensityField
         virtual void finishCalculate() override;
         virtual void printOutputIfOnStep() override; 
         virtual void printFinalOutput() override;
+
+        void initializeCurvature(std::vector<const ParameterPack*>& pack);
 
         void printField();
         void printTriangleIndices();
@@ -34,4 +40,6 @@ class AverageField:public DensityField
         std::ofstream triangleIndicesofs_;
         std::ofstream vertexofs_;
         std::ofstream vertexNormalofs_;
+
+        std::vector<CurvaturePtr> curvatures_;
 };
