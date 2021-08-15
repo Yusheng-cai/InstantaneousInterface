@@ -35,11 +35,16 @@ add_subdirectory(tools)
 add_subdirectory(parallel)
 add_subdirectory(xdr)
 add_subdirectory(MarchingCubes)
+add_subdirectory(Eigen)
 
 add_executable(InstantaneousInterface main.cpp)
+add_executable(Curve curve.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
+target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC xdr src tools parallel MarchingCubes)
+target_link_libraries(Curve PUBLIC xdr src tools parallel MarchingCubes)
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
+install(TARGETS Curve DESTINATION bin)
