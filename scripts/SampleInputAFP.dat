@@ -1,5 +1,5 @@
 xdrfile = {
-    path = try.xtc
+    path = try_trans.xtc
 }
 
 atomgroup = {
@@ -8,7 +8,13 @@ atomgroup = {
 }
 
 densityfield = {
-    type        = averagecurvature
+    type        = averagefield
+
+    curvature   = {
+        type = tensor
+        output = curve.out
+    }
+
     isosurfacevalue  = 16
     dimensions  = [ 50 50 50 ]
     boundingbox = bb
@@ -19,7 +25,6 @@ densityfield = {
     vertex_output = vertex.out 
     normal_output = normals.out
     triangle_output = triangle.out
-    curvature_output = curve.out
     norms_output = norms.out
 }
 
