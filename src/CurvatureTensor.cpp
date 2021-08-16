@@ -91,9 +91,23 @@ void CurvatureTensor::calculate()
         A(2,1) = A(0,1);
         A(1,0) = A(0,1);
 
+        for (int j=0;j<3;j++)
+        {
+            int id = t[j];
+        }
+
+        Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
         Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeThinU|Eigen::ComputeThinV).solve(b);
         Real3 ans;
+        Eigen::Matrix2d triangleMat;
+        triangleMat(0,0) = soln[0];
+        triangleMat(0,1) = soln[1];
+        triangleMat(1,0) = soln[1];
+        triangleMat(1,1) = soln[2];
+        eigensolver.compute(triangleMat);
 
+        Eigen::Vector2d eig = eigensolver.eigenvalues().real();
+ 
         for (int j=0;j<3;j++)
         {
             ans[j] = soln[j];
@@ -156,33 +170,6 @@ void CurvatureTensor::printOutput()
     }
 }
 
-CurvatureTensor::Matrix CurvatureTensor::getRotationMatrix(const Real3& vec1, const Real3& vec2)
-{
-    Real3 crossProduct = LinAlg3x3::CrossProduct(vec1, vec2);
-    Real norm = LinAlg3x3::norm(crossProduct);
-    Real cosine = LinAlg3x3::DotProduct(vec1, vec2);
-
-    Matrix ret;
-    Real denom = 1.0 + cosine;
-    Real factor;
-
-    if (std::abs(denom) < 1e-7) { factor = 0.0;}
-    else{factor = 1.0/(1.0 + cosine);}
-
-
-    ret[0][0] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[1]*crossProduct[1]);
-    ret[0][1] = -crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
-    ret[0][2] = crossProduct[1] + factor*crossProduct[0]*crossProduct[2];
-    ret[1][0] = crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
-    ret[1][1] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[0]*crossProduct[0]);
-    ret[1][2] = -crossProduct[0] + factor*crossProduct[1]*crossProduct[2];
-    ret[2][0] = -crossProduct[1] + factor*crossProduct[2]*crossProduct[0];
-    ret[2][1] = crossProduct[0] + factor*crossProduct[2]*crossProduct[1];
-    ret[2][2] = 1 + factor*(-crossProduct[1]*crossProduct[1] - crossProduct[0]*crossProduct[0]);
-
-    return ret;
-}
-
 CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature)
 {
     Real3 newu;
@@ -195,7 +182,7 @@ CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, cons
     Real3 refN = LinAlg3x3::CrossProduct(refu, refv);
     LinAlg3x3::normalize(refN);
 
-    Matrix rotationMatrix = getRotationMatrix(oldN, refN);
+    Matrix rotationMatrix = LinAlg3x3::GetRotationMatrix(oldN, refN);
 
     newu = LinAlg3x3::MatrixDotVector(rotationMatrix, oldu);
     LinAlg3x3::normalize(newu);
