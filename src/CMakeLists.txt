@@ -16,6 +16,8 @@ target_sources(src PRIVATE
     "Curvature.cpp"
     "CurvatureFDM.cpp"
     "CurvatureTensor.cpp"
+    "Graph.cpp"
+    "CurvatureCurveFit.cpp"
 )
 
 set(src_HEADER
@@ -32,9 +34,11 @@ set(src_HEADER
     "LinAlgTools.h"
     "AverageField.h"
     "Mesh.h"
-    "Curvature.cpp"
-    "CurvatureFDM.cpp"
-    "CurvatureTensor.cpp"
+    "Curvature.h"
+    "CurvatureFDM.h"
+    "CurvatureTensor.h"
+    "Graph.h"
+    "CurvatureCurveFit.h"
 )
 
 target_include_directories(src
