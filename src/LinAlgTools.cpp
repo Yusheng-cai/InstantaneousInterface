@@ -78,3 +78,30 @@ LinAlg3x3::Real3 LinAlg3x3::MatrixDotVector(const Matrix& A, const Real3& v1)
 
     return ans;
 }
+
+LinAlg3x3::Matrix LinAlg3x3::GetRotationMatrix(const Real3& v1, const Real3& v2)
+{
+    Real3 crossProduct = LinAlg3x3::CrossProduct(v1, v2);
+    Real norm = LinAlg3x3::norm(crossProduct);
+    Real cosine = LinAlg3x3::DotProduct(v1, v2);
+
+    Matrix ret;
+    Real denom = 1.0 + cosine;
+    Real factor;
+
+    if (std::abs(denom) < 1e-7) { factor = 0.0;}
+    else{factor = 1.0/(1.0 + cosine);}
+
+
+    ret[0][0] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[1]*crossProduct[1]);
+    ret[0][1] = -crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[0][2] = crossProduct[1] + factor*crossProduct[0]*crossProduct[2];
+    ret[1][0] = crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[1][1] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[0]*crossProduct[0]);
+    ret[1][2] = -crossProduct[0] + factor*crossProduct[1]*crossProduct[2];
+    ret[2][0] = -crossProduct[1] + factor*crossProduct[2]*crossProduct[0];
+    ret[2][1] = crossProduct[0] + factor*crossProduct[2]*crossProduct[1];
+    ret[2][2] = 1 + factor*(-crossProduct[1]*crossProduct[1] - crossProduct[0]*crossProduct[0]);
+
+    return ret;
+}
