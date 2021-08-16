@@ -12,12 +12,20 @@ CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 void CurvatureTensor::calculate()
 {
     mesh_.CalcPerVertexDir();
+    mesh_.CalcTriangleAreaAndFacetNormals();
 
     const auto& triangles = mesh_.gettriangles();
     const auto& vertices  = mesh_.getvertices();
+    const auto& pervertexdir1 = mesh_.getPerVertexDir1();
+    const auto& pervertexdir2 = mesh_.getPerVertexDir2();
+    const auto& triangleArea = mesh_.getTriangleArea();
 
-    curvatureTensor_.resize(triangles.size());
-    curvatureVec_.resize(triangles.size());
+
+    curvatureTensorPerTriangle_.resize(triangles.size());
+    curvatureTensorPerVertex_.resize(vertices.size());
+    curvatureVec_.resize(vertices.size());
+    TotalAreaPerVertex_.resize(vertices.size());
+    std::fill(TotalAreaPerVertex_.begin(), TotalAreaPerVertex_.end(),0);
 
     for (int i=0;i<triangles.size();i++)
     {
@@ -91,17 +99,39 @@ void CurvatureTensor::calculate()
             ans[j] = soln[j];
         }
 
-        curvatureTensor_[i] = ans;
- 
+        curvatureTensorPerTriangle_[i] = ans;
+        
+        for (int j=0;j<3;j++)
+        {
+            int id_ = t[j];
+            auto& u = pervertexdir1[id_];
+            auto& v = pervertexdir2[id_];
+
+            Real3 newcurv = projectCurvature(u,v, U, V,ans);
+            for (int k = 0;k<3;k++)
+            {
+                curvatureTensorPerVertex_[id_][k] += newcurv[k] * triangleArea[i];
+            }
+            TotalAreaPerVertex_[id_] += triangleArea[i];
+        }
+    }
+
+    for (int i=0;i<vertices.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            curvatureTensorPerVertex_[i][j] /= TotalAreaPerVertex_[i];
+        }
+
         Eigen::Matrix2d mat;
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
 
-        mat(0,0) = ans[0];
-        mat(0,1) = ans[1];
-        mat(1,0) = ans[1];
-        mat(1,1) = ans[2];
-        eigensolver.compute(mat);
+        mat(0,0) = curvatureTensorPerVertex_[i][0];
+        mat(0,1) = curvatureTensorPerVertex_[i][1];
+        mat(1,0) = curvatureTensorPerVertex_[i][1];
+        mat(1,1) = curvatureTensorPerVertex_[i][2];
 
+        eigensolver.compute(mat);
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
 
         curvatureVec_[i][0] = eigenvalues[0];
@@ -113,6 +143,7 @@ void CurvatureTensor::printOutput()
 {
     if (ofs_.is_open())
     {
+        ofs_ << "# k1 k2" << std::endl;
         for (int i=0;i<curvatureVec_.size();i++)
         {
             for (int j=0;j<2;j++)
@@ -123,4 +154,63 @@ void CurvatureTensor::printOutput()
         }
         ofs_.close();
     }
+}
+
+CurvatureTensor::Matrix CurvatureTensor::getRotationMatrix(const Real3& vec1, const Real3& vec2)
+{
+    Real3 crossProduct = LinAlg3x3::CrossProduct(vec1, vec2);
+    Real norm = LinAlg3x3::norm(crossProduct);
+    Real cosine = LinAlg3x3::DotProduct(vec1, vec2);
+
+    Matrix ret;
+    Real denom = 1.0 + cosine;
+    Real factor;
+
+    if (std::abs(denom) < 1e-7) { factor = 0.0;}
+    else{factor = 1.0/(1.0 + cosine);}
+
+
+    ret[0][0] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[1]*crossProduct[1]);
+    ret[0][1] = -crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[0][2] = crossProduct[1] + factor*crossProduct[0]*crossProduct[2];
+    ret[1][0] = crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[1][1] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[0]*crossProduct[0]);
+    ret[1][2] = -crossProduct[0] + factor*crossProduct[1]*crossProduct[2];
+    ret[2][0] = -crossProduct[1] + factor*crossProduct[2]*crossProduct[0];
+    ret[2][1] = crossProduct[0] + factor*crossProduct[2]*crossProduct[1];
+    ret[2][2] = 1 + factor*(-crossProduct[1]*crossProduct[1] - crossProduct[0]*crossProduct[0]);
+
+    return ret;
+}
+
+CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature)
+{
+    Real3 newu;
+    Real3 newv;
+ 
+
+    Real3 oldN = LinAlg3x3::CrossProduct(oldu, oldv);
+    LinAlg3x3::normalize(oldN);
+
+    Real3 refN = LinAlg3x3::CrossProduct(refu, refv);
+    LinAlg3x3::normalize(refN);
+
+    Matrix rotationMatrix = getRotationMatrix(oldN, refN);
+
+    newu = LinAlg3x3::MatrixDotVector(rotationMatrix, oldu);
+    LinAlg3x3::normalize(newu);
+    newv = LinAlg3x3::MatrixDotVector(rotationMatrix, oldv);
+    LinAlg3x3::normalize(newv);
+
+	Real u1 = LinAlg3x3::DotProduct(newu, refu);
+    Real v1 = LinAlg3x3::DotProduct(newu, refv);
+    Real u2 = LinAlg3x3::DotProduct(newv, refu);
+    Real v2 = LinAlg3x3::DotProduct(newv, refv);
+
+    Real3 newcurvature_;
+	newcurvature_[0]  = curvature[0] * u1*u1 + curvature[1] * (2.0  * u1*v1) + curvature[2] * v1*v1;
+	newcurvature_[1] =  curvature[0] * u1*u2 + curvature[1] * (u1*v2 + u2*v1) + curvature[2] * v1*v2;
+	newcurvature_[2]  = curvature[0] * u2*u2 + curvature[1] * (2.0  * u2*v2) + curvature[2] * v2*v2;
+
+    return newcurvature_;
 }
