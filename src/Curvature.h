@@ -4,6 +4,8 @@
 #include "tools/GenericFactory.h"
 #include "tools/Assert.h"
 #include "tools/InputParser.h"
+#include "Eigen/Dense"
+#include "Eigen/Core"
 
 #include <vector>
 #include <array>
@@ -23,6 +25,7 @@ class Curvature
         using Real3= CommonTypes::Real3;
 
         Curvature(CurvatureInput& input); 
+        virtual ~Curvature(){};
 
         void close();
 
