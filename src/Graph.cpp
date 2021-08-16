@@ -13,12 +13,12 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
         int final_count = 0;
         int nearbySize = NearbyIndices[i].size();
         const std::vector<int>& currentNearbyIndices = NearbyIndices[i];
-        std::vector<int>& currentNearbyIndicesNVertex = NearbyIndicesNVertex[i];
+        std::vector<int> currentNearbyIndicesNVertex;
         currentNearbyIndicesNVertex.resize(0);
 
-        for (int j=0;j<nearbySize;j++)
+        for (int j=0;j<N;j++)
         {
-            if (currentNearbyIndices.size() == 0)
+            if (currentNearbyIndicesNVertex.size() == 0)
             {
                 currentNearbyIndicesNVertex.insert(currentNearbyIndicesNVertex.end(),\
                 currentNearbyIndices.begin(), currentNearbyIndices.end());
@@ -40,10 +40,14 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
                 final_count = currentNearbyIndicesNVertex.size();
             }
         }
+
+        std::sort(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end());
         // The non-unique terms will be undefined ***
         auto it = std::unique(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end());
 
         // removes the non-unique terms
         currentNearbyIndicesNVertex.resize(std::distance(currentNearbyIndicesNVertex.begin(), it));
+
+        NearbyIndicesNVertex[i] = currentNearbyIndicesNVertex;
     }
 }
