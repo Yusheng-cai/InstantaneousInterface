@@ -6,6 +6,7 @@ class CurvatureFDM: public Curvature
         CurvatureFDM(CurvatureInput& input);
 
         virtual void calculate();
+        virtual ~CurvatureFDM(){};
         void calculateArithmeticMean();
         void calculateGeometricMean(); 
 
