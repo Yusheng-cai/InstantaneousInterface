@@ -31,9 +31,9 @@ void Mesh::CalcPerVertexDir()
 
     for (int i=0;i<PerVertexdir1_.size();i++)
     {
-        PerVertexdir1_[i] = LinAlg3x3::CrossProduct(PerVertexdir1_[i], vertices_[i].normals_);
+        PerVertexdir1_[i] = LinAlg3x3::CrossProduct(vertices_[i].normals_,PerVertexdir1_[i]);
 
-        Real3 B = LinAlg3x3::CrossProduct(vertices_[i].normals_, PerVertexdir2_[i]);
+        Real3 B = LinAlg3x3::CrossProduct(PerVertexdir1_[i],vertices_[i].normals_) ;
         LinAlg3x3::normalize(B);
 
         PerVertexdir2_[i] = B;
