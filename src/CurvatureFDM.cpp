@@ -15,7 +15,6 @@ CurvatureFDM::CurvatureFDM(CurvatureInput& input)
 void CurvatureFDM::calculate()
 {
     mesh_.findVertexNeighbors();
-    std::cout << "curve FDM calculating" << std::endl;
 
     if (MeanMethod_ == "arithmetic")
     {
@@ -31,6 +30,14 @@ void CurvatureFDM::printOutput()
 {
     if (ofs_.is_open())
     {
+        if (MeanMethod_ == "arithmetic")
+        {
+            ofs_ << "# Mean curvature" << "\n";
+        }
+        else
+        {
+            ofs_ << "# Gaussian Curvature" << "\n";
+        }
         for (int i=0;i<curvature_.size();i++)
         {
             ofs_ << curvature_[i];
