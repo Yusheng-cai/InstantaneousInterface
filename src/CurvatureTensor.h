@@ -8,6 +8,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <iostream>
 
 class CurvatureTensor: public Curvature
 {
@@ -27,13 +28,19 @@ class CurvatureTensor: public Curvature
         // project from oldu & oldv to newu & newv
         Real3 projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature);
 
-        // function that averages over nearest neighbors
-        void AverageOverNearbyNeighbors();
+        void calculatePrincipalCurvatures();
 
     private:
         std::vector<Real3> curvatureTensorPerTriangle_;
         std::vector<Real3> curvatureTensorPerVertex_;
+        std::vector<std::array<Real3,2>> PrincipalDirections_;
 
         std::vector<Real2> curvatureVec_;
         std::vector<Real> TotalAreaPerVertex_;
+
+        std::ofstream PrincipalDirectionofs_;
+        std::ofstream FF2ofs_;
+
+        std::string PrincipalDirectionFileName_;
+        std::string FF2ofsFileName_;
 };

@@ -7,7 +7,23 @@ namespace CurvatureRegistry
 
 CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 :Curvature(input)
-{}
+{
+    bool readff2 = input.pack.ReadString("2ffOutput", ParameterPack::KeyType::Optional, FF2ofsFileName_);
+    if (readff2)
+    {
+        FF2ofs_.open(FF2ofsFileName_);
+        ASSERT((FF2ofs_.is_open()), "The file with name " << FF2ofsFileName_ << " is not opened.");
+    }
+
+    bool readprincipalDir = input.pack.ReadString("principaldirOutput", ParameterPack::KeyType::Optional, PrincipalDirectionFileName_);
+
+    if (readprincipalDir)
+    {
+        PrincipalDirectionofs_.open(PrincipalDirectionFileName_);
+
+        ASSERT((PrincipalDirectionofs_.is_open()), "The file with name " << PrincipalDirectionFileName_ << " is not opened.");
+    }
+}
 
 void CurvatureTensor::calculate()
 {
@@ -91,11 +107,6 @@ void CurvatureTensor::calculate()
         A(2,1) = A(0,1);
         A(1,0) = A(0,1);
 
-        for (int j=0;j<3;j++)
-        {
-            int id = t[j];
-        }
-
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
         Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeThinU|Eigen::ComputeThinV).solve(b);
         Real3 ans;
@@ -128,10 +139,25 @@ void CurvatureTensor::calculate()
             }
             TotalAreaPerVertex_[id_] += triangleArea[i];
         }
-    }
+    } 
+
+    calculatePrincipalCurvatures();
+}
+
+void CurvatureTensor::calculatePrincipalCurvatures()
+{
+    const auto& vertices  = mesh_.getvertices();
+
+    // Use z as a reference direection
+    Real3 referenceDir = {{0,0,1}};
+    PrincipalDirections_.resize(vertices.size());
 
     for (int i=0;i<vertices.size();i++)
     {
+        // find rotation matrix that rotates the normal from [0,0,1] to itself 
+        auto& normal = vertices[i].normals_;
+        Matrix rotationMat = LinAlg3x3::GetRotationMatrix(referenceDir, normal);
+
         for (int j=0;j<3;j++)
         {
             curvatureTensorPerVertex_[i][j] /= TotalAreaPerVertex_[i];
@@ -150,6 +176,28 @@ void CurvatureTensor::calculate()
 
         curvatureVec_[i][0] = eigenvalues[0];
         curvatureVec_[i][1] = eigenvalues[1];
+
+        Eigen::Matrix2d eigenvectors = eigensolver.eigenvectors().real();
+
+        Real3 eigvec1;
+        eigvec1.fill(0);
+        Real3 eigvec2;
+        eigvec2.fill(0);
+
+        eigvec1[0] = eigenvectors(0,0);
+        eigvec1[1] = eigenvectors(1,0);
+        eigvec2[0] = eigenvectors(0,1);
+        eigvec2[1] = eigenvectors(1,1);
+
+        std::array<Real3, 2> eigenvectorPair;
+
+        Real3 eigvec1Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec1);
+        Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec2);
+
+        eigenvectorPair[0] = eigvec1Rot;
+        eigenvectorPair[1] = eigvec2Rot;
+
+        PrincipalDirections_[i]=eigenvectorPair;
     }
 }
 
@@ -167,6 +215,38 @@ void CurvatureTensor::printOutput()
             ofs_ << "\n";
         }
         ofs_.close();
+    }
+
+    if (PrincipalDirectionofs_.is_open())
+    {
+        std::cout << "PrincipleDirections.size() = " << PrincipalDirections_.size() << std::endl;
+        for (int i=0;i<PrincipalDirections_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                PrincipalDirectionofs_ << PrincipalDirections_[i][0][j] << " ";
+            }
+            for (int j=0;j<3;j++)
+            {
+                PrincipalDirectionofs_ << PrincipalDirections_[i][1][j] << " ";
+            }
+            PrincipalDirectionofs_ << "\n";
+        }
+        PrincipalDirectionofs_.close();
+    }
+
+    if (FF2ofs_.is_open())
+    {
+        std::cout << "Printing ff2" << std::endl;
+        for (int i=0;i<curvatureTensorPerVertex_.size();i++)
+        {
+            for (int j=0;j<3;j++)
+            {
+                FF2ofs_ << curvatureTensorPerVertex_[i][j] << " ";
+            }
+            FF2ofs_ << "\n";
+        }
+        FF2ofs_.close();
     }
 }
 
