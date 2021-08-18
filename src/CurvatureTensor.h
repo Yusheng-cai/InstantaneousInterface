@@ -30,6 +30,9 @@ class CurvatureTensor: public Curvature
 
         void calculatePrincipalCurvatures();
 
+        // Calculate the curvature in a certain direction as specified by user
+        void calculateCurvatureInDir();
+
     private:
         std::vector<Real3> curvatureTensorPerTriangle_;
         std::vector<Real3> curvatureTensorPerVertex_;
@@ -40,9 +43,13 @@ class CurvatureTensor: public Curvature
 
         std::ofstream PrincipalDirectionofs_;
         std::ofstream FF2ofs_;
+        std::ofstream curvatureDirOutputofs_;
 
         std::string PrincipalDirectionFileName_;
         std::string FF2ofsFileName_;
+        std::string curvatureDirOutputName_;
 
         std::vector<std::vector<Real3>> CurvaturePerVertex_tot;
+        std::vector<Real3> curvatureDir_;
+        std::vector<std::vector<Real>> curvaturesInDir_;
 };

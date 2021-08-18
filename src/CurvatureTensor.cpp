@@ -23,6 +23,30 @@ CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 
         ASSERT((PrincipalDirectionofs_.is_open()), "The file with name " << PrincipalDirectionFileName_ << " is not opened.");
     }
+
+    bool readCurvatureDir = input.pack.ReadVectorArrayNumber("curvaturedir", ParameterPack::KeyType::Optional, curvatureDir_);
+
+    if (readCurvatureDir)
+    {
+        for (int i=0;i<curvatureDir_.size();i++)
+        {
+            LinAlg3x3::normalize(curvatureDir_[i]);
+        }
+
+        bool readcurvatureoutput = input.pack.ReadString("curvatureDirOutput", ParameterPack::KeyType::Optional, curvatureDirOutputName_);
+
+        if (! readcurvatureoutput)
+        {
+            std::cout << "WARNING: You are calculating curvature direction without outputting it to some file." << std::endl;
+        }
+        else
+        {
+            curvatureDirOutputofs_.open(curvatureDirOutputName_);
+
+            ASSERT((curvatureDirOutputofs_.is_open()), "The file with name " << curvatureDirOutputName_ << " is not opened.");
+        }
+
+    }
 }
 
 void CurvatureTensor::calculate()
@@ -159,6 +183,7 @@ void CurvatureTensor::calculate()
     } 
 
     calculatePrincipalCurvatures();
+    calculateCurvatureInDir();
     // for (int i=0;i<CurvaturePerVertex_tot.size();i++)
     // {
     //     if (vertices[i].position_[0] < 2.0)
@@ -226,6 +251,7 @@ void CurvatureTensor::calculatePrincipalCurvatures()
         Real3 eigvec1Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec1);
         Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec2);
 
+        // eigenvectors in real space
         eigenvectorPair[0] = eigvec1Rot;
         eigenvectorPair[1] = eigvec2Rot;
 
@@ -278,6 +304,50 @@ void CurvatureTensor::printOutput()
         }
         FF2ofs_.close();
     }
+
+    if (curvatureDirOutputofs_.is_open())
+    {
+        const auto& vertices = mesh_.getvertices();
+
+        for (int i=0;i<vertices.size();i++)
+        {
+            for (int j=0;j<curvaturesInDir_.size();j++)
+            {
+                curvatureDirOutputofs_ << curvaturesInDir_[j][i] << " ";
+            }
+            curvatureDirOutputofs_ << "\n";
+        }
+        curvatureDirOutputofs_.close();
+    }
+}
+
+void CurvatureTensor::calculateCurvatureInDir()
+{
+    if (curvatureDir_.size() != 0)
+    {
+        const auto& vertices = mesh_.getvertices();
+        const auto& PerVertexDir1 = mesh_.getPerVertexDir1();
+        const auto& PerVertexDir2 = mesh_.getPerVertexDir2();
+        curvaturesInDir_.resize(curvatureDir_.size(), std::vector<Real>(vertices.size()));
+
+        for (int i=0;i<curvatureDir_.size();i++)
+        {
+            auto dir = curvatureDir_[i];
+            for (int j=0;j<vertices.size();j++)
+            {
+                auto& tensor = curvatureTensorPerVertex_[j];
+                auto& dir1   = PerVertexDir1[j];
+                auto& dir2   = PerVertexDir2[j];
+
+                Real s = LinAlg3x3::DotProduct(dir1, dir);
+                Real t = LinAlg3x3::DotProduct(dir2, dir);
+
+                Real c = s*s*tensor[0] + 2*s*t*tensor[1] + tensor[2]*t*t;
+
+                curvaturesInDir_[i][j] = c;
+            }
+        }
+    }
 }
 
 CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature)
@@ -306,7 +376,7 @@ CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, cons
 
     Real3 newcurvature_;
 	newcurvature_[0]  = curvature[0] * u1*u1 + curvature[1] * (2.0  * u1*v1) + curvature[2] * v1*v1;
-	newcurvature_[1] =  curvature[0] * u1*u2 + curvature[1] * (u1*v2 + u2*v1) + curvature[2] * v1*v2;
+	newcurvature_[1]  = curvature[0] * u1*u2 + curvature[1] * (u1*v2 + u2*v1) + curvature[2] * v1*v2;
 	newcurvature_[2]  = curvature[0] * u2*u2 + curvature[1] * (2.0  * u2*v2) + curvature[2] * v2*v2;
 
     return newcurvature_;
