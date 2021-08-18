@@ -30,7 +30,7 @@ int main(int argc, char** argv)
 
     Mesh mesh_;
     MeshTools::readPLY(vertexFileName, mesh_);
-    MeshTools::readTriangle(triangleFileName, mesh_);
+    MeshTools::readPLYTriangle(triangleFileName, mesh_);
 
     auto& vertices = mesh_.accessvertices();
     auto& triangles= mesh_.accesstriangles();
