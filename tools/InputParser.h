@@ -71,6 +71,8 @@ class ParameterPack
 
         template <typename T>
         bool ReadVectorNumber(const std::string& key, const KeyType, std::vector<T>& vecval) const;
+        template <typename T>
+        bool ReadVectorVectorNumber(const std::string& key, const KeyType, std::vector<std::vector<T>>& vecvecval) const;
         bool ReadVectorString(const std::string& key, const KeyType, std::vector<std::string>& vecstr) const;
 
         template<typename T, std::size_t dim>
@@ -198,6 +200,39 @@ bool ParameterPack::ReadVectorNumber(const std::string& key, const ParameterPack
 
         
     return false;
+}
+
+template <typename T>
+bool ParameterPack::ReadVectorVectorNumber(const std::string& key, const ParameterPack::KeyType keytype, std::vector<std::vector<T>>& vecvecval) const 
+{
+    auto vecvecstr = findVectors(key,keytype);  
+    if (keytype == ParameterPack::KeyType::Required)
+    {
+        ASSERT((vecvecstr.size() != 0), "The required key " << key << " is not provided.");
+    }
+
+    vecvecval.clear();
+    vecvecval.resize(vecvecstr.size());
+
+    for (int i=0;i<vecvecval.size();i++)
+    {
+        auto& vecstr = vecvecstr[i];
+        vecvecval[i].resize(vecstr->size());
+        for (int j=0;j<vecstr->size();j++)
+        {
+            T val;
+            vecvecval[i][j] = StringTools::StringToType<T>(vecstr->at(j));
+        }
+    }
+
+    if (vecvecval.size() != 0)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 template <typename T, std::size_t dim>
