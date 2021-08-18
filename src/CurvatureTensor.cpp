@@ -41,6 +41,7 @@ void CurvatureTensor::calculate()
     curvatureTensorPerVertex_.resize(vertices.size());
     curvatureVec_.resize(vertices.size());
     TotalAreaPerVertex_.resize(vertices.size());
+    CurvaturePerVertex_tot.resize(vertices.size());
     std::fill(TotalAreaPerVertex_.begin(), TotalAreaPerVertex_.end(),0);
 
     for (int i=0;i<triangles.size();i++)
@@ -59,19 +60,20 @@ void CurvatureTensor::calculate()
         LinAlg3x3::normalize(U);
         Real3 N = LinAlg3x3::CrossProduct(edges[0], edges[1]);
         LinAlg3x3::normalize(N);
-        Real3 V = LinAlg3x3::CrossProduct(U, N);
+        Real3 V = LinAlg3x3::CrossProduct(N,U);
         LinAlg3x3::normalize(V); 
 
         // initialize A and B matrix to be solved
         Eigen::Matrix3d A;
         Eigen::Vector3d b;
         b.fill(0);
-        A.fill({});
+        A.fill(0);
  
         for (int j=0;j<3;j++)
         {
             Real ejU = LinAlg3x3::DotProduct(edges[j], U);
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
+
             A(0,0) += ejU*ejU;
             A(0,1) += ejU*ejV;
             A(2,2) += ejV*ejV;
@@ -96,7 +98,7 @@ void CurvatureTensor::calculate()
 
             Real diffNU = LinAlg3x3::DotProduct(diffN, U);
             Real diffNV = LinAlg3x3::DotProduct(diffN, V);
-
+            
             b[0] += diffNU*ejU;
             b[1] += diffNU*ejV + diffNV*ejU;
             b[2] += diffNV*ejV;
@@ -133,6 +135,21 @@ void CurvatureTensor::calculate()
             auto& v = pervertexdir2[id_];
 
             Real3 newcurv = projectCurvature(u,v, U, V,ans);
+            
+
+
+            Eigen::Matrix2d tempMat;
+            Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
+            tempMat(0,0) = newcurv[0];
+            tempMat(0,1) = newcurv[1];
+            tempMat(1,0) = newcurv[1];
+            tempMat(1,1) = newcurv[2];
+
+            eigensolver.compute(tempMat);
+            Eigen::Vector2d eig = eigensolver.eigenvalues().real();
+
+            CurvaturePerVertex_tot[id_].push_back(newcurv);
+            
             for (int k = 0;k<3;k++)
             {
                 curvatureTensorPerVertex_[id_][k] += newcurv[k] * triangleArea[i];
@@ -142,6 +159,21 @@ void CurvatureTensor::calculate()
     } 
 
     calculatePrincipalCurvatures();
+    // for (int i=0;i<CurvaturePerVertex_tot.size();i++)
+    // {
+    //     if (vertices[i].position_[0] < 2.0)
+    //     {
+    //         std::cout << "Printing curvature vertices for the " << i << "th vertex." << std::endl;
+    //         for (int j=0;j<CurvaturePerVertex_tot[i].size();j++)
+    //         {
+    //             for (int k=0;k<3;k++)
+    //             {
+    //                 std::cout << CurvaturePerVertex_tot[i][j][k] << " ";
+    //             }
+    //             std::cout << "\n";
+    //         }
+    //     }
+    // }
 }
 
 void CurvatureTensor::calculatePrincipalCurvatures()
@@ -160,7 +192,7 @@ void CurvatureTensor::calculatePrincipalCurvatures()
 
         for (int j=0;j<3;j++)
         {
-            curvatureTensorPerVertex_[i][j] /= TotalAreaPerVertex_[i];
+            curvatureTensorPerVertex_[i][j] = curvatureTensorPerVertex_[i][j]/TotalAreaPerVertex_[i];
         }
 
         Eigen::Matrix2d mat;
@@ -219,7 +251,6 @@ void CurvatureTensor::printOutput()
 
     if (PrincipalDirectionofs_.is_open())
     {
-        std::cout << "PrincipleDirections.size() = " << PrincipalDirections_.size() << std::endl;
         for (int i=0;i<PrincipalDirections_.size();i++)
         {
             for (int j=0;j<3;j++)
@@ -237,7 +268,6 @@ void CurvatureTensor::printOutput()
 
     if (FF2ofs_.is_open())
     {
-        std::cout << "Printing ff2" << std::endl;
         for (int i=0;i<curvatureTensorPerVertex_.size();i++)
         {
             for (int j=0;j<3;j++)

@@ -43,4 +43,6 @@ class CurvatureTensor: public Curvature
 
         std::string PrincipalDirectionFileName_;
         std::string FF2ofsFileName_;
+
+        std::vector<std::vector<Real3>> CurvaturePerVertex_tot;
 };
