@@ -73,6 +73,8 @@ class ParameterPack
         bool ReadVectorNumber(const std::string& key, const KeyType, std::vector<T>& vecval) const;
         template <typename T>
         bool ReadVectorVectorNumber(const std::string& key, const KeyType, std::vector<std::vector<T>>& vecvecval) const;
+        template <typename T, std::size_t dim>
+        bool ReadVectorArrayNumber(const std::string& key, const KeyType, std::vector<std::array<T,dim>>& vecarrayval) const;
         bool ReadVectorString(const std::string& key, const KeyType, std::vector<std::string>& vecstr) const;
 
         template<typename T, std::size_t dim>
@@ -233,6 +235,39 @@ bool ParameterPack::ReadVectorVectorNumber(const std::string& key, const Paramet
     {
         return false;
     }
+}
+
+template <typename T, std::size_t dim>
+bool ParameterPack::ReadVectorArrayNumber(const std::string& key, const ParameterPack::KeyType keytype, std::vector<std::array<T,dim>>& vecarrayval) const 
+{
+    std::vector<std::vector<T>> vecvecval;
+    bool read = ReadVectorVectorNumber<T>(key, keytype, vecvecval);
+
+    if ( keytype == ParameterPack::KeyType::Required)
+    {
+        ASSERT((read == true), "The required key " << key << " is not found.");
+    }
+
+    if (read)
+    {
+        vecarrayval.clear();
+        vecarrayval.resize(vecvecval.size());
+        for (int i=0;i<vecvecval.size();i++)
+        {
+            ASSERT((vecvecval[i].size() == dim), "The dimension of vector read does not match the required size of " << dim);
+            for (int j=0;j<dim;j++)
+            {
+                vecarrayval[i][j] = vecvecval[i][j];
+            }
+        }
+
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+
 }
 
 template <typename T, std::size_t dim>
