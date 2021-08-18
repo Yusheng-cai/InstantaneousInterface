@@ -94,5 +94,5 @@ class Mesh
 namespace MeshTools
 {
     bool readPLY(std::string& filename, Mesh& mesh_);
-    bool readTriangle(std::string& filename, Mesh& mesh_);
+    bool readPLYTriangle(std::string& filename, Mesh& mesh_);
 };

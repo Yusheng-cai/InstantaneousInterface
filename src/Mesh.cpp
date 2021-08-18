@@ -32,6 +32,7 @@ void Mesh::CalcPerVertexDir()
     for (int i=0;i<PerVertexdir1_.size();i++)
     {
         PerVertexdir1_[i] = LinAlg3x3::CrossProduct(vertices_[i].normals_,PerVertexdir1_[i]);
+        LinAlg3x3::normalize(PerVertexdir1_[i]);
 
         Real3 B = LinAlg3x3::CrossProduct(PerVertexdir1_[i],vertices_[i].normals_) ;
         LinAlg3x3::normalize(B);
@@ -241,7 +242,7 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
     return true;
 }
 
-bool MeshTools::readTriangle(std::string& filename, Mesh& mesh_)
+bool MeshTools::readPLYTriangle(std::string& filename, Mesh& mesh_)
 {
     std::ifstream ifs_;
     std::stringstream ss_;
