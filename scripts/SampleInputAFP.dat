@@ -13,6 +13,7 @@ densityfield = {
     curvature   = {
         type = tensor
         output = curve.out
+	principaldirOutput = c.out
     }
 
     isosurfacevalue  = 16
@@ -25,7 +26,6 @@ densityfield = {
     vertex_output = vertex.out 
     normal_output = normals.out
     triangle_output = triangle.out
-    norms_output = norms.out
 }
 
 boundingbox = {
