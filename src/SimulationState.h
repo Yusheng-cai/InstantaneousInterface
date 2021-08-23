@@ -32,7 +32,6 @@ class SimulationState
         int getStep() const {return step_;}
         int getTotalFrames() const {return TotalFrames_;}
         int getTotalFramesToBeCalculated() const {return TotalFramesToBeCalculated_;}
-        int& getCurrentFrameStep() {return FrameStep_;}
 
         // registers AtomGroups
         void registerAtomGroup(std::string name, AtomGroup& ag);
@@ -56,7 +55,6 @@ class SimulationState
         int step_;
         int TotalFrames_;
         int TotalFramesToBeCalculated_;
-        int FrameStep_ = 0;
 
         SimulationBox box_;
         std::map<std::string,AtomGroup> MapName2AtomGroup_;
