@@ -77,6 +77,14 @@ class IndexFileParsing: public AtomGroupParsingStrategy
         virtual void update(std::vector<int>& indices);
         virtual void Parse(std::vector<int>& indices);
 
+        const std::vector<std::vector<int>>& getIndexFileIndices() const { return Fileindices_;} 
+        std::vector<std::vector<int>>& accessIndexFileIndices() { return Fileindices_;}
+
+        const std::vector<int>& getFrame() const {return Frames_;}
+        std::vector<int>& getFrame() {return Frames_;}
+
+        int getNumFrames() const {return Frames_.size();}
+
         bool isOpen();
 
     private:

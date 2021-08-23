@@ -285,7 +285,7 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
             int index;
             std::vector<int> index_for_sentence;
 
-            // The first one is always the time index
+            // The first one is always the time index, so we always ignore it
             ss_ >> index;
             Frames_.push_back(index);
 
@@ -318,8 +318,6 @@ void IndexFileParsing::Parse(std::vector<int>& indices)
     indices.clear();
 
     indices.insert(indices.end(),Fileindices_[0].begin(), Fileindices_[0].end());
-
-    //frame_count ++;
 }
 
 void IndexFileParsing::update(std::vector<int>& indices)
