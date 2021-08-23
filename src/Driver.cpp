@@ -36,18 +36,14 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
     initializeDriver(DriverPack);
 }
 
-bool Driver::CheckValidStep()
+bool Driver::CheckValidStep(int FrameNum)
 {
-    // step starts at 0, but user input is at 1
-    int step = simstate_.getCurrentFrameStep();
-    std::cout << "step = " << step << std::endl;
-
-    if (step < starting_frame_)
+    if (FrameNum < starting_frame_)
     {
         return false;
     }
 
-    int step_corrected = step - starting_frame_;
+    int step_corrected = FrameNum- starting_frame_;
     int onStep = step_corrected % (skip_ + 1);
 
     if (onStep != 0)
@@ -67,9 +63,12 @@ void Driver::initializeDriver(const ParameterPack* driverPack)
         ASSERT((skip_ >= 0), "Skip must be an non-negative number, but provided skip = " << skip_);
         ASSERT((starting_frame_ >= 1), "The starting frame must be a number larger or equal to 1, but provided \
         startng frame = " << starting_frame_);
+
+        // We do the 0 based counting inside the code
+        starting_frame_ -= 1;
     }
     int totalFrames;
-    totalFrames = (Totalframes_ + 1 - starting_frame_)/(skip_ + 1);
+    totalFrames = (Totalframes_ - starting_frame_)/(skip_ + 1);
 
     simstate_.setTotalFramesToBeCalculated(totalFrames);
 }
@@ -99,16 +98,15 @@ void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
     }
 }
 
-void Driver::readFrameXdr()
+void Driver::readFrameXdr(int FrameNum)
 {
-    xdrfile_ -> readNextFrame();
+    xdrfile_ -> readFrame(FrameNum);
 
     // set the simulation box
     auto& simbox = xdrfile_->getSimulationBox(); 
     simstate_.setSimulationBox(simbox);
     simstate_.setStep(xdrfile_->getStep());
     simstate_.setTime(xdrfile_->getTime());
-    simstate_.getCurrentFrameStep() ++;
 }
 
 void Driver::update()

@@ -35,7 +35,7 @@ class Driver
         void initializeDriver(const ParameterPack* driverPack);
 
         // Read information from xdr
-        void readFrameXdr();
+        void readFrameXdr(int FrameNum);
 
         void update();
 
@@ -47,8 +47,8 @@ class Driver
 
         void finishCalculate();
 
-        // check if the step is valid
-        bool CheckValidStep();
+        // check if the step is valid, the FrameNum is inputted in 0 based counting
+        bool CheckValidStep(int FrameNum);
 
         // get num frames
         int getNumFrames() const {return xdrfile_->getNframes();}
