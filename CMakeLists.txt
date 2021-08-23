@@ -36,6 +36,7 @@ add_subdirectory(parallel)
 add_subdirectory(xdr)
 add_subdirectory(MarchingCubes)
 add_subdirectory(Eigen)
+add_subdirectory(test)
 
 add_executable(InstantaneousInterface main.cpp)
 add_executable(Curve curve.cpp)
