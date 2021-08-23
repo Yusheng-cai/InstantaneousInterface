@@ -98,15 +98,15 @@ Field::index3 Field::getClosestGridIndex(const Real3& position)
 
     // Normalize the positions by subtracting the least of the xrange, yrange and zrange
     PositionNormalized[0] = position[0] - x_range_[0];
-    int xindex = PositionNormalized[0]/dx_;
+    int xindex = std::round(PositionNormalized[0]/dx_);
     ret[0] = xindex;
 
     PositionNormalized[1] = position[1] - y_range_[0];
-    int yindex = PositionNormalized[1]/dy_;
+    int yindex = std::round(PositionNormalized[1]/dy_);
     ret[1] = yindex;
 
     PositionNormalized[2] = position[2] - z_range_[0];
-    int zindex = PositionNormalized[2]/dz_;
+    int zindex = std::round(PositionNormalized[2]/dz_);
     ret[2] = zindex;
 
     return ret;

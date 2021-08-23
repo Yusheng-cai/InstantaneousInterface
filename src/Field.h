@@ -3,6 +3,7 @@
 #include "tools/Assert.h"
 
 #include <vector>
+#include <cmath>
 
 class Field
 {
