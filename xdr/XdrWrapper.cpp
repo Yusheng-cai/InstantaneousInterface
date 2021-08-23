@@ -42,10 +42,6 @@ void XdrWrapper::open()
 
     frame_.setNumAtoms(natoms_);
 
-    int nframes = 0;
-    int est_nframes = 0;
-    int64_t* offsets = nullptr;
-
     readNframes();
 }
 
