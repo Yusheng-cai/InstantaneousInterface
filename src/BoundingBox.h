@@ -56,7 +56,4 @@ class BoundingBox
         Real3 center_;
 
         std::string name_;
-
-        bool calculateWithBoundBox_ = false;
-        std::vector<int> ignorePBCdims_;
 };
