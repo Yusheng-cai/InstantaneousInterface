@@ -60,9 +60,13 @@ void CurvatureTensor::calculate()
     const auto& pervertexdir2 = mesh_.getPerVertexDir2();
     const auto& triangleArea = mesh_.getTriangleArea();
 
-
+    Real3 zeroArr_ = {{0,0,0}};
     curvatureTensorPerTriangle_.resize(triangles.size());
+
+    // Fill the curvature Tensor Per vertex with zero arrays
     curvatureTensorPerVertex_.resize(vertices.size());
+    std::fill(curvatureTensorPerVertex_.begin(), curvatureTensorPerVertex_.end(), zeroArr_);
+
     curvatureVec_.resize(vertices.size());
     TotalAreaPerVertex_.resize(vertices.size());
     CurvaturePerVertex_tot.resize(vertices.size());
