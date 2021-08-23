@@ -1,10 +1,11 @@
 #!/bin/bash
 
-export CC=/usr/local/bin/gcc
-export CXX=/usr/local/bin/g++
+export CC=gcc
+export CXX=g++
 
 # specify the build directory
-build_dir=$PWD/build/
+build_type=RELEASE
+build_dir=$PWD/${build_type}/
 install_dir=$PWD/program/
 
 # remove build_dir if it already exists
@@ -23,10 +24,10 @@ mkdir -p $build_dir
 
 # configure the build with cmake
 cd $build_dir
-cmake .. 
+cmake .. -DCMAKE_BUILD_TYPE=${build_type}
 
 # make with 8 threads
 make -j 8 
-#make build_test -j 8
+make build_test -j 8
 
-#make test
+make test
