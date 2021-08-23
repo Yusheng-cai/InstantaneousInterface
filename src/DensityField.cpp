@@ -45,14 +45,16 @@ DensityField::DensityField(const DensityFieldInput& input)
 
 void DensityField::CalcOffsetIndex()
 {
+    offsetIndex_.clear();
+
     // get the differentials in the 3 directions
     Real dx = field_.getdx();
     Real dy = field_.getdy();
     Real dz = field_.getdz();
 
-    int Nx_offset = cutoff_/dx;
-    int Ny_offset = cutoff_/dy;
-    int Nz_offset = cutoff_/dz;
+    int Nx_offset = std::round(cutoff_/dx);
+    int Ny_offset = std::round(cutoff_/dy);
+    int Nz_offset = std::round(cutoff_/dz);
 
     for( int i=-Nx_offset; i<=Nx_offset;i++)
     {
@@ -155,6 +157,7 @@ void DensityField::CalculateOnTheFly()
     FieldBuffer_.set_master_object(field_);
 
     findAtomsIndicesInBoundingBox(); 
+    std::cout << "Number of Atoms inside the observation vol is " << AtomIndicesInside_.size() << std::endl;
     auto atomgroup = getAtomGroup(atomGroupName_);
     auto& atoms = atomgroup.getAtoms();
 
