@@ -19,10 +19,11 @@ int main(int argc, char** argv)
 
     for (int i=0;i<d.getNumFrames();i++)
     {
-        d.readFrameXdr();
-
-        if (d.CheckValidStep())
+        if (d.CheckValidStep(i))
         {
+            std::cout << "Frame = " << i << std::endl;
+            d.readFrameXdr(i);
+
             d.update();
 
             auto start = std::chrono::high_resolution_clock::now();
