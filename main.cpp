@@ -30,7 +30,7 @@ int main(int argc, char** argv)
             d.calculate();
             auto end = std::chrono::high_resolution_clock::now();
             auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-            std::cout << "Time it took for calculate is " << diff.count() << std::endl;
+            std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
         }
 
         d.printOutputfileIfOnStep();
