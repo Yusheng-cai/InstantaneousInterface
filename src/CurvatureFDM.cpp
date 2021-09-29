@@ -10,6 +10,8 @@ CurvatureFDM::CurvatureFDM(CurvatureInput& input)
 {
     input.pack.ReadString("mean", ParameterPack::KeyType::Optional, MeanMethod_);
     ASSERT((MeanMethod_ == "arithmetic" || MeanMethod_ == "geometric"), "The method for calculating mean must be either arithmetic or geometric.");
+
+    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
 }
 
 void CurvatureFDM::calculate()
@@ -26,25 +28,25 @@ void CurvatureFDM::calculate()
     }
 }
 
-void CurvatureFDM::printOutput()
+void CurvatureFDM::printCurvature(std::string name)
 {
-    if (ofs_.is_open())
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    if (MeanMethod_ == "arithmetic")
     {
-        if (MeanMethod_ == "arithmetic")
-        {
-            ofs_ << "# Mean curvature" << "\n";
-        }
-        else
-        {
-            ofs_ << "# Gaussian Curvature" << "\n";
-        }
-        for (int i=0;i<curvature_.size();i++)
-        {
-            ofs_ << curvature_[i];
-            ofs_ << "\n"; 
-        }
-        close();
+        ofs_ << "# Mean curvature" << "\n";
     }
+    else
+    {
+        ofs_ << "# Gaussian Curvature" << "\n";
+    }
+    for (int i=0;i<curvature_.size();i++)
+    {
+        ofs_ << curvature_[i];
+        ofs_ << "\n"; 
+    }
+    ofs_.close();
 }
 
 void CurvatureFDM::calculateArithmeticMean()

@@ -17,7 +17,7 @@ class CurvatureCurveFit : public Curvature
         CurvatureCurveFit(CurvatureInput& input);
 
         virtual void calculate() override;
-        virtual void printOutput() override;
+        void printCurvature(std::string name);
     
     private:
         int NumParameters_ = 3;

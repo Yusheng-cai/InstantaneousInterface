@@ -22,7 +22,11 @@ class CurvatureTensor: public Curvature
         virtual ~CurvatureTensor(){};
 
         virtual void calculate();
-        virtual void printOutput();
+
+        void printCurvatureVec(std::string name);
+        void printPrincipalDirection(std::string name);
+        void printFF2(std::string name);
+        void printCurvatureDir(std::string name);
 
         // function that projects curvature from one frame of reference to another
         // project from oldu & oldv to newu & newv
@@ -41,12 +45,8 @@ class CurvatureTensor: public Curvature
         std::vector<Real2> curvatureVec_;
         std::vector<Real> TotalAreaPerVertex_;
 
-        std::ofstream PrincipalDirectionofs_;
-        std::ofstream FF2ofs_;
         std::ofstream curvatureDirOutputofs_;
 
-        std::string PrincipalDirectionFileName_;
-        std::string FF2ofsFileName_;
         std::string curvatureDirOutputName_;
 
         std::vector<std::vector<Real3>> CurvaturePerVertex_tot;

@@ -8,21 +8,9 @@ namespace CurvatureRegistry
 CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 :Curvature(input)
 {
-    bool readff2 = input.pack.ReadString("2ffOutput", ParameterPack::KeyType::Optional, FF2ofsFileName_);
-    if (readff2)
-    {
-        FF2ofs_.open(FF2ofsFileName_);
-        ASSERT((FF2ofs_.is_open()), "The file with name " << FF2ofsFileName_ << " is not opened.");
-    }
-
-    bool readprincipalDir = input.pack.ReadString("principaldirOutput", ParameterPack::KeyType::Optional, PrincipalDirectionFileName_);
-
-    if (readprincipalDir)
-    {
-        PrincipalDirectionofs_.open(PrincipalDirectionFileName_);
-
-        ASSERT((PrincipalDirectionofs_.is_open()), "The file with name " << PrincipalDirectionFileName_ << " is not opened.");
-    }
+    outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void { this -> printPrincipalDirection(name);});
+    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvatureVec(name);});
+    outputs_.registerOutputFunc("FF2", [this](std::string name) -> void {this -> printFF2(name);});
 
     bool readCurvatureDir = input.pack.ReadVectorArrayNumber("curvaturedir", ParameterPack::KeyType::Optional, curvatureDir_);
 
@@ -45,7 +33,6 @@ CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 
             ASSERT((curvatureDirOutputofs_.is_open()), "The file with name " << curvatureDirOutputName_ << " is not opened.");
         }
-
     }
 }
 
@@ -64,13 +51,11 @@ void CurvatureTensor::calculate()
     curvatureTensorPerTriangle_.resize(triangles.size());
 
     // Fill the curvature Tensor Per vertex with zero arrays
-    curvatureTensorPerVertex_.resize(vertices.size());
-    std::fill(curvatureTensorPerVertex_.begin(), curvatureTensorPerVertex_.end(), zeroArr_);
+    curvatureTensorPerVertex_.resize(vertices.size(), zeroArr_);
 
     curvatureVec_.resize(vertices.size());
-    TotalAreaPerVertex_.resize(vertices.size());
+    TotalAreaPerVertex_.resize(vertices.size(), 0.0);
     CurvaturePerVertex_tot.resize(vertices.size());
-    std::fill(TotalAreaPerVertex_.begin(), TotalAreaPerVertex_.end(),0);
 
     for (int i=0;i<triangles.size();i++)
     {
@@ -84,12 +69,29 @@ void CurvatureTensor::calculate()
             edges[2][j] = vertices[t[1]].position_[j] - vertices[t[0]].position_[j];
         }
 
+        #ifdef MY_DEBUG
+        Real3 length;
+        for (int j=0;j<3;j++)
+        {
+            length[j] = std::sqrt(LinAlg3x3::DotProduct(edges[j], edges[j]));
+            std::cout << "Length of triangle " << i << ", edges " << j << " is " << length[j] << std::endl;
+        }
+        #endif 
+
         Real3 U = edges[0];
         LinAlg3x3::normalize(U);
         Real3 N = LinAlg3x3::CrossProduct(edges[0], edges[1]);
         LinAlg3x3::normalize(N);
         Real3 V = LinAlg3x3::CrossProduct(N,U);
         LinAlg3x3::normalize(V); 
+
+        #ifdef MY_DEBUG
+        std::cout << "For triangle " << i << std::endl; 
+        std::cout << "U = " << U[0] << " " << U[1] << " " << U[2] << std::endl;
+        std::cout << "V = " << V[0] << " " << V[1] << " " << V[2] << std::endl;
+        std::cout << "N = " << N[0] << " " << N[1] << " " << N[2] << std::endl;
+        std::cout << "U * V = " << LinAlg3x3::DotProduct(U,V) << std::endl;
+        #endif 
 
         // initialize A and B matrix to be solved
         Eigen::Matrix3d A;
@@ -101,6 +103,9 @@ void CurvatureTensor::calculate()
         {
             Real ejU = LinAlg3x3::DotProduct(edges[j], U);
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
+            #ifdef MY_DEBUG
+            std::cout << "For triangle " << i << " edge " << j << "ejU = " << ejU << ", eJV = " << ejV << std::endl;
+            #endif
 
             A(0,0) += ejU*ejU;
             A(0,1) += ejU*ejV;
@@ -117,6 +122,7 @@ void CurvatureTensor::calculate()
             {
                 id2 += 3;
             }
+
             Real3 diffN;
 
             for (int k =0;k<3;k++)
@@ -137,8 +143,12 @@ void CurvatureTensor::calculate()
         A(2,1) = A(0,1);
         A(1,0) = A(0,1);
 
+        #ifdef MY_DEBUG
+        std::cout << "A = " << A << std::endl;
+        #endif
+
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
-        Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeThinU|Eigen::ComputeThinV).solve(b);
+        Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Real3 ans;
         Eigen::Matrix2d triangleMat;
         triangleMat(0,0) = soln[0];
@@ -148,6 +158,10 @@ void CurvatureTensor::calculate()
         eigensolver.compute(triangleMat);
 
         Eigen::Vector2d eig = eigensolver.eigenvalues().real();
+        
+        #ifdef MY_DEBUG
+        std::cout << "FF2 per triangle of triangle " << i << " = " << triangleMat << std::endl;
+        #endif 
  
         for (int j=0;j<3;j++)
         {
@@ -159,11 +173,10 @@ void CurvatureTensor::calculate()
         for (int j=0;j<3;j++)
         {
             int id_ = t[j];
-            auto& u = pervertexdir1[id_];
-            auto& v = pervertexdir2[id_];
+            Real3 u = pervertexdir1[id_];
+            Real3 v = pervertexdir2[id_];
 
             Real3 newcurv = projectCurvature(u,v, U, V,ans);
-            
 
 
             Eigen::Matrix2d tempMat;
@@ -263,66 +276,77 @@ void CurvatureTensor::calculatePrincipalCurvatures()
     }
 }
 
-void CurvatureTensor::printOutput()
+void CurvatureTensor::printCurvatureVec(std::string name)
 {
-    if (ofs_.is_open())
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    ofs_ << "# k1 k2" << std::endl;
+    for (int i=0;i<curvatureVec_.size();i++)
     {
-        ofs_ << "# k1 k2" << std::endl;
-        for (int i=0;i<curvatureVec_.size();i++)
+        for (int j=0;j<2;j++)
         {
-            for (int j=0;j<2;j++)
-            {
-                ofs_ << curvatureVec_[i][j] << " ";
-            }
-            ofs_ << "\n";
+            ofs_ << curvatureVec_[i][j] << " ";
         }
-        ofs_.close();
+        ofs_ << "\n";
+    }
+    ofs_.close();
+}
+
+void CurvatureTensor::printPrincipalDirection(std::string name)
+{
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    for (int i=0;i<PrincipalDirections_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << PrincipalDirections_[i][0][j] << " ";
+        }
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << PrincipalDirections_[i][1][j] << " ";
+        }
+        ofs_ << "\n";
     }
 
-    if (PrincipalDirectionofs_.is_open())
+    ofs_.close();
+}
+
+void CurvatureTensor::printFF2(std::string name)
+{
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    for (int i=0;i<curvatureTensorPerVertex_.size();i++)
     {
-        for (int i=0;i<PrincipalDirections_.size();i++)
+        for (int j=0;j<3;j++)
         {
-            for (int j=0;j<3;j++)
-            {
-                PrincipalDirectionofs_ << PrincipalDirections_[i][0][j] << " ";
-            }
-            for (int j=0;j<3;j++)
-            {
-                PrincipalDirectionofs_ << PrincipalDirections_[i][1][j] << " ";
-            }
-            PrincipalDirectionofs_ << "\n";
+            ofs_ << curvatureTensorPerVertex_[i][j] << " ";
         }
-        PrincipalDirectionofs_.close();
+        ofs_ << "\n";
+    }
+    ofs_.close();
+}
+
+void CurvatureTensor::printCurvatureDir(std::string name)
+{
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    const auto& vertices = mesh_.getvertices();
+
+    for (int i=0;i<vertices.size();i++)
+    {
+        for (int j=0;j<curvaturesInDir_.size();j++)
+        {
+            ofs_ << curvaturesInDir_[j][i] << " ";
+        }
+        ofs_ << "\n";
     }
 
-    if (FF2ofs_.is_open())
-    {
-        for (int i=0;i<curvatureTensorPerVertex_.size();i++)
-        {
-            for (int j=0;j<3;j++)
-            {
-                FF2ofs_ << curvatureTensorPerVertex_[i][j] << " ";
-            }
-            FF2ofs_ << "\n";
-        }
-        FF2ofs_.close();
-    }
-
-    if (curvatureDirOutputofs_.is_open())
-    {
-        const auto& vertices = mesh_.getvertices();
-
-        for (int i=0;i<vertices.size();i++)
-        {
-            for (int j=0;j<curvaturesInDir_.size();j++)
-            {
-                curvatureDirOutputofs_ << curvaturesInDir_[j][i] << " ";
-            }
-            curvatureDirOutputofs_ << "\n";
-        }
-        curvatureDirOutputofs_.close();
-    }
+    ofs_.close();
 }
 
 void CurvatureTensor::calculateCurvatureInDir()

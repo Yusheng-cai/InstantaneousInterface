@@ -10,7 +10,7 @@ class CurvatureFDM: public Curvature
         void calculateArithmeticMean();
         void calculateGeometricMean(); 
 
-        virtual void printOutput();
+        void printCurvature(std::string name);
 
     private:
         std::string MeanMethod_="geometric";

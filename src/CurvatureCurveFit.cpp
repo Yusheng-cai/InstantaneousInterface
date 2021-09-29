@@ -9,6 +9,8 @@ CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
 :Curvature(input)
 {
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
+
+    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
 }
 
 void CurvatureCurveFit::calculate()
@@ -69,7 +71,7 @@ void CurvatureCurveFit::calculate()
             b[1] += neighborRotatedPos[0]*neighborRotatedPos[1]*neighborRotatedPos[2];
             b[2] += 0.5*std::pow(neighborRotatedPos[1],2.0)*neighborRotatedPos[2];
         }
-        Eigen::Vector3d ans = mat.bdcSvd(Eigen::ComputeThinU|Eigen::ComputeThinV).solve(b);
+        Eigen::Vector3d ans = mat.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
 
         Eigen::Matrix2d SecondFundamentalMat;
@@ -80,6 +82,10 @@ void CurvatureCurveFit::calculate()
 
         eigensolver.compute(SecondFundamentalMat);
 
+        #ifdef MY_DEBUG
+        std::cout << "2FF matrix of triangle " << SecondFundamentalMat << std::endl;
+        #endif 
+
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
         Real2 eigenvals;
         eigenvals[0] = eigenvalues[0];
@@ -89,14 +95,15 @@ void CurvatureCurveFit::calculate()
     }
 }
 
-void CurvatureCurveFit::printOutput()
+void CurvatureCurveFit::printCurvature(std::string name)
 {
-    if (ofs_.is_open())
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    ofs_ << "# k1 k2" << "\n";
+    for(int i=0;i<CurvaturePerVertex_.size();i++)
     {
-        ofs_ << "# k1 k2" << "\n";
-        for(int i=0;i<CurvaturePerVertex_.size();i++)
-        {
-            ofs_ << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << "\n";
-        }
+        ofs_ << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << "\n";
     }
+    ofs_.close();
 }
