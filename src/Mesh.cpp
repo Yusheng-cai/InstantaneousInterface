@@ -101,9 +101,6 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
     facetNormals_.clear();
     facetNormals_.resize(triangles_.size());
 
-    triangleArea_.clear();
-    triangleArea_.resize(triangles_.size());
-
     // calculate the area of the triangles as well as the normals of the faces of triangles
     for (int i=0;i<triangles_.size();i++)
     {
@@ -112,10 +109,8 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
         int index2 = t.triangleindices_[1];
         int index3 = t.triangleindices_[2];
 
-        Real3 diff1;
-        Real3 diff2;
-        diff1.fill(0);
-        diff2.fill(0);
+        Real3 diff1 = {};
+        Real3 diff2 = {};
 
         for (int i=0;i<3;i++)
         {
