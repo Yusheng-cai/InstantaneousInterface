@@ -5,6 +5,7 @@ target_sources(tools PRIVATE
     "InputParser.cpp"
     "CommandLineArguments.cpp"
     "FileSystem.cpp"
+    "OutputFunction.cpp"
 )
 
 set(TOOLS_HEADER
@@ -16,6 +17,7 @@ set(TOOLS_HEADER
     "CommandLineArguments.h"
     "Registry.h"
     "FileSystem.h"
+    "OutputFunction.h"
 )
 
 target_include_directories(tools
