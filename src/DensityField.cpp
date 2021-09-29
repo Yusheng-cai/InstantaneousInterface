@@ -1,7 +1,7 @@
 #include "DensityField.h"
 
 DensityField::DensityField(const DensityFieldInput& input)
-:simstate_(input.simstate_)
+:simstate_(input.simstate_), pack_(input.pack_)
 {
     // Read the dimensions of the system, as in (Nx, Ny, Nz)
     input.pack_.ReadArrayNumber("dimensions", ParameterPack::KeyType::Required, dimensions_);
@@ -26,6 +26,13 @@ DensityField::DensityField(const DensityFieldInput& input)
     y_range_ = bound_box_->getYrange();
     z_range_ = bound_box_->getZrange();
 
+    // read in the output names 
+    input.pack_.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
+
+    // read in the output file names 
+    input.pack_.ReadVectorString("outputFiles", ParameterPack::KeyType::Optional, OutputFileNames_);
+    ASSERT(( OutputFileNames_.size() == OutputNames_.size()), "The number of outputs does not agree with number of \
+    outputs files.");
 
     // calculate the actual cut off
     cutoff_ = n_*sigma_;
@@ -40,8 +47,43 @@ DensityField::DensityField(const DensityFieldInput& input)
     {
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
+
+    initializeCurvature();
 }
 
+void DensityField::initializeCurvature()
+{
+    auto pack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+
+    if( pack.size() != 0)
+    {
+        for (int i=0;i<pack.size();i++)
+        {
+            std::string curvatureType;
+            auto& p = pack[i];
+
+            p -> ReadString("type", ParameterPack::KeyType::Required, curvatureType);
+
+            CurvatureInput input = { const_cast<ParameterPack&>(*(p)), mesh_ };
+            CurvaturePtr ptr = CurvaturePtr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
+
+            curvatures_.push_back(std::move(ptr)); 
+        }
+    }
+}
+
+void DensityField::printFinalOutput()
+{
+    for (int i=0;i<OutputNames_.size();i++)
+    {
+        outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
+    }
+
+    for (int i=0;i<curvatures_.size();i++)
+    {
+        curvatures_[i]->printOutput();
+    }
+}
 
 void DensityField::CalcOffsetIndex()
 {
@@ -67,6 +109,13 @@ void DensityField::CalcOffsetIndex()
             }
         }
     }
+    #ifdef MY_DEBUG
+    std::cout << "Printing offset indices with cutoff = " << cutoff_ << " Nxoffset = " << Nx_offset << " , Nyoffset = " << Ny_offset << " Nzoffset = " << Nz_offset << std::endl;
+    for (int i=0;i<offsetIndex_.size();i++)
+    {
+        std::cout << offsetIndex_[i][0] << " " << offsetIndex_[i][1] << " " << offsetIndex_[i][2] << std::endl;
+    }
+    #endif 
 }
 
 void DensityField::addAtomGroup(std::string& name)
@@ -114,7 +163,6 @@ void DensityField::findAtomsIndicesInBoundingBox()
 {
     auto atomgroup = getAtomGroup(atomGroupName_);
     auto& atoms = atomgroup.getAtoms();
-    std::cout << "atoms.size = " << atoms.size() << std::endl;
 
     AtomIndicesInside_.clear();
     AtomIndicesBuffer_.clearBuffer();
@@ -147,7 +195,7 @@ void DensityField::findAtomsIndicesInBoundingBox()
     }
 }
 
-void DensityField::CalculateOnTheFly()
+void DensityField::CalculateInstantaneousInterface()
 {
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
     {
@@ -157,7 +205,11 @@ void DensityField::CalculateOnTheFly()
     FieldBuffer_.set_master_object(field_);
 
     findAtomsIndicesInBoundingBox(); 
+
+    #ifdef MY_DEBUG
     std::cout << "Number of Atoms inside the observation vol is " << AtomIndicesInside_.size() << std::endl;
+    #endif 
+
     auto atomgroup = getAtomGroup(atomGroupName_);
     auto& atoms = atomgroup.getAtoms();
 

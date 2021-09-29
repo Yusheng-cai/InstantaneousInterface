@@ -9,6 +9,8 @@
 #include "GaussianCoarseGrainFunction.h"
 #include "tools/GenericFactory.h"
 #include "MarchingCubesWrapper.h"
+#include "tools/OutputFunction.h"
+#include "Curvature.h"
 
 
 #include <vector>
@@ -18,6 +20,7 @@
 #include <memory>
 #include <iostream>
 #include <sstream>
+#include <functional>
 
 struct DensityFieldInput
 {
@@ -28,10 +31,12 @@ struct DensityFieldInput
 class DensityField
 {
     public:
+        using CurvaturePtr = std::unique_ptr<Curvature>;
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;
         using index3=std::array<int,3>;
         using Range= CommonTypes::Real2;
+        using outputfunc = std::function<void(std::string)>;
 
         DensityField(const DensityFieldInput& input);
         virtual ~DensityField(){};
@@ -40,14 +45,16 @@ class DensityField
         virtual void calculate() = 0;
         virtual void finishCalculate() {};
         virtual void printOutputIfOnStep() {};
-        virtual void printFinalOutput() {};
+        virtual void printFinalOutput();
+
+        void initializeCurvature();
 
         void findAtomsIndicesInBoundingBox();
 
         bool isOpen();
 
         void CalcOffsetIndex();
-        void CalculateOnTheFly();
+        void CalculateInstantaneousInterface();
 
         void addAtomGroup(std::string& name);
         void registerAtomGroupID(std::string& name, int index);
@@ -57,6 +64,7 @@ class DensityField
         AtomGroup& accessAtomGroup(std::string& name);
 
     protected:
+        // the atomgroups
         std::vector<const AtomGroup*> AtomGroups_;
 
         std::map<std::string, int> MapAtomGroupName2Id_;
@@ -67,11 +75,11 @@ class DensityField
 
         std::vector<OP::Atom> Allatoms_;
 
+        // The simulation state that keeps track of atom groups and bounding box
         SimulationState& simstate_;
 
+        // sigma used for gaussian smoothing 
         Real sigma_;
-
-        std::string output_name_="";
 
         // we cut off n sigmas away
         Real n_ = 2.5;
@@ -88,21 +96,31 @@ class DensityField
         Range y_range_;
         Range z_range_;
 
+        // offset indices 
         std::vector<index3> offsetIndex_;
         OpenMP::OpenMP_buffer<Field> FieldBuffer_;
 
+        // The isosurface value, usually in units of atom/nm3
         Real isoSurfaceVal_;
 
         MarchingCubesWrapper MarchingCubes_;
         Mesh mesh_;
 
-
-        std::vector<Real> DensityPreCalculate_;
-
         std::vector<int> AtomIndicesInside_;
         OpenMP::OpenMP_buffer<std::vector<int>> AtomIndicesBuffer_;
 
-        bool PreCalculateDensity_ = false;
+        // this one manages all the output functions
+        Output outputs_;
+
+        // output names 
+        std::vector<std::string> OutputNames_;
+        std::vector<std::string> OutputFileNames_;
+
+        // ParamterPack 
+        ParameterPack& pack_;
+
+        // curvature calculators 
+        std::vector<CurvaturePtr> curvatures_;
 };
 
 namespace DensityFieldRegistry
