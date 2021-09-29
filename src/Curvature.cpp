@@ -3,19 +3,16 @@
 Curvature::Curvature(CurvatureInput& input)
 :mesh_(input.mesh_)
 {
-    bool read = input.pack.ReadString("output", ParameterPack::KeyType::Optional, OutputName_);
+    input.pack.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
+    input.pack.ReadVectorString("outputNames", ParameterPack::KeyType::Optional, OutputFileNames_);
 
-    if (read)
-    {
-        ofs_.open(OutputName_);
-        ASSERT((ofs_.is_open()), "The file with name " << OutputName_ << " is not opened.");
-    }
+    ASSERT(( OutputNames_.size() == OutputFileNames_.size()), "The number of outputs does not agree with number of output files.");
 }
 
-void Curvature::close()
+void Curvature::printOutput()
 {
-    if (ofs_.is_open())
+    for (int i=0;i<OutputNames_.size();i++)
     {
-        ofs_.close();
+        outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
     }
 }
