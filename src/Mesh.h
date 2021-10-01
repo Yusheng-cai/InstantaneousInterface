@@ -3,6 +3,7 @@
 #include "tools/CommonTypes.h"
 #include "LinAlgTools.h"
 #include "tools/InputParser.h"
+#include "MeshRefineStrategy.h"
 
 #include <vector>
 #include <array>
@@ -19,6 +20,18 @@ struct vertex
 
     Real3 position_;
     Real3 normals_;
+
+    bool operator==(const vertex v1)
+    {
+        if (v1.position_ == this->position_)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
 };
 
 struct triangle
