@@ -48,6 +48,7 @@ DensityField::DensityField(const DensityFieldInput& input)
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
 
+    initializeMesh();
     initializeCurvature();
 }
 
@@ -64,7 +65,7 @@ void DensityField::initializeCurvature()
 
             p -> ReadString("type", ParameterPack::KeyType::Required, curvatureType);
 
-            CurvatureInput input = { const_cast<ParameterPack&>(*(p)), mesh_ };
+            CurvatureInput input = { const_cast<ParameterPack&>(*(p)), *mesh_ };
             CurvaturePtr ptr = CurvaturePtr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
 
             curvatures_.push_back(std::move(ptr)); 
@@ -157,6 +158,11 @@ AtomGroup& DensityField::accessAtomGroup(std::string& name)
     int ID = getAtomGroupID(name);
 
     return const_cast<AtomGroup&>(*AtomGroups_[ID]);
+}
+
+void DensityField::initializeMesh()
+{
+    mesh_ = Meshptr(new Mesh(pack_));
 }
 
 void DensityField::findAtomsIndicesInBoundingBox()

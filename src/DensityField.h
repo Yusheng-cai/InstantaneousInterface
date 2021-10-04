@@ -36,6 +36,7 @@ class DensityField
         using Real3= CommonTypes::Real3;
         using index3=std::array<int,3>;
         using Range= CommonTypes::Real2;
+        using Meshptr = std::unique_ptr<Mesh>;
         using outputfunc = std::function<void(std::string)>;
 
         DensityField(const DensityFieldInput& input);
@@ -48,6 +49,8 @@ class DensityField
         virtual void printFinalOutput();
 
         void initializeCurvature();
+
+        void initializeMesh();
 
         void findAtomsIndicesInBoundingBox();
 
@@ -104,7 +107,7 @@ class DensityField
         Real isoSurfaceVal_;
 
         MarchingCubesWrapper MarchingCubes_;
-        Mesh mesh_;
+        Meshptr mesh_;
 
         std::vector<int> AtomIndicesInside_;
         OpenMP::OpenMP_buffer<std::vector<int>> AtomIndicesBuffer_;
