@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <unordered_map>
 
 class MeshLoopRefine : public MeshRefineStrategy
 {
@@ -14,9 +15,19 @@ class MeshLoopRefine : public MeshRefineStrategy
         virtual void refine();
 
         void calculateEvenPoints();
+        void calculateOddPoints();
+        void calculateTriangles();
+        void updateMesh();
 
         Real calculateBeta(int k);
     
     private:
-        std::vector<Real3> EvenPoints_;
+        // the new vertices in the system 
+        std::vector<vertex> Points_;
+
+        // the triangles in the system
+        std::vector<triangle> triangles_;
+
+        // create a map to map from edges to the new points
+        std::unordered_map<edge, vertex> MapEdgesToVertex_;
 };
