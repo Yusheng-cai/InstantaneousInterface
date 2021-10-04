@@ -35,7 +35,10 @@ void AverageField::finishCalculate()
         fieldVec[i] = avgFac*fieldVec[i]; 
     }
 
-    MarchingCubes_.calculate(field_, mesh_, isoSurfaceVal_);
+    MarchingCubes_.calculate(field_, *mesh_, isoSurfaceVal_);
+
+    // refine the mesh 
+    mesh_ -> refine();
 
     for (int i=0;i<curvatures_.size();i++)
     {
@@ -65,7 +68,7 @@ void AverageField::printVertices(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
-    const auto& vertices_ = mesh_.getvertices();
+    const auto& vertices_ = mesh_ -> getvertices();
     for (int i=0;i<vertices_.size();i++)
     {
         for (int j=0;j<3;j++)
@@ -86,7 +89,7 @@ void AverageField::printTriangleIndices(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
-    const auto& triangles_ = mesh_.gettriangles();
+    const auto& triangles_ = mesh_ -> gettriangles();
     for (int i=0;i<triangles_.size();i++)
     {
         for (int j=0;j<3;j++)
@@ -106,7 +109,7 @@ void AverageField::printNormals(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
-    const auto& vertices_ = mesh_.getvertices();
+    const auto& vertices_ = mesh_ -> getvertices();
     for (int i=0;i<vertices_.size();i++)
     {
         for (int j=0;j<3;j++)
