@@ -18,6 +18,8 @@ target_sources(src PRIVATE
     "CurvatureTensor.cpp"
     "Graph.cpp"
     "CurvatureCurveFit.cpp"
+    "MeshRefineStrategy.cpp"
+    "MeshLoopRefine.cpp"
 )
 
 set(src_HEADER
@@ -39,6 +41,8 @@ set(src_HEADER
     "CurvatureTensor.h"
     "Graph.h"
     "CurvatureCurveFit.h"
+    "MeshRefineStrategy.h"
+    "MeshLoopRefine.h"
 )
 
 target_include_directories(src
