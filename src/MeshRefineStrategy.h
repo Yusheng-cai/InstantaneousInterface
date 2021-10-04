@@ -2,6 +2,7 @@
 #include "tools/Assert.h"
 #include "tools/InputParser.h"
 #include "tools/CommonTypes.h"
+#include "tools/GenericFactory.h"
 
 #include <vector>
 #include <array>
@@ -29,4 +30,15 @@ class MeshRefineStrategy
     protected:
         Mesh& mesh_;
         ParameterPack& pack_;
+};
+
+namespace MeshRefineStrategyFactory
+{
+    using key = std::string;
+    using base = MeshRefineStrategy;
+
+    using factory = GenericFactory<base, key, MeshRefineStrategyInput&>;
+
+    template<typename D>
+    using registry_ = RegisterInFactory<base, D, key, MeshRefineStrategyInput&>;
 };
