@@ -9,6 +9,7 @@
 int main(int argc, char** argv)
 {
     using curveptr = std::unique_ptr<Curvature>;
+    using Meshptr  = std::unique_ptr<Mesh>;
     std::string fname = argv[1];
 
     InputParser ip;
@@ -28,12 +29,15 @@ int main(int argc, char** argv)
     curvaturePack->ReadString("type", ParameterPack::KeyType::Required,curvaturetype);
 
 
-    Mesh mesh_;
-    MeshTools::readPLY(vertexFileName, mesh_);
-    MeshTools::readPLYTriangle(triangleFileName, mesh_);
+    Meshptr mesh_ = Meshptr(new Mesh(pack));    
+    
+    MeshTools::readPLY(vertexFileName, *mesh_);
+    MeshTools::readPLYTriangle(triangleFileName, *mesh_);
 
-    auto& vertices = mesh_.accessvertices();
-    auto& triangles= mesh_.accesstriangles();
+    mesh_ -> refine();
+
+    auto& vertices = mesh_->accessvertices();
+    auto& triangles= mesh_->accesstriangles();
 
     // for (int i=0;i<mesh_.getNumTriangles();i++)
     // {
@@ -64,7 +68,7 @@ int main(int argc, char** argv)
     //     std::cout << "\n";
     // }
 
-    CurvatureInput input = { const_cast<ParameterPack&>(*curvaturePack), mesh_};
+    CurvatureInput input = { const_cast<ParameterPack&>(*curvaturePack), *mesh_};
     curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
 
     curve -> calculate();
