@@ -10,8 +10,11 @@
 #include <cmath>
 #include <algorithm>
 #include <sstream>
+#include <memory>
+#include <unordered_map>
 
 class MarchingCubesWrapper;
+
 
 struct vertex
 {
@@ -20,10 +23,11 @@ struct vertex
 
     Real3 position_;
     Real3 normals_;
+    int index;
 
-    bool operator==(const vertex v1)
+    bool operator==(const vertex& v1) const
     {
-        if (v1.position_ == this->position_)
+        if (v1.index == index)
         {
             return true;
         }
@@ -34,11 +38,79 @@ struct vertex
     }
 };
 
+struct edge
+{
+    using Real = CommonTypes::Real;
+    using Real3= CommonTypes::Real3;
+
+    // two vertices make up an edge
+    vertex vertex1_;
+    vertex vertex2_;
+
+    bool operator==(const edge& e1) const
+    {
+        // either vertex 1 == vertex 1 && vertex2 == vertex2
+        if (e1.vertex1_ == vertex1_ && e1.vertex2_ == vertex2_)
+        {
+            return true;
+        }
+        // or vertex1 == vertex2 && vertex2 == vertex1
+        if (e1.vertex1_ == vertex2_ && e1.vertex2_ == vertex1_)
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+};
+
+namespace std {
+
+  template <>
+  struct hash<vertex>
+  {
+      std::size_t operator()(const vertex& v) const 
+      {
+          std::size_t indexHash = std::hash<int>()(v.index);
+
+          return indexHash;
+      }
+  };
+
+  template <>
+  struct hash<edge>
+  {
+    std::size_t operator()(const edge& e) const
+    {
+      using std::size_t;
+      using std::hash;
+      using std::string;
+
+      // Compute individual hash values for first,
+      // second and third and combine them using XOR
+      // and bit shifting:
+
+      std::size_t v1_hash = std::hash<vertex>()(e.vertex1_);
+      std::size_t v2_hash = std::hash<vertex>()(e.vertex2_);
+
+      return v1_hash ^ v2_hash;
+    };
+  };
+}
+
 struct triangle
 {
     using index3 = CommonTypes::index3;
 
     index3 triangleindices_;
+    
+    // each triangle has 3 edges
+    std::array<edge,3> edges_;
+
+    // each triangle has 3 vertices
+    std::array<vertex,3> vertices_;
 };
 
 class Mesh
@@ -46,9 +118,13 @@ class Mesh
     public:
         using Real3 = CommonTypes::Real3;
         using Real  = CommonTypes::Real;
+        using refinePtr = std::unique_ptr<MeshRefineStrategy>;
 
-        Mesh(){};
+        Mesh(const ParameterPack& pack);
+        Mesh() {};
         ~Mesh(){};
+
+        void initializeRefineStrat();
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
@@ -65,12 +141,20 @@ class Mesh
         const std::vector<Real>& getTriangleArea() const {return triangleArea_;}
         const std::vector<Real3>& getPerVertexDir1() const {return PerVertexdir1_;}
         const std::vector<Real3>& getPerVertexDir2() const {return PerVertexdir2_;}
+        const std::unordered_map<vertex, std::vector<edge>>& getMapBVertexToBEdges() const {return MapBoundaryVertexToBoundaryEdges_;}
 
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
+        const std::unordered_map<edge, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
 
         // Find neighbors indices for a vertex
         void findVertexNeighbors();
+
+        // find all the boundary vertices
+        void findBoundaryVertices();
+
+        // function called when trying to refine a mesh
+        void refine();
 
         // function that finds the triangle indices that a vertex belongs to 
         void findTriangleIndices();
@@ -83,6 +167,9 @@ class Mesh
 
         // Find the 
         void CalcPerVertexDir();
+
+        // calculate the faces each edge corresponds to
+        void MapEdgeToFaces();
     
     private:
         std::vector<vertex> vertices_;
@@ -101,6 +188,16 @@ class Mesh
 
         std::vector<Real3> PerVertexdir1_;
         std::vector<Real3> PerVertexdir2_;
+
+        std::unordered_map<edge, std::vector<int>> MapEdgeToFace_;
+
+        std::string refineStrategy_;
+
+        // ptr to the refine object
+        refinePtr MeshRefine_;
+
+        // a map from boundary vertices to their respective edges  
+        std::unordered_map<vertex, std::vector<edge>> MapBoundaryVertexToBoundaryEdges_;
 };
 
 

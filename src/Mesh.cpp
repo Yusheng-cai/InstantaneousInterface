@@ -1,5 +1,18 @@
 #include "MarchingCubesWrapper.h"
 
+Mesh::Mesh(const ParameterPack& pack)
+{
+    // the mesh pack is the pack for the density field
+    auto refinePack = pack.findParamPack("refine", ParameterPack::KeyType::Optional);
+
+    if (refinePack != nullptr)
+    {
+        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*refinePack)};
+        refinePack->ReadString("type", ParameterPack::KeyType::Required, refineStrategy_);
+        MeshRefine_ = refinePtr(MeshRefineStrategyFactory::factory::instance().create(refineStrategy_, input));
+    }
+}
+
 void Mesh::CalcPerVertexDir()
 {
     PerVertexdir1_.resize(vertices_.size());
@@ -39,6 +52,104 @@ void Mesh::CalcPerVertexDir()
 
         PerVertexdir2_[i] = B;
     } 
+}
+
+void Mesh::refine()
+{
+    if (MeshRefine_.get() != nullptr)
+    {
+        std::cout << "refining" << std::endl;
+        MeshRefine_ -> refine();
+    }
+}
+
+void Mesh::MapEdgeToFaces()
+{
+    // clear whatever is in the previous edgetofaces map
+    MapEdgeToFace_.clear();
+
+    // iterate over all the triangles
+    for (int i=0;i<triangles_.size();i++)
+    {
+        // find the triangles indices
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            auto it = MapEdgeToFace_.find(t.edges_[j]);
+
+            #ifdef MY_DEBUG
+            std::cout << "For triangle " << i << " edge " << j << ", vertex1 index = " << t.edges_[j].vertex1_.index << \
+            ", vertex2 index = " << t.edges_[j].vertex2_.index << std::endl;
+            #endif 
+
+            if (it == MapEdgeToFace_.end())
+            {
+                std::vector<int> faceIndices;
+                faceIndices.push_back(i);
+
+                MapEdgeToFace_.insert(std::make_pair(t.edges_[j], faceIndices));
+            }
+            else
+            {
+                it -> second.push_back(i);
+            }
+        }
+    }
+
+    // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
+    for (auto it=MapEdgeToFace_.begin(); it != MapEdgeToFace_.end();it++)
+    {
+        ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
+        , however the calculated result shows " << it -> second.size());
+    }
+}
+
+void Mesh::findBoundaryVertices()
+{
+    // first get the map from edges to faces
+    MapEdgeToFaces();
+
+    for (auto it = MapEdgeToFace_.begin(); it != MapEdgeToFace_.end(); it ++)
+    {
+        int size = it -> second.size();
+        ASSERT(( size == 1 || size == 2), "An edge can only be shared by 1 or 2 faces.");
+
+        // if size == 1, then all the verices in the edge is part of the boundary_vertices
+        if (size == 1)
+        {
+            bool Notfound1 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex1_) == MapBoundaryVertexToBoundaryEdges_.end();
+            bool Notfound2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex2_) == MapBoundaryVertexToBoundaryEdges_.end();
+
+            if (Notfound1)
+            {
+                std::vector<edge> e;
+                e.push_back(it -> first);
+
+                MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex1_, e));
+            }
+            else
+            {
+                auto it2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex1_);
+
+                it2 -> second.push_back(it -> first);
+            }
+
+            if (Notfound2)
+            {
+                std::vector<edge> e;
+                e.push_back(it -> first);
+
+                MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex2_, e));
+            }
+            else
+            {
+                auto it2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex2_);
+
+                it2 -> second.push_back(it -> first);
+            }
+        }
+    }
 }
 
 void Mesh::findVertexNeighbors()
@@ -228,6 +339,7 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
                 v.normals_[i] = NumberPerLine[i+3];
             }
 
+            v.index = vertices.size();
             vertices.push_back(v);
         }
 
@@ -245,6 +357,7 @@ bool MeshTools::readPLYTriangle(std::string& filename, Mesh& mesh_)
     ifs_.open(filename);
     ASSERT((ifs_.is_open()), "The file with name " << filename << " is not opened.");
 
+    auto& vertices = mesh_.getvertices();
     auto& triangles= mesh_.accesstriangles();
 
     std::string sentence;
@@ -286,7 +399,17 @@ bool MeshTools::readPLYTriangle(std::string& filename, Mesh& mesh_)
             for (int i=0;i<3;i++)
             {
                 t.triangleindices_[i] = NumberPerLine[i];
+                t.vertices_[i] = vertices[t.triangleindices_[i]];
             }
+
+            t.edges_[0].vertex1_ = t.vertices_[0];
+            t.edges_[0].vertex2_ = t.vertices_[1];
+
+            t.edges_[1].vertex1_ = t.vertices_[1];
+            t.edges_[1].vertex2_ = t.vertices_[2];
+
+            t.edges_[2].vertex1_ = t.vertices_[2];
+            t.edges_[2].vertex2_ = t.vertices_[0];
 
             triangles.push_back(t);
         }
