@@ -1,6 +1,6 @@
 #pragma once
 #include "CommonTypes.h"
-#include "assert.h"
+#include "Assert.h"
 
 #include <functional>
 #include <vector>
