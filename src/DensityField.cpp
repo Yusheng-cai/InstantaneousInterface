@@ -84,6 +84,8 @@ void DensityField::printFinalOutput()
     {
         curvatures_[i]->printOutput();
     }
+
+    mesh_ -> print();
 }
 
 void DensityField::CalcOffsetIndex()
