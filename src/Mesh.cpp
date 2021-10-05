@@ -2,15 +2,59 @@
 
 Mesh::Mesh(const ParameterPack& pack)
 {
-    // the mesh pack is the pack for the density field
-    auto refinePack = pack.findParamPack("refine", ParameterPack::KeyType::Optional);
+    // set up output 
+    outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
 
-    if (refinePack != nullptr)
+    // the mesh pack is the pack for the density field
+    auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
+
+    if (MeshPack != nullptr)
     {
-        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*refinePack)};
-        refinePack->ReadString("type", ParameterPack::KeyType::Required, refineStrategy_);
-        MeshRefine_ = refinePtr(MeshRefineStrategyFactory::factory::instance().create(refineStrategy_, input));
+        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*MeshPack)};
+        auto read = MeshPack->ReadString("type", ParameterPack::KeyType::Optional, refineStrategy_);
+
+        if (read)
+        {
+            MeshRefine_ = refinePtr(MeshRefineStrategyFactory::factory::instance().create(refineStrategy_, input));
+        }
+
+        MeshPack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
+        MeshPack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
     }
+}
+
+void Mesh::print()
+{
+    for (int i=0;i<outs_.size();i++)
+    {
+        outputs_.getOutputFuncByName(outs_[i])(outputNames_[i]);
+    }
+}
+
+void Mesh::printSTL(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "solid " << name << "\n";
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        ofs << "facet normal " << facetNormals_[i][0] << " " << facetNormals_[i][1] << " " << facetNormals_[i][2] << "\n";
+
+        ofs << "\touter loop\n";
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            auto& pos = t.vertices_[j].position_;
+            ofs << "vertex " << pos[0] << " " << pos[1] << " " << pos[2] << "\n";
+        }
+
+        ofs << "\tendloop\n";
+        ofs << "endfacet\n";
+    }
+    ofs << "endsolid " << name;
 }
 
 void Mesh::CalcPerVertexDir()
@@ -278,6 +322,11 @@ void Mesh::CalcVertexNormals()
         {
             vertexNormals_[i][j] = vertexNormals_[i][j]/norm;
         }
+    }
+
+    for(int i=0;i<vertices_.size();i++)
+    {
+        vertices_[i].normals_ = vertexNormals_[i];
     }
 }
 
