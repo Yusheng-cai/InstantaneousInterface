@@ -4,6 +4,7 @@
 #include "LinAlgTools.h"
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
+#include "tools/OutputFunction.h"
 
 #include <vector>
 #include <array>
@@ -126,6 +127,8 @@ class Mesh
 
         void initializeRefineStrat();
 
+        void printSTL(std::string name);
+
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
         std::vector<int>& accessNumNeighbors() {return NumNeighbors_;}
@@ -142,6 +145,7 @@ class Mesh
         const std::vector<Real3>& getPerVertexDir1() const {return PerVertexdir1_;}
         const std::vector<Real3>& getPerVertexDir2() const {return PerVertexdir2_;}
         const std::unordered_map<vertex, std::vector<edge>>& getMapBVertexToBEdges() const {return MapBoundaryVertexToBoundaryEdges_;}
+        const std::vector<Real3>& getFaceNormals() const {return facetNormals_;}
 
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
@@ -155,6 +159,9 @@ class Mesh
 
         // function called when trying to refine a mesh
         void refine();
+
+        // printoutput
+        void print();
 
         // function that finds the triangle indices that a vertex belongs to 
         void findTriangleIndices();
@@ -198,6 +205,15 @@ class Mesh
 
         // a map from boundary vertices to their respective edges  
         std::unordered_map<vertex, std::vector<edge>> MapBoundaryVertexToBoundaryEdges_;
+
+        // output function
+        Output outputs_;
+
+        // outputs
+        std::vector<std::string> outs_;
+
+        // outputNames
+        std::vector<std::string> outputNames_;
 };
 
 
