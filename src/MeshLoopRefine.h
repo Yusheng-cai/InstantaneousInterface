@@ -10,6 +10,7 @@
 class MeshLoopRefine : public MeshRefineStrategy
 {
     public:
+        using index3 = CommonTypes::index3;
         MeshLoopRefine(MeshRefineStrategyInput& input);
 
         virtual void refine();
@@ -27,6 +28,8 @@ class MeshLoopRefine : public MeshRefineStrategy
 
         // the triangles in the system
         std::vector<triangle> triangles_;
+        std::vector<index3> triangle_indices_;
+        std::vector<Real3> vertex_normals_;
 
         // create a map to map from edges to the new points
         std::unordered_map<edge, vertex> MapEdgesToVertex_;

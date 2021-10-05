@@ -35,6 +35,9 @@ void MeshLoopRefine::updateMesh()
     // insert vertices
     vertices.insert(vertices.end(),Points_.begin(), Points_.end());
     triangles.insert(triangles.end(), triangles_.begin(), triangles_.end());
+
+    // calculate triangles faces
+    mesh_.CalcTriangleAreaAndFacetNormals();
 }
 
 void MeshLoopRefine::calculateTriangles()
@@ -50,45 +53,38 @@ void MeshLoopRefine::calculateTriangles()
         // the indices of the points in the old face 
         for (int j=0;j<3;j++)
         {
-            triangle t;
             std::vector<int> indices_;
             int id = oldTriangles[i].triangleindices_[j];
             indices_.push_back(id);
 
             for (auto e:edges)
             {
+                auto it = MapEdgesToVertex_.find(e);
+                ASSERT((it != MapEdgesToVertex_.end()), "The edge is not found.");
+
                 if (id == e.vertex1_.index)
                 {
-                    indices_.push_back(id);
+                    indices_.push_back(it -> second.index);
                 }
 
                 if (id == e.vertex2_.index)
                 {
-                    indices_.push_back(id);
+                    indices_.push_back(it -> second.index);
                 }
             }
 
             ASSERT((indices_.size() == 3), "The triangular indices cannot exceed 3 while it is " << indices_.size());
+            index3 idd_;
 
-            for (int i=0;i<3;i++)
+            for (int k=0;k<3;k++)
             {
-                t.triangleindices_[i] = indices_[i];
-                t.vertices_[i] = Points_[indices_[i]];
+                idd_[k] = indices_[k];
             }
 
-            t.edges_[0].vertex1_ = t.vertices_[0];
-            t.edges_[0].vertex2_ = t.vertices_[1];
-
-            t.edges_[1].vertex1_ = t.vertices_[1];
-            t.edges_[1].vertex2_ = t.vertices_[2];
-
-            t.edges_[2].vertex1_ = t.vertices_[2];
-            t.edges_[2].vertex2_ = t.vertices_[0];
-
-            triangles_.push_back(t);
+            triangle_indices_.push_back(idd_);
         }    
 
-        triangle t2;
+        index3 id_;
         // Now we connect all the inner triangles
         for (int j=0;j<3;j++)
         {
@@ -99,34 +95,25 @@ void MeshLoopRefine::calculateTriangles()
             ASSERT((it != MapEdgesToVertex_.end()), "The edge with e.vertex1 = " << e.vertex1_.index << " and e.vertex2 = " << e.vertex2_.index << \
             " is not in Map from edges to vertex.");
 
-            t2.triangleindices_[j] = it -> second.index;
-            t2.vertices_[j] = it ->second;
+            id_[j] = it -> second.index;
         }
 
-        t2.edges_[0].vertex1_ = t2.vertices_[0];
-        t2.edges_[0].vertex2_ = t2.vertices_[1];
-
-        t2.edges_[1].vertex1_ = t2.vertices_[1];
-        t2.edges_[1].vertex2_ = t2.vertices_[2];
-
-        t2.edges_[2].vertex1_ = t2.vertices_[2];
-        t2.edges_[2].vertex2_ = t2.vertices_[0];
-
-        triangles_.push_back(t2);
+        triangle_indices_.push_back(id_);
     }
 
-    // Now we calculate the normal vector of the triangles 
+    // Now we calculate the normal vector of the triangles and construct the triangles 
     std::vector<Real> TotalAreaVertices_(Points_.size(),0.0);
+    triangles_.resize(triangle_indices_.size());
     for (int i=0;i<triangles_.size();i++)
     {
         Real3 edge1;
         Real3 edge2;
-        auto& t = triangles_[i];
+        auto& t = triangle_indices_[i];
 
         for (int j=0;j<3;j++)
         {
-            edge1[j] = Points_[t.triangleindices_[0]].position_[j] - Points_[t.triangleindices_[1]].position_[j];
-            edge2[j] = Points_[t.triangleindices_[1]].position_[j] - Points_[t.triangleindices_[2]].position_[j];
+            edge1[j] = Points_[t[0]].position_[j] - Points_[t[1]].position_[j];
+            edge2[j] = Points_[t[1]].position_[j] - Points_[t[2]].position_[j];
         }
 
         Real3 normal = LinAlg3x3::CrossProduct(edge1, edge2);
@@ -137,22 +124,39 @@ void MeshLoopRefine::calculateTriangles()
         {
             for (int k=0;k<3;k++)
             {
-                Points_[t.triangleindices_[j]].normals_[k] += area * normal[k];
+                Points_[t[j]].normals_[k] += area * normal[k];
             }
 
-            TotalAreaVertices_[t.triangleindices_[j]] += area;
+            TotalAreaVertices_[t[j]] += area;
         }
     }
 
     for (int i=0;i<Points_.size();i++)
     {
         Real TotalArea = TotalAreaVertices_[i];
-        std::cout << "Total area of point " << i << " = " << TotalArea << std::endl;
 
         for (int j=0;j<3;j++)
         {
             Points_[i].normals_[j] /= TotalArea;
         }
+    }
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            int vertexIndex = triangle_indices_[i][j];
+            triangles_[i].vertices_[j] = Points_[vertexIndex];
+            triangles_[i].triangleindices_[j] = vertexIndex;
+        }
+        triangles_[i].edges_[0].vertex1_ = triangles_[i].vertices_[0];
+        triangles_[i].edges_[0].vertex2_ = triangles_[i].vertices_[1];
+
+        triangles_[i].edges_[1].vertex1_ = triangles_[i].vertices_[1];
+        triangles_[i].edges_[1].vertex2_ = triangles_[i].vertices_[2];
+
+        triangles_[i].edges_[2].vertex1_ = triangles_[i].vertices_[2];
+        triangles_[i].edges_[2].vertex2_ = triangles_[i].vertices_[0];
     }
 }
 
@@ -191,6 +195,7 @@ void MeshLoopRefine::calculateOddPoints()
             }
             v.position_ = pos;
             v.index     = Points_.size();
+            v.normals_  = {{0,0,0}};
             Points_.push_back(v);
 
             // map edges to their respective vertex 
