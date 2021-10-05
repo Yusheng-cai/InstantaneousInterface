@@ -35,6 +35,8 @@ int main(int argc, char** argv)
     MeshTools::readPLYTriangle(triangleFileName, *mesh_);
 
     mesh_ -> refine();
+    mesh_ -> CalcTriangleAreaAndFacetNormals();
+    mesh_ -> print();
 
     auto& vertices = mesh_->accessvertices();
     auto& triangles= mesh_->accesstriangles();

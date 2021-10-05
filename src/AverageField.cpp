@@ -11,7 +11,7 @@ AverageField::AverageField(const DensityFieldInput& input)
     outputs_.registerOutputFunc("field", [this](std::string name) -> void { this -> printField(name);});
     outputs_.registerOutputFunc("triangle", [this](std::string name) -> void {this -> printTriangleIndices(name);});
     outputs_.registerOutputFunc("vertex", [this](std::string name) -> void {this -> printVertices(name);});
-    outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printVertices(name);});
+    outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printNormals(name);});
 }
 
 void AverageField::calculate()
