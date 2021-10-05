@@ -40,6 +40,7 @@ void CurvatureTensor::calculate()
 {
     mesh_.CalcPerVertexDir();
     mesh_.CalcTriangleAreaAndFacetNormals();
+    mesh_.CalcVertexNormals();
 
     const auto& triangles = mesh_.gettriangles();
     const auto& vertices  = mesh_.getvertices();
@@ -392,6 +393,13 @@ CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, cons
 
     Matrix rotationMatrix = LinAlg3x3::GetRotationMatrix(oldN, refN);
 
+    #ifdef MY_DEBUG
+    std::cout << "In project curvature." << std::endl;
+    Real3 result = LinAlg3x3::MatrixDotVector(rotationMatrix, oldN);
+    std::cout << "rotation result = " << result[0] << " " << result[1] << " " << result[2] << std::endl;
+    std::cout << "refN = " << refN[0] << " " << refN[1] << " " << refN[2] << std::endl;
+    #endif 
+    
     newu = LinAlg3x3::MatrixDotVector(rotationMatrix, oldu);
     LinAlg3x3::normalize(newu);
     newv = LinAlg3x3::MatrixDotVector(rotationMatrix, oldv);
