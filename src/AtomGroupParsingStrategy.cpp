@@ -287,7 +287,7 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
 
             // The first one is always the time index, so we always ignore it
             ss_ >> index;
-            Frames_.push_back(index);
+            Frames_.push_back(index-1);
 
             while (ss_ >> index)
             {
@@ -327,6 +327,15 @@ void IndexFileParsing::update(std::vector<int>& indices)
     indices.clear();
 
     indices.insert(indices.end(), Fileindices_[frame_count].begin(), Fileindices_[frame_count].end());
+
+
+    #ifdef MY_DEBUG
+    std::cout << "In index file update." << std::endl;
+    for (int i=0;i<indices.size();i++)
+    {
+        std::cout << "Af frame = " << frame_count << "Indices = " << indices[i] << std::endl;
+    }
+    #endif
 
     frame_count++;
 }
