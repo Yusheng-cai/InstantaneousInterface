@@ -76,5 +76,5 @@ void MarchingCubesWrapper::calculate(Field& field_, Mesh& mesh_,Real isoSurfaceV
     
     // calculate the triangular area and facet normals
     mesh_.CalcTriangleAreaAndFacetNormals();
-    mesh_.CalcVertexNormals();
+    // mesh_.CalcVertexNormals();
 }
