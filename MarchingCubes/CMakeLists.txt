@@ -17,7 +17,7 @@ target_include_directories(MarchingCubes PUBLIC
                          "${CMAKE_SOURCE_DIR}")
 
 include(InstallLibraryWithStandardSetup)
-InstallLibraryWithStandardSetup(parallel 
+InstallLibraryWithStandardSetup(MarchingCubes 
     INCLUDE_SUBDIR MarchingCubes 
     INCLUDES ${MarchingCubesHeader})
     
