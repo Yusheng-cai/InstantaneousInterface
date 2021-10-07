@@ -105,6 +105,7 @@ void CurvatureTensor::calculate()
             Real ejU = LinAlg3x3::DotProduct(edges[j], U);
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
             #ifdef MY_DEBUG
+            std::cout << "For triangle " << i << "edge " << j << edges[j][0] << " " << edges[j][1] << " " << edges[j][2] << std::endl;
             std::cout << "For triangle " << i << " edge " << j << "ejU = " << ejU << ", eJV = " << ejV << std::endl;
             #endif
 
