@@ -24,36 +24,38 @@ int main(int argc, char** argv)
     ParameterPack pack;
     ip.ParseFile(fname, pack);
 
-    // auto vertexPack = pack.findParamPack("vertexfile", ParameterPack::KeyType::Required);
-    // auto TrianglePack = pack.findParamPack("trianglefile", ParameterPack::KeyType::Required);
-    // auto curvaturePack = pack.findParamPack("curvature", ParameterPack::KeyType::Required);
+    auto vertexPack = pack.findParamPack("vertexfile", ParameterPack::KeyType::Optional);
+    auto TrianglePack = pack.findParamPack("trianglefile", ParameterPack::KeyType::Optional);
+    auto curvaturePack = pack.findParamPack("curvature", ParameterPack::KeyType::Optional);
 
-    // std::string vertexFileName;
-    // std::string triangleFileName;
-    // std::string curvaturetype;
-    // vertexPack->ReadString("name", ParameterPack::KeyType::Required, vertexFileName);
-    // TrianglePack->ReadString("name", ParameterPack::KeyType::Required, triangleFileName);
-    // curvaturePack->ReadString("type", ParameterPack::KeyType::Required,curvaturetype);
+    if (vertexPack != nullptr && TrianglePack != nullptr)
+    {
+        std::string vertexFileName;
+        std::string triangleFileName;
+        std::string curvaturetype;
+        vertexPack->ReadString("name", ParameterPack::KeyType::Required, vertexFileName);
+        TrianglePack->ReadString("name", ParameterPack::KeyType::Required, triangleFileName);
+        curvaturePack->ReadString("type", ParameterPack::KeyType::Required,curvaturetype);
+
+        Meshptr mesh_ = Meshptr(new Mesh(pack));    
+        
+        MeshTools::readPLY(vertexFileName, *mesh_);
+        MeshTools::readPLYTriangle(triangleFileName, *mesh_);
+
+        mesh_ -> refine();
+        mesh_ -> CalcTriangleAreaAndFacetNormals();
+        mesh_ -> print();
+
+        auto& vertices = mesh_->accessvertices();
+        auto& triangles= mesh_->accesstriangles();
 
 
-    // Meshptr mesh_ = Meshptr(new Mesh(pack));    
-    
-    // MeshTools::readPLY(vertexFileName, *mesh_);
-    // MeshTools::readPLYTriangle(triangleFileName, *mesh_);
+        CurvatureInput input = { const_cast<ParameterPack&>(*curvaturePack), *mesh_};
+        curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
 
-    // mesh_ -> refine();
-    // mesh_ -> CalcTriangleAreaAndFacetNormals();
-    // mesh_ -> print();
-
-    // auto& vertices = mesh_->accessvertices();
-    // auto& triangles= mesh_->accesstriangles();
-
-
-    // CurvatureInput input = { const_cast<ParameterPack&>(*curvaturePack), *mesh_};
-    // curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
-
-    // curve -> calculate();
-    // curve -> printOutput();
+        curve -> calculate();
+        curve -> printOutput();
+    }
 
     // find the field
     auto fieldPack = pack.findParamPacks("field", ParameterPack::KeyType::Optional);
@@ -80,7 +82,7 @@ int main(int argc, char** argv)
         FieldTools::FieldReader(fname, *f);
 
         auto mpack = fpack -> findParamPack("Mesh", ParameterPack::KeyType::Required);
-        Meshptr mesh_ = Meshptr(new Mesh(const_cast<ParameterPack&>(*mpack)));
+        Meshptr mesh_ = Meshptr(new Mesh(const_cast<ParameterPack&>(*fpack)));
 
         // calculate the marching cubes
         mwrapper_.calculate(*f, *mesh_, val);
