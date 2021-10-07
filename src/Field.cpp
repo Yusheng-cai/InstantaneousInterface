@@ -27,6 +27,19 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     dz_ = Lz_/Nz_;
 }
 
+void Field::clearField()
+{
+    field_.clear();
+}
+
+void Field::pushback(Real val)
+{
+    ASSERT((field_.size() + 1 <= totalSize()), "You cannot insert more values into the field as it will cause the field's values \
+    to exceed its size.");
+
+    field_.push_back(val);
+}
+
 Field::Real& Field::operator()(int i, int j, int k)
 {
     index3 newIndex = {{i,j,k}}; 
@@ -121,4 +134,30 @@ Field::index3 Field::size() const
     index[2] = Nz_;
 
     return index;
+}
+
+void FieldTools::FieldReader(std::string& FileName, Field& field)
+{
+    std::ifstream ifs_;
+    int size = field.totalSize();
+
+    ifs_.open(FileName);
+
+    ASSERT(ifs_.is_open(), "The file with name " << FileName << " is not opened.");
+
+    std::stringstream ss_;
+    std::string sentence;
+
+    field.clearField();
+    while(std::getline(ifs_, sentence))
+    {
+        Real val;
+        ss_.str(sentence);
+
+        while (ss_ >> val)
+        {
+            field.pushback(val);
+        }
+    }
+    ifs_.close();
 }

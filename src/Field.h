@@ -4,6 +4,8 @@
 
 #include <vector>
 #include <cmath>
+#include <iostream>
+#include <fstream>
 
 class Field
 {
@@ -18,6 +20,8 @@ class Field
         Field(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
 
         void resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
+        void clearField();
+        void pushback(Real val);
 
         Real& operator()(int i, int j, int k);
 
@@ -126,4 +130,12 @@ class Field
         Range z_range_ = {{ 0,0 }};
 
         Real3 center_;
+};
+
+namespace FieldTools
+{
+    using Real = CommonTypes::Real;
+
+    // assume field has already been initialized, as in the xrange, yrange zrange and Nx, Ny Nz has been set 
+    void FieldReader(std::string& FileName, Field& f);
 };
