@@ -11,8 +11,8 @@ project(InstantaneousInterface)
 # Require C++11
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -Wall -g -DMY_DEBUG")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DMY_DEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math")
 
 # Requires OpenMP
 find_package(OpenMP REQUIRED)
