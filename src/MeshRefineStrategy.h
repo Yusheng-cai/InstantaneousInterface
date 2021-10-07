@@ -25,6 +25,8 @@ class MeshRefineStrategy
 
         MeshRefineStrategy(MeshRefineStrategyInput& input);
 
+        virtual ~MeshRefineStrategy(){};
+
         virtual void refine() = 0;
 
     protected:
