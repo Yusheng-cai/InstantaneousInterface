@@ -13,6 +13,7 @@
 #include <sstream>
 #include <memory>
 #include <unordered_map>
+#include <iomanip>
 
 class MarchingCubesWrapper;
 
@@ -128,6 +129,7 @@ class Mesh
         void initializeRefineStrat();
 
         void printSTL(std::string name);
+        void printPLY(std::string name);
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}

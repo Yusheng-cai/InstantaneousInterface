@@ -4,6 +4,7 @@ Mesh::Mesh(const ParameterPack& pack)
 {
     // set up output 
     outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
+    outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
 
     // the mesh pack is the pack for the density field
     auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
@@ -27,8 +28,62 @@ void Mesh::print()
 {
     for (int i=0;i<outs_.size();i++)
     {
+        std::cout << "Printing Mesh" << std::endl;
         outputs_.getOutputFuncByName(outs_[i])(outputNames_[i]);
     }
+}
+
+void Mesh::printPLY(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices_.size();
+    int sizetriangle = triangles_.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "property float nx\n";
+    ofs << "property float ny\n";
+    ofs << "property float nz\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].position_[j] << " ";
+        }
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].normals_[j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << triangles_[i].triangleindices_[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
 }
 
 void Mesh::printSTL(std::string name)
