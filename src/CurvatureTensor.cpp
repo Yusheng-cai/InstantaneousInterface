@@ -91,7 +91,12 @@ void CurvatureTensor::calculate()
         std::cout << "U = " << U[0] << " " << U[1] << " " << U[2] << std::endl;
         std::cout << "V = " << V[0] << " " << V[1] << " " << V[2] << std::endl;
         std::cout << "N = " << N[0] << " " << N[1] << " " << N[2] << std::endl;
-        std::cout << "U * V = " << LinAlg3x3::DotProduct(U,V) << std::endl;
+        std::cout << "Point 1 = " << vertices[t[0]].position_[0] << " " << vertices[t[0]].position_[1] << " " << vertices[t[0]].position_[2] << std::endl;
+        std::cout << "Point 2 = " << vertices[t[1]].position_[0] << " " << vertices[t[1]].position_[1] << " " << vertices[t[1]].position_[2] << std::endl;
+        std::cout << "Point 3 = " << vertices[t[2]].position_[0] << " " << vertices[t[2]].position_[1] << " " << vertices[t[2]].position_[2] << std::endl;
+        std::cout << "Normal 1 = " << vertices[t[0]].normals_[0] << " " << vertices[t[0]].normals_[1] << " " << vertices[t[0]].normals_[2] << std::endl;
+        std::cout << "Normal 2 = " << vertices[t[1]].normals_[0] << " " << vertices[t[1]].normals_[1] << " " << vertices[t[1]].normals_[2] << std::endl;
+        std::cout << "Normal 3 = " << vertices[t[2]].normals_[0] << " " << vertices[t[2]].normals_[1] << " " << vertices[t[2]].normals_[2] << std::endl;
         #endif 
 
         // initialize A and B matrix to be solved
@@ -105,7 +110,7 @@ void CurvatureTensor::calculate()
             Real ejU = LinAlg3x3::DotProduct(edges[j], U);
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
             #ifdef MY_DEBUG
-            std::cout << "For triangle " << i << "edge " << j << edges[j][0] << " " << edges[j][1] << " " << edges[j][2] << std::endl;
+            std::cout << "For triangle " << i << "edge " << j << " = " << edges[j][0] << " " << edges[j][1] << " " << edges[j][2] << std::endl;
             std::cout << "For triangle " << i << " edge " << j << "ejU = " << ejU << ", eJV = " << ejV << std::endl;
             #endif
 
@@ -147,6 +152,7 @@ void CurvatureTensor::calculate()
 
         #ifdef MY_DEBUG
         std::cout << "A = " << A << std::endl;
+        std::cout << "b = " << b << std::endl;
         #endif
 
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
@@ -163,6 +169,8 @@ void CurvatureTensor::calculate()
         
         #ifdef MY_DEBUG
         std::cout << "FF2 per triangle of triangle " << i << " = " << triangleMat << std::endl;
+        std::cout << "soln = " << soln[0] << " " << soln[1] << " " << soln[2] << std::endl;
+        std::cout << "Curvature of triangle " << i << " = " << eig << std::endl;
         #endif 
  
         for (int j=0;j<3;j++)
