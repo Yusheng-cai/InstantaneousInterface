@@ -1,0 +1,36 @@
+vertexfile = {
+    name = sample_sphere.ply
+}
+
+trianglefile = {
+    name = triangle_indices.ply
+}
+
+curvature = {
+    type = tensor
+    outputs = [ curvature ] 
+    outputNames = [ c.out ]
+    neighbors = 7
+}
+
+field = {
+	file = fZac.out
+	dimension = [ 160 40 50 ]
+	xrange = [ 0 16 ]
+	yrange = [ 0 4 ]
+	zrange = [ 0 5 ]
+
+	Mesh = {
+		# type = loop
+		outputs = [ stl ]
+		outputNames = [ try.stl ]
+	}
+
+	curvature = {
+		type = curvefit 
+		outputs = [ curvature ]
+		outputNames = [ cfit.out ]
+		neighbors = 2
+	}
+	isosurfaceval = 16
+}

@@ -1,10 +1,10 @@
 xdrfile = {
-    path = try_trans.xtc
+    path = try5400_correct.xtc
 }
 
 atomgroup = {
     name      = ice
-    selection = [ indexfile solid_like_atoms.index ]
+    selection = [ indexfile solid_like_atoms5400.index ]
 }
 
 densityfield = {
@@ -12,20 +12,26 @@ densityfield = {
 
     curvature   = {
         type = tensor
-        output = curve.out
-	principaldirOutput = c.out
+	outputs = [ curvature FF2 ]
+	outputNames = [ c.out ff2.out ] 
+    }
+
+    Mesh = {
+	# type = loop
+	outputs = [ stl ]
+	outputNames = [ b.stl ]
     }
 
     isosurfacevalue  = 16
-    dimensions  = [ 50 50 50 ]
+    dimensions  = [ 160 60 60 ]
     boundingbox = bb
     sigma       = 0.24
     cutoff      = 2.5
     atomgroup   = ice
-    field_output      = test.out
-    vertex_output = vertex.out 
-    normal_output = normals.out
-    triangle_output = triangle.out
+
+    outputs 	= [ field vertex normal triangle ]
+    outputFiles = [ test.out vertex.out normals.out triangle.out ]
+
 }
 
 boundingbox = {
@@ -37,5 +43,4 @@ boundingbox = {
 
 driver = {
     startingframe = 1
-    skip = 0
 }
