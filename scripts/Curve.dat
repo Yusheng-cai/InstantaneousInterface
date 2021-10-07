@@ -8,5 +8,29 @@ trianglefile = {
 
 curvature = {
     type = tensor
-    output = c.out
+    outputs = [ curvature ] 
+    outputNames = [ c.out ]
+    neighbors = 7
+}
+
+field = {
+	file = fy.out
+	dimension = [ 160 50 50 ]
+	xrange = [ 0 10.3 ]
+	yrange = [ 0 5.9 ]
+	zrange = [ 0 6.33 ]
+
+	Mesh = {
+		# type = loop
+		outputs = [ stl ]
+		outputNames = [ try.stl ]
+	}
+
+	curvature = {
+		type = curvefit 
+		outputs = [ curvature ]
+		outputNames = [ cfit.out ]
+		neighbors = 2
+	}
+	isosurfaceval = 15
 }
