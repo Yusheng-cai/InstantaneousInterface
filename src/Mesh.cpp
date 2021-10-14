@@ -8,6 +8,7 @@ Mesh::Mesh(const ParameterPack& pack)
     outputs_.registerOutputFunc("triangles", [this](std::string name) -> void { this -> printTriangleIndices(name);});
     outputs_.registerOutputFunc("vertex", [this](std::string name) -> void {this -> printVertices(name);});
     outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printNormals(name);});
+    outputs_.registerOutputFunc("plyAng", [this](std::string name)-> void {this -> printPLYAng(name);});
 
     // the mesh pack is the pack for the density field
     auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
@@ -25,6 +26,62 @@ Mesh::Mesh(const ParameterPack& pack)
         MeshPack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
         MeshPack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
     }
+}
+
+void Mesh::printPLYAng(std::string name)
+{
+    std::cout << "Printing ply Ang" << std::endl;
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices_.size();
+    int sizetriangle = triangles_.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "property float nx\n";
+    ofs << "property float ny\n";
+    ofs << "property float nz\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].position_[j]*10.0 << " ";
+        }
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].normals_[j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << t.triangleindices_[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+
 }
 
 void Mesh::printNormals(std::string name)
