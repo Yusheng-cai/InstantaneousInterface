@@ -5,6 +5,9 @@ Mesh::Mesh(const ParameterPack& pack)
     // set up output 
     outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
     outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
+    outputs_.registerOutputFunc("triangles", [this](std::string name) -> void { this -> printTriangleIndices(name);});
+    outputs_.registerOutputFunc("vertex", [this](std::string name) -> void {this -> printVertices(name);});
+    outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printNormals(name);});
 
     // the mesh pack is the pack for the density field
     auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
@@ -22,6 +25,23 @@ Mesh::Mesh(const ParameterPack& pack)
         MeshPack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
         MeshPack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
     }
+}
+
+void Mesh::printNormals(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    for (int i=0;i<vertices_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].normals_[j] << "\t";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
 }
 
 void Mesh::print()
@@ -383,6 +403,44 @@ void Mesh::CalcVertexNormals()
     {
         vertices_[i].normals_ = vertexNormals_[i];
     }
+}
+
+void Mesh::printVertices(std::string name)
+{
+    std::ofstream ofs_;
+
+    ofs_.open(name);
+
+    for (int i=0;i<vertices_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << vertices_[i].position_[j] << "\t";
+        }
+        ofs_ << "\n";
+    }
+
+    ofs_.close();
+
+}
+
+void Mesh::printTriangleIndices(std::string name)
+{
+    std::ofstream ofs_;
+
+    ofs_.open(name);
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << triangles_[i].triangleindices_[j] << "\t";
+        }
+
+        ofs_ <<"\n";
+    }
+
+    ofs_.close();
 }
 
 

@@ -130,6 +130,9 @@ class Mesh
 
         void printSTL(std::string name);
         void printPLY(std::string name);
+        void printTriangleIndices(std::string name);
+        void printVertices(std::string name);
+        void printNormals(std::string name);
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
