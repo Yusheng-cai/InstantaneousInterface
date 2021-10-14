@@ -40,7 +40,7 @@ void CurvatureTensor::calculate()
 {
     mesh_.CalcPerVertexDir();
     mesh_.CalcTriangleAreaAndFacetNormals();
-    mesh_.CalcVertexNormals();
+    //mesh_.CalcVertexNormals();
 
     const auto& triangles = mesh_.gettriangles();
     const auto& vertices  = mesh_.getvertices();
@@ -104,11 +104,17 @@ void CurvatureTensor::calculate()
         Eigen::Vector3d b;
         b.fill(0);
         A.fill(0);
+
+        std::vector<std::array<Real,2>> eJVec;
+        std::vector<std::array<Real,2>> nJVec;
+
  
         for (int j=0;j<3;j++)
         {
             Real ejU = LinAlg3x3::DotProduct(edges[j], U);
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
+            eJVec.push_back({{ejU, ejV}});
+
             #ifdef MY_DEBUG
             std::cout << "For triangle " << i << "edge " << j << " = " << edges[j][0] << " " << edges[j][1] << " " << edges[j][2] << std::endl;
             std::cout << "For triangle " << i << " edge " << j << "ejU = " << ejU << ", eJV = " << ejV << std::endl;
@@ -137,8 +143,14 @@ void CurvatureTensor::calculate()
                 diffN[k] = vertices[t[id1]].normals_[k] - vertices[t[id2]].normals_[k];
             }
 
+            #ifdef MY_DEBUG
+            std::cout << "difference in N = " << diffN[0] << " " << diffN[1] << " " << diffN[2] << std::endl;
+            #endif 
+
             Real diffNU = LinAlg3x3::DotProduct(diffN, U);
             Real diffNV = LinAlg3x3::DotProduct(diffN, V);
+
+            nJVec.push_back({{diffNU, diffNV}});
             
             b[0] += diffNU*ejU;
             b[1] += diffNU*ejV + diffNV*ejU;
@@ -165,18 +177,32 @@ void CurvatureTensor::calculate()
         triangleMat(1,1) = soln[2];
         eigensolver.compute(triangleMat);
 
-        Eigen::Vector2d eig = eigensolver.eigenvalues().real();
-        
-        #ifdef MY_DEBUG
-        std::cout << "FF2 per triangle of triangle " << i << " = " << triangleMat << std::endl;
-        std::cout << "soln = " << soln[0] << " " << soln[1] << " " << soln[2] << std::endl;
-        std::cout << "Curvature of triangle " << i << " = " << eig << std::endl;
-        #endif 
- 
         for (int j=0;j<3;j++)
         {
             ans[j] = soln[j];
         }
+
+        Eigen::Vector2d eig = eigensolver.eigenvalues().real();
+
+        // check how the least squares is doing 
+        #ifdef MY_DEBUG
+        Real error = 0.0;
+        std::cout << "soln = " << soln << std::endl;
+        Real nn1, nn2;
+        for (int j=0;j<3;j++)
+        {
+            nn1 = ans[0]*eJVec[j][0] + ans[1]*eJVec[j][1];
+            nn2 = ans[1]*eJVec[j][0] + ans[2]*eJVec[j][1];
+
+            error += std::pow((nn1 - nJVec[j][0]),2.0);
+            error += std::pow((nn2 - nJVec[j][1]),2.0);
+        }
+        std::cout << "Error = " << error << std::endl;
+        #endif
+        
+        #ifdef MY_DEBUG
+        std::cout << "Curvature of triangle " << i << " = " << eig << std::endl;
+        #endif 
 
         curvatureTensorPerTriangle_[i] = ans;
         
