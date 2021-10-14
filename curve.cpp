@@ -88,7 +88,8 @@ int main(int argc, char** argv)
         mwrapper_.calculate(*f, *mesh_, val);
         auto cpack = fpack -> findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
-        mesh_ ->print();
+        mesh_ -> refine();
+        mesh_ -> print();
 
         for (int j=0;j<cpack.size();j++)
         {
