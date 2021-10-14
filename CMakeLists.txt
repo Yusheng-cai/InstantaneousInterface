@@ -43,8 +43,8 @@ add_executable(Curve curve.cpp)
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
 
-target_link_libraries(InstantaneousInterface PUBLIC xdr src tools parallel MarchingCubes)
-target_link_libraries(Curve PUBLIC xdr src tools parallel MarchingCubes)
+target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel MarchingCubes)
+target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel MarchingCubes)
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
 install(TARGETS Curve DESTINATION bin)

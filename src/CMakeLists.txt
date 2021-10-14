@@ -1,6 +1,6 @@
-add_library(src SHARED)
+add_library(IIsrc SHARED)
 
-target_sources(src PRIVATE
+target_sources(IIsrc PRIVATE
     "AtomGroup.cpp"
     "AtomGroupParsingStrategy.cpp"
     "BoundingBox.cpp"
@@ -22,7 +22,7 @@ target_sources(src PRIVATE
     "MeshLoopRefine.cpp"
 )
 
-set(src_HEADER
+set(IIsrc_HEADER
     "AtomGroup.h"
     "AtomGroupParsingStrategy.h"
     "BoundingBox.h"
@@ -45,15 +45,15 @@ set(src_HEADER
     "MeshLoopRefine.h"
 )
 
-target_include_directories(src
+target_include_directories(IIsrc
                         PUBLIC 
                         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
-target_link_libraries(src PUBLIC xdr tools parallel MarchingCubes)
+target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes)
 
 include(InstallLibraryWithStandardSetup)
-InstallLibraryWithStandardSetup(src 
-    INCLUDE_SUBDIR src
-    INCLUDES ${src_HEADER})
+InstallLibraryWithStandardSetup(IIsrc 
+    INCLUDE_SUBDIR IIsrc
+    INCLUDES ${IIsrc_HEADER})

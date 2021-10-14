@@ -1,6 +1,6 @@
-add_library(tools SHARED)
+add_library(IItools SHARED)
 
-target_sources(tools PRIVATE
+target_sources(IItools PRIVATE
     "RandomNumber.cpp"
     "InputParser.cpp"
     "CommandLineArguments.cpp"
@@ -8,7 +8,7 @@ target_sources(tools PRIVATE
     "OutputFunction.cpp"
 )
 
-set(TOOLS_HEADER
+set(IITOOLS_HEADER
     "Assert.h"
     "CommonTypes.h"
     "GenericFactory.h"
@@ -20,7 +20,7 @@ set(TOOLS_HEADER
     "OutputFunction.h"
 )
 
-target_include_directories(tools
+target_include_directories(IItools
                         PUBLIC 
                         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
@@ -29,7 +29,7 @@ target_include_directories(tools
 
 
 include(InstallLibraryWithStandardSetup)
-InstallLibraryWithStandardSetup(tools 
-    INCLUDE_SUBDIR tools
-    INCLUDES ${TOOLS_HEADER})
+InstallLibraryWithStandardSetup(IItools 
+    INCLUDE_SUBDIR IItools
+    INCLUDES ${IITOOLS_HEADER})
 
