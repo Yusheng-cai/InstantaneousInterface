@@ -20,10 +20,10 @@ bool LinAlg3x3::ldltdc(Matrix& A, Real3& rdiag)
     Real l10 = rdiag[0] * A[1][0];
     Real d1 = A[1][1] - l10 * A[1][0];
 	rdiag[1] = 1 / d1;
-    Real d2 = A[2][2] - rdiag[0] * std::pow(A[2][0],2.0) - rdiag[1] * std::pow(A[2][1],2.0);
-    rdiag[2] = 1 / d2;
     A[2][0] = A[0][2];
     A[2][1] = A[1][2] - l10 * A[2][0];
+    Real d2 = A[2][2] - rdiag[0] * std::pow(A[2][0],2.0) - rdiag[1] * std::pow(A[2][1],2.0);
+    rdiag[2] = 1 / d2;
 
     return (d0 != 0 && d1 != 0 && d2 != 0);
 }
