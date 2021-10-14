@@ -193,22 +193,22 @@ void CurvatureTensor::calculate()
         Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Real3 ans;
         Eigen::Matrix2d triangleMat;
-        // triangleMat(0,0) = soln[0];
-        // triangleMat(0,1) = soln[1];
-        // triangleMat(1,0) = soln[1];
-        // triangleMat(1,1) = soln[2];
+        triangleMat(0,0) = soln[0];
+        triangleMat(0,1) = soln[1];
+        triangleMat(1,0) = soln[1];
+        triangleMat(1,1) = soln[2];
 
-        triangleMat(0,0) = sprime[0];
-        triangleMat(0,1) = sprime[1];
-        triangleMat(1,0) = sprime[1];
-        triangleMat(1,1) = sprime[2];
+        // triangleMat(0,0) = sprime[0];
+        // triangleMat(0,1) = sprime[1];
+        // triangleMat(1,0) = sprime[1];
+        // triangleMat(1,1) = sprime[2];
 
         eigensolver.compute(triangleMat);
 
         for (int j=0;j<3;j++)
         {
-            //ans[j] = soln[j];
-            ans[j] = sprime[j];
+            ans[j] = soln[j];
+            //ans[j] = sprime[j];
         }
 
         Eigen::Vector2d eig = eigensolver.eigenvalues().real();
@@ -313,10 +313,9 @@ void CurvatureTensor::calculatePrincipalCurvatures()
             curvatureTensorPerVertex_[i][j] = curvatureTensorPerVertex_[i][j]/pointArea[i];
             #ifdef MY_DEBUG
             std::cout << "curvatureTensor = " << curvatureTensorPerVertex_[i][j] << std::endl;
+            std::cout << "pointArea " << i << " = " << pointArea[i] << std::endl;
             #endif 
         }
-
-        std::cout << "pointArea " << i << " = " << pointArea[i] << std::endl;
 
         Eigen::Matrix2d mat;
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
