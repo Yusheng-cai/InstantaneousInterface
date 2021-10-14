@@ -241,8 +241,15 @@ void CurvatureTensor::calculate()
             Real3 u = pervertexdir1[id_];
             Real3 v = pervertexdir2[id_];
 
+            #ifdef MY_DEBUG
+            std::cout << "The curvature tensor before = " << ans[0] << " " << ans[1] << " " << ans[2] << std::endl;
+            #endif
+
             Real3 newcurv = projectCurvature(u,v, U, V,ans);
 
+            #ifdef MY_DEBUG
+            std::cout << "The curvature tensor after = " <<newcurv[0] << " " << newcurv[1] << " " << newcurv[2] << std::endl;
+            #endif 
 
             Eigen::Matrix2d tempMat;
             Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
@@ -264,6 +271,8 @@ void CurvatureTensor::calculate()
             TotalAreaPerVertex_[id_] += triangleArea[i];
         }
     } 
+
+
 
     calculatePrincipalCurvatures();
     calculateCurvatureInDir();
@@ -302,6 +311,9 @@ void CurvatureTensor::calculatePrincipalCurvatures()
         for (int j=0;j<3;j++)
         {
             curvatureTensorPerVertex_[i][j] = curvatureTensorPerVertex_[i][j]/pointArea[i];
+            #ifdef MY_DEBUG
+            std::cout << "curvatureTensor = " << curvatureTensorPerVertex_[i][j] << std::endl;
+            #endif 
         }
 
         std::cout << "pointArea " << i << " = " << pointArea[i] << std::endl;
@@ -313,6 +325,10 @@ void CurvatureTensor::calculatePrincipalCurvatures()
         mat(0,1) = curvatureTensorPerVertex_[i][1];
         mat(1,0) = curvatureTensorPerVertex_[i][1];
         mat(1,1) = curvatureTensorPerVertex_[i][2];
+
+        #ifdef MY_DEBUG
+        std::cout << "mat = " << mat << std::endl;
+        #endif
 
         eigensolver.compute(mat);
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
@@ -343,6 +359,13 @@ void CurvatureTensor::calculatePrincipalCurvatures()
 
         PrincipalDirections_[i]=eigenvectorPair;
     }
+    #ifdef MY_DEBUG
+    for (int i=0;i<curvatureTensorPerVertex_.size();i++)
+    {
+        std::cout << "Curvature tensor for vertex " << i << " = " << curvatureTensorPerVertex_[i][0] << " " << curvatureTensorPerVertex_[i][1] << " " << \
+        curvatureTensorPerVertex_[i][2] << std::endl;
+    }
+    #endif
 }
 
 void CurvatureTensor::printCurvatureVec(std::string name)
@@ -456,22 +479,18 @@ CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, cons
     Real3 oldN = LinAlg3x3::CrossProduct(oldu, oldv);
     LinAlg3x3::normalize(oldN);
 
+    #ifdef MY_DBEUG
+    std::cout << "Norm of oldN  = " << LinAlg3x3::norm(oldN) << std::endl;
+    #endif 
+
     Real3 refN = LinAlg3x3::CrossProduct(refu, refv);
     LinAlg3x3::normalize(refN);
 
-    Matrix rotationMatrix = LinAlg3x3::GetRotationMatrix(oldN, refN);
-
     #ifdef MY_DEBUG
-    std::cout << "In project curvature." << std::endl;
-    Real3 result = LinAlg3x3::MatrixDotVector(rotationMatrix, oldN);
-    std::cout << "rotation result = " << result[0] << " " << result[1] << " " << result[2] << std::endl;
-    std::cout << "refN = " << refN[0] << " " << refN[1] << " " << refN[2] << std::endl;
-    #endif 
-    
-    newu = LinAlg3x3::MatrixDotVector(rotationMatrix, oldu);
-    LinAlg3x3::normalize(newu);
-    newv = LinAlg3x3::MatrixDotVector(rotationMatrix, oldv);
-    LinAlg3x3::normalize(newv);
+    std::cout << "Norm of refN = " << LinAlg3x3::norm(refN) << std::endl;
+    #endif
+
+    LinAlg3x3::RotateBasisSet(oldN, refN, oldu, oldv, newu, newv);
 
 	Real u1 = LinAlg3x3::DotProduct(newu, refu);
     Real v1 = LinAlg3x3::DotProduct(newu, refv);
