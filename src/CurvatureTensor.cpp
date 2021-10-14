@@ -104,12 +104,14 @@ void CurvatureTensor::calculate()
         // initialize A and B matrix to be solved
         Eigen::Matrix3d A;
         Eigen::Vector3d b;
+        Matrix Aprime;
+        Aprime.fill({});
+        Real3 bprime;
         b.fill(0);
         A.fill(0);
 
         std::vector<std::array<Real,2>> eJVec;
         std::vector<std::array<Real,2>> nJVec;
-
  
         for (int j=0;j<3;j++)
         {
@@ -123,8 +125,11 @@ void CurvatureTensor::calculate()
             #endif
 
             A(0,0) += ejU*ejU;
+            Aprime[0][0] += ejU * ejU;
             A(0,1) += ejU*ejV;
+            Aprime[0][1] += ejU*ejV;
             A(2,2) += ejV*ejV;
+            Aprime[2][2] += ejV*ejV;
 
             int id1 = j - 1;
             if ( id1 < 0)
@@ -157,12 +162,27 @@ void CurvatureTensor::calculate()
             b[0] += diffNU*ejU;
             b[1] += diffNU*ejV + diffNV*ejU;
             b[2] += diffNV*ejV;
-        }
 
+            bprime[0] = b[0];
+            bprime[1] = b[1];
+            bprime[2] = b[2];
+        }
         A(1,1) = A(0,0) + A(2,2);
         A(1,2) = A(0,1);
         A(2,1) = A(0,1);
         A(1,0) = A(0,1);
+        Aprime[1][1] = Aprime[0][0] + Aprime[2][2];
+        Aprime[1][2] = Aprime[0][1];
+
+        // solution by trimesh2 method
+        Real3 rdiag;
+        if (! LinAlg3x3::ldltdc(Aprime, rdiag))
+        {
+            continue;
+        }
+
+        Real3 sprime;
+        LinAlg3x3::ldltsl(Aprime, rdiag, bprime, sprime);
 
         #ifdef MY_DEBUG
         std::cout << "A = " << A << std::endl;
@@ -173,15 +193,22 @@ void CurvatureTensor::calculate()
         Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Real3 ans;
         Eigen::Matrix2d triangleMat;
-        triangleMat(0,0) = soln[0];
-        triangleMat(0,1) = soln[1];
-        triangleMat(1,0) = soln[1];
-        triangleMat(1,1) = soln[2];
+        // triangleMat(0,0) = soln[0];
+        // triangleMat(0,1) = soln[1];
+        // triangleMat(1,0) = soln[1];
+        // triangleMat(1,1) = soln[2];
+
+        triangleMat(0,0) = sprime[0];
+        triangleMat(0,1) = sprime[1];
+        triangleMat(1,0) = sprime[1];
+        triangleMat(1,1) = sprime[2];
+
         eigensolver.compute(triangleMat);
 
         for (int j=0;j<3;j++)
         {
-            ans[j] = soln[j];
+            //ans[j] = soln[j];
+            ans[j] = sprime[j];
         }
 
         Eigen::Vector2d eig = eigensolver.eigenvalues().real();
@@ -189,7 +216,7 @@ void CurvatureTensor::calculate()
         // check how the least squares is doing 
         #ifdef MY_DEBUG
         Real error = 0.0;
-        std::cout << "soln = " << soln << std::endl;
+        std::cout << "soln = " << ans[0] << " " << ans[1] << " " << ans[2] << std::endl;
         Real nn1, nn2;
         for (int j=0;j<3;j++)
         {
