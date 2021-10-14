@@ -19,7 +19,10 @@ namespace LinAlg3x3
     Real3 MatrixDotVector(const Matrix& mat1, const Real3& v1); 
 
     // This is the rotation matrix that rotates vector 1 onto vector 2
-    Matrix GetRotationMatrix(const Real3& v1, const Real3& v2);
+    Matrix GetRotationMatrix(const Real3& N1, const Real3& N2);
+
+    // Rotate basis set
+    void RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const Real3& oldv1, Real3& u1, Real3& v1);
 
     // calculations from the trimesh code
     bool ldltdc(Matrix& A, Real3& vec);

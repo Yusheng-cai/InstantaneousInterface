@@ -115,14 +115,17 @@ LinAlg3x3::Real3 LinAlg3x3::MatrixDotVector(const Matrix& A, const Real3& v1)
 LinAlg3x3::Matrix LinAlg3x3::GetRotationMatrix(const Real3& v1, const Real3& v2)
 {
     Real3 crossProduct = LinAlg3x3::CrossProduct(v1, v2);
-    Real norm = LinAlg3x3::norm(crossProduct);
     Real cosine = LinAlg3x3::DotProduct(v1, v2);
 
     Matrix ret;
     Real denom = 1.0 + cosine;
     Real factor;
 
-    if (std::abs(denom) < 1e-7) { factor = 0.0;}
+    if (std::abs(cosine) < 1e-7) { factor = 0.0;}
+    else if (std::abs(denom) < 1e-7)
+    {
+
+    }
     else{factor = 1.0/(1.0 + cosine);}
 
 
@@ -137,4 +140,70 @@ LinAlg3x3::Matrix LinAlg3x3::GetRotationMatrix(const Real3& v1, const Real3& v2)
     ret[2][2] = 1 + factor*(-crossProduct[1]*crossProduct[1] - crossProduct[0]*crossProduct[0]);
 
     return ret;
+}
+
+void LinAlg3x3::RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const Real3& oldv1, Real3& u1, Real3& v1)
+{
+    LinAlg3x3::normalize(N1);
+    LinAlg3x3::normalize(N2);
+
+    Real3 crossProduct = LinAlg3x3::CrossProduct(N1, N2);
+    #ifdef MY_DEBUG
+    std::cout << "crossproduct = " << crossProduct[0] << " " << crossProduct[1] << " " << crossProduct[2] << std::endl;
+    #endif
+    Real cosine = LinAlg3x3::DotProduct(N1, N2);
+
+    Matrix ret;
+    Real denom = 1.0 + cosine;
+    Real factor;
+
+    if (std::abs(cosine) < 1e-5) { factor = 0.0;}
+    else if (std::abs(denom) < 1e-5)
+    {
+        for (int i=0;i<3;i++)
+        {
+            u1[i] = -oldu1[i];
+            v1[i] = -oldv1[i];
+        }
+
+        return;
+    }
+    else
+    {
+        factor = 1.0/(1.0+cosine);
+    }
+
+    ret[0][0] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[1]*crossProduct[1]);
+    ret[0][1] = -crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[0][2] = crossProduct[1] + factor*crossProduct[0]*crossProduct[2];
+    ret[1][0] = crossProduct[2] + factor*crossProduct[0]*crossProduct[1];
+    ret[1][1] = 1 + factor*(-crossProduct[2]*crossProduct[2] - crossProduct[0]*crossProduct[0]);
+    ret[1][2] = -crossProduct[0] + factor*crossProduct[1]*crossProduct[2];
+    ret[2][0] = -crossProduct[1] + factor*crossProduct[2]*crossProduct[0];
+    ret[2][1] = crossProduct[0] + factor*crossProduct[2]*crossProduct[1];
+    ret[2][2] = 1 + factor*(-crossProduct[1]*crossProduct[1] - crossProduct[0]*crossProduct[0]);
+
+    u1 = MatrixDotVector(ret, oldu1);
+    v1 = MatrixDotVector(ret, oldv1);
+
+    LinAlg3x3::normalize(u1);
+    LinAlg3x3::normalize(v1);
+
+    #ifdef MY_DEBUG
+    std::cout << "old N = " << N1[0] << " " << N1[1] << " " << N1[2] << std::endl;
+    std::cout << "refN = " << N2[0] << " " << N2[1] << " " << N2[2] << std::endl;
+    Real3 result = LinAlg3x3::MatrixDotVector(ret, N1);
+    std::cout << "Rotation matrix = " << std::endl;
+    for (int i =0;i<3;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            std::cout << ret[i][j] << "\t";
+        }
+        std::cout << "\n";
+    }
+    std::cout << "rotation result = " << result[0] << " " << result[1] << " " << result[2] << std::endl;
+    #endif
+
+    return;
 }
