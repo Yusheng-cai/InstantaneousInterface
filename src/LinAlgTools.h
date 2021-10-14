@@ -20,4 +20,8 @@ namespace LinAlg3x3
 
     // This is the rotation matrix that rotates vector 1 onto vector 2
     Matrix GetRotationMatrix(const Real3& v1, const Real3& v2);
+
+    // calculations from the trimesh code
+    bool ldltdc(Matrix& A, Real3& vec);
+    void ldltsl(const Matrix& A, const Real3& rdiag, const Real3& b, Real3& x);
 }
