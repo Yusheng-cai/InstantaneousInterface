@@ -28,13 +28,13 @@ void Mesh::print()
 {
     for (int i=0;i<outs_.size();i++)
     {
-        std::cout << "Printing Mesh" << std::endl;
         outputs_.getOutputFuncByName(outs_[i])(outputNames_[i]);
     }
 }
 
 void Mesh::printPLY(std::string name)
 {
+    std::cout << "Printing ply" << std::endl;
     std::ofstream ofs;
     ofs.open(name);
 
@@ -75,10 +75,11 @@ void Mesh::printPLY(std::string name)
     for (int i=0;i<sizetriangle;i++)
     {
         ofs << 3 << " ";
+        auto& t = triangles_[i];
 
         for (int j=0;j<3;j++)
         {
-            ofs << triangles_[i].triangleindices_[j] << " ";
+            ofs << t.triangleindices_[j] << " ";
         }
         ofs << "\n";
     }
@@ -125,6 +126,10 @@ void Mesh::CalcPerVertexDir()
         int index1 = t.triangleindices_[1];
         int index2 = t.triangleindices_[2];
 
+        #ifdef MY_DEBUG
+        std::cout << "Face " << i << " = " << index0 << " " << index1 << " " << index2 << std::endl;
+        #endif
+
         Real3 diff0;
         Real3 diff1;
         Real3 diff2;
@@ -143,13 +148,22 @@ void Mesh::CalcPerVertexDir()
 
     for (int i=0;i<PerVertexdir1_.size();i++)
     {
-        PerVertexdir1_[i] = LinAlg3x3::CrossProduct(vertices_[i].normals_,PerVertexdir1_[i]);
+        #ifdef MY_DEBUG
+        std::cout << "The pervetex dir 1 before anything = " << PerVertexdir1_[i][0] << " " << PerVertexdir1_[i][1] << " " << PerVertexdir1_[i][2] << std::endl;
+        #endif 
+        PerVertexdir1_[i] = LinAlg3x3::CrossProduct(PerVertexdir1_[i], vertices_[i].normals_);
         LinAlg3x3::normalize(PerVertexdir1_[i]);
 
-        Real3 B = LinAlg3x3::CrossProduct(PerVertexdir1_[i],vertices_[i].normals_) ;
+        Real3 B = LinAlg3x3::CrossProduct(vertices_[i].normals_, PerVertexdir1_[i]) ;
         LinAlg3x3::normalize(B);
 
         PerVertexdir2_[i] = B;
+
+
+        #ifdef MY_DEBUG
+        std::cout << "For vertex " << i << " the vertex dir 1 = " << PerVertexdir1_[i][0] << " " << PerVertexdir1_[i][1] << " " << PerVertexdir1_[i][2] << "\n";
+        std::cout << "For vertex " << i << " the vertex dir 2 = " << PerVertexdir2_[i][0] << " " << PerVertexdir2_[i][1] << " " << PerVertexdir2_[i][2] << "\n";
+        #endif
     } 
 }
 
@@ -340,6 +354,89 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
         facetNormals_[i] = normal_;
         triangleArea_[i] = Area;
     }
+}
+
+// Compute per-vertex point areas
+void Mesh::test()
+{
+    triangleArea_.clear();
+    triangleArea_.resize(vertices_.size(),0.0);
+
+    int nf = triangles_.size();
+
+    cornerArea_.clear();
+    cornerArea_.resize(nf);
+
+	for (int i = 0; i < nf; i++) {
+		// Edges
+        auto& t = triangles_[i];
+        Real3 edge1, edge2, edge3;
+        for (int j=0;j<3;j++)
+        {
+            edge1[j] = vertices_[t.triangleindices_[2]].position_[j] - vertices_[t.triangleindices_[1]].position_[j];
+            edge2[j] = vertices_[t.triangleindices_[0]].position_[j] - vertices_[t.triangleindices_[2]].position_[j];
+            edge3[j] = vertices_[t.triangleindices_[1]].position_[j] - vertices_[t.triangleindices_[0]].position_[j];
+        }
+
+		// Compute corner weights
+        Real3 cross = LinAlg3x3::CrossProduct(edge1, edge2);
+        Real  area  = 0.5 * LinAlg3x3::norm(cross);
+
+        Real e1 = LinAlg3x3::norm(edge1);
+        Real e2 = LinAlg3x3::norm(edge2);
+        Real e3 = LinAlg3x3::norm(edge3);
+
+		Real3 l2 = { e1*e1, e2*e2, e3*e3};
+
+		// Barycentric weights of circumcenter
+		Real3 bcw = { l2[0] * (l2[1] + l2[2] - l2[0]),
+		                 l2[1] * (l2[2] + l2[0] - l2[1]),
+		                 l2[2] * (l2[0] + l2[1] - l2[2]) };
+
+		if (bcw[0] <= 0.0f) {
+			cornerArea_[i][1] = -0.25f * l2[2] * area/LinAlg3x3::DotProduct(edge1, edge3);
+			cornerArea_[i][2] = -0.25f * l2[1] * area/LinAlg3x3::DotProduct(edge1, edge2);
+			cornerArea_[i][0] = area - cornerArea_[i][1] - cornerArea_[i][2];
+		} else if (bcw[1] <= 0.0f) {
+			cornerArea_[i][2] = -0.25f * l2[0] * area/LinAlg3x3::DotProduct(edge2, edge1);
+			cornerArea_[i][0] = -0.25f * l2[2] * area/LinAlg3x3::DotProduct(edge2, edge3);
+			cornerArea_[i][1] = area - cornerArea_[i][2] - cornerArea_[i][0];
+		} else if (bcw[2] <= 0.0f) {
+            std::cout << "t " << i << " is in 3" << std::endl;
+			cornerArea_[i][0] = -0.25f * l2[1] * area/LinAlg3x3::DotProduct(edge3, edge2);
+			cornerArea_[i][1] = -0.25f * l2[0] * area/LinAlg3x3::DotProduct(edge3, edge1);
+			cornerArea_[i][2] = area - cornerArea_[i][0] - cornerArea_[i][1];
+		} else {
+			float scale = 0.5f * area / (bcw[0] + bcw[1] + bcw[2]);
+			for (int j = 0; j < 3; j++)
+            {
+                int next = j - 1;
+                int nextnext = j -2;
+
+                if (next < 0)
+                {
+                    next += 3;
+                }
+
+                if (nextnext < 0)
+                {
+                    nextnext += 3;
+                }
+
+				cornerArea_[i][j] = scale * (bcw[next] +
+				                             bcw[nextnext]);
+            }
+		}
+
+        #ifdef MY_DEBUG
+        std::cout << "corner Area " << i << " 0 = "  << cornerArea_[i][0] << std::endl;
+        std::cout << "corner Area " << i << " 1 = " << cornerArea_[i][1] << std::endl;
+        std::cout << "corner Area " << i << " 2 = " << cornerArea_[i][2] << std::endl;
+        #endif
+		triangleArea_[t.triangleindices_[0]] += cornerArea_[i][0];
+		triangleArea_[t.triangleindices_[1]] += cornerArea_[i][1];
+		triangleArea_[t.triangleindices_[2]] += cornerArea_[i][2];
+	}
 }
 
 void Mesh::CalcVertexNormals()

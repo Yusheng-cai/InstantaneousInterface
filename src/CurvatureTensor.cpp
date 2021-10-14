@@ -39,7 +39,8 @@ CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 void CurvatureTensor::calculate()
 {
     mesh_.CalcPerVertexDir();
-    mesh_.CalcTriangleAreaAndFacetNormals();
+    //mesh_.CalcTriangleAreaAndFacetNormals();
+    mesh_.test();
     mesh_.CalcVertexNormals();
 
     const auto& triangles = mesh_.gettriangles();
@@ -47,6 +48,7 @@ void CurvatureTensor::calculate()
     const auto& pervertexdir1 = mesh_.getPerVertexDir1();
     const auto& pervertexdir2 = mesh_.getPerVertexDir2();
     const auto& triangleArea = mesh_.getTriangleArea();
+    const auto& cornerArea   = mesh_.getCornerAreas();
 
     Real3 zeroArr_ = {{0,0,0}};
     curvatureTensorPerTriangle_.resize(triangles.size());
@@ -203,7 +205,8 @@ void CurvatureTensor::calculate()
             
             for (int k = 0;k<3;k++)
             {
-                curvatureTensorPerVertex_[id_][k] += newcurv[k] * triangleArea[i];
+                //curvatureTensorPerVertex_[id_][k] += newcurv[k] * triangleArea[i];
+                curvatureTensorPerVertex_[id_][k] += newcurv[k] * cornerArea[i][j];
             }
             TotalAreaPerVertex_[id_] += triangleArea[i];
         }
@@ -231,6 +234,7 @@ void CurvatureTensor::calculate()
 void CurvatureTensor::calculatePrincipalCurvatures()
 {
     const auto& vertices  = mesh_.getvertices();
+    const auto& pointArea = mesh_.getTriangleArea();
 
     // Use z as a reference direection
     Real3 referenceDir = {{0,0,1}};
@@ -244,8 +248,10 @@ void CurvatureTensor::calculatePrincipalCurvatures()
 
         for (int j=0;j<3;j++)
         {
-            curvatureTensorPerVertex_[i][j] = curvatureTensorPerVertex_[i][j]/TotalAreaPerVertex_[i];
+            curvatureTensorPerVertex_[i][j] = curvatureTensorPerVertex_[i][j]/pointArea[i];
         }
+
+        std::cout << "pointArea " << i << " = " << pointArea[i] << std::endl;
 
         Eigen::Matrix2d mat;
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;

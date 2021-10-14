@@ -149,6 +149,8 @@ class Mesh
         const std::unordered_map<vertex, std::vector<edge>>& getMapBVertexToBEdges() const {return MapBoundaryVertexToBoundaryEdges_;}
         const std::vector<Real3>& getFaceNormals() const {return facetNormals_;}
 
+        const std::vector<Real3>& getCornerAreas() const {return cornerArea_;}
+
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
         const std::unordered_map<edge, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
@@ -161,6 +163,8 @@ class Mesh
 
         // function called when trying to refine a mesh
         void refine();
+
+        void test();
 
         // printoutput
         void print();
@@ -191,6 +195,7 @@ class Mesh
         std::vector<std::vector<int>> VertexTriangleIndices_;
 
         std::vector<Real> triangleArea_;
+        std::vector<Real3> cornerArea_;
         std::vector<Real3> facetNormals_;
 
         std::vector<Real3> vertexNormals_;
