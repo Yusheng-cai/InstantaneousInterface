@@ -10,8 +10,6 @@ CurvatureFDM::CurvatureFDM(CurvatureInput& input)
 {
     input.pack.ReadString("mean", ParameterPack::KeyType::Optional, MeanMethod_);
     ASSERT((MeanMethod_ == "arithmetic" || MeanMethod_ == "geometric"), "The method for calculating mean must be either arithmetic or geometric.");
-
-    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
 }
 
 void CurvatureFDM::calculate()
