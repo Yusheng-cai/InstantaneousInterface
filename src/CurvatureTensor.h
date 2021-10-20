@@ -23,7 +23,7 @@ class CurvatureTensor: public Curvature
 
         virtual void calculate();
 
-        void printCurvatureVec(std::string name);
+        virtual void printCurvature(std::string name) override;
         void printPrincipalDirection(std::string name);
         void printFF2(std::string name);
         void printCurvatureDir(std::string name);

@@ -9,7 +9,6 @@ CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 :Curvature(input)
 {
     outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void { this -> printPrincipalDirection(name);});
-    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvatureVec(name);});
     outputs_.registerOutputFunc("FF2", [this](std::string name) -> void {this -> printFF2(name);});
 
     bool readCurvatureDir = input.pack.ReadVectorArrayNumber("curvaturedir", ParameterPack::KeyType::Optional, curvatureDir_);
@@ -198,17 +197,12 @@ void CurvatureTensor::calculate()
         triangleMat(1,0) = soln[1];
         triangleMat(1,1) = soln[2];
 
-        // triangleMat(0,0) = sprime[0];
-        // triangleMat(0,1) = sprime[1];
-        // triangleMat(1,0) = sprime[1];
-        // triangleMat(1,1) = sprime[2];
 
         eigensolver.compute(triangleMat);
 
         for (int j=0;j<3;j++)
         {
             ans[j] = soln[j];
-            //ans[j] = sprime[j];
         }
 
         Eigen::Vector2d eig = eigensolver.eigenvalues().real();
@@ -367,7 +361,7 @@ void CurvatureTensor::calculatePrincipalCurvatures()
     #endif
 }
 
-void CurvatureTensor::printCurvatureVec(std::string name)
+void CurvatureTensor::printCurvature(std::string name)
 {
     std::ofstream ofs_;
     ofs_.open(name);
