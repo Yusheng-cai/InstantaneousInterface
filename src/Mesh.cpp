@@ -597,6 +597,87 @@ void Mesh::printTriangleIndices(std::string name)
     ofs_.close();
 }
 
+bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
+{
+    // open the file
+    std::ifstream ifs_;
+    std::stringstream ss_;
+    ifs_.open(filename);
+
+    std::string sentence;
+    int numfaces;
+    int numvertex;
+    while (std::getline(ifs_, sentence))
+    {
+        ss_.str(sentence);
+        std::string token;
+
+        std::vector<std::string> vectorstring;
+        while (ss_ >> token)
+        {
+            vectorstring.push_back(token);
+        }
+
+        if (vectorstring[0] == "end_header")
+        {
+            break;
+        }
+
+        if (vectorstring[0] == "format")
+        {
+            ASSERT((vectorstring[1] == "ascii"), "Currently do not support non-ascii format ply files.");
+        }
+
+        if (vectorstring[0] == "element")
+        {
+            ASSERT((vectorstring.size() == 3), "The element can only have 3.");
+            if (vectorstring[1] == "vertex")
+            {
+                numvertex = StringTools::StringToType<int>(vectorstring[2]);
+            }
+
+            if (vectorstring[1] == "face")
+            {
+                numfaces = StringTools::StringToType<int>(vectorstring[2]);
+            }
+        }
+
+        ss_.clear();
+    }
+
+    ss_.clear();
+    // read in the vertices as well as their normals     
+    std::string datasentence;
+    for (int i=0;i<numvertex;i++)
+    {
+        std::getline(ifs_, datasentence);
+        std::string data;
+        std::vector<std::string> vectordata;
+        while (ss_ >> data)
+        {
+            vectordata.push_back(data);
+        }
+
+        ASSERT((vectordata.size() == 6), "The ply file must contain x, y, z, nx, ny ,nz");
+
+        Real3 position;
+        Real3 normals;
+
+        for (int j=0;j<3;j++)
+        {
+            position[j] = StringTools::StringToType<Real>(vectordata[j]);
+            normals[j+3] = StringTools::StringToType<Real>(vectordata[j+3]);
+        }
+    }
+
+    // read in the triangles
+    for (int i=0;i<numfaces;i++)
+    {
+
+    }
+    ifs_.close();
+}
+
 
 bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
 {

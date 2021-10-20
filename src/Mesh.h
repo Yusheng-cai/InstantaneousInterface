@@ -230,6 +230,10 @@ class Mesh
 
 namespace MeshTools
 {
+    using Real3 = CommonTypes::Real3;
+    using Real  = CommonTypes::Real;
+
     bool readPLY(std::string& filename, Mesh& mesh_);
     bool readPLYTriangle(std::string& filename, Mesh& mesh_);
+    bool readWholePLY(std::string& filename, Mesh& mesh_);
 };
