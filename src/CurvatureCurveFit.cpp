@@ -10,7 +10,28 @@ CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
 {
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
 
-    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
+    outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void {this -> printPrincipalDir(name);});
+}
+
+void CurvatureCurveFit::printPrincipalDir(std::string name)
+{
+    std::ofstream ofs_;
+    ofs_.open(name);
+
+    for (int i=0;i<principalDir1_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << principalDir1_[i][j] << " ";
+        }
+        for (int j=0;j<3;j++)
+        {
+            ofs_ << principalDir2_[i][j] << " ";
+        }
+        ofs_ << "\n";
+    }
+
+    ofs_.close();
 }
 
 void CurvatureCurveFit::calculate()
@@ -25,6 +46,12 @@ void CurvatureCurveFit::calculate()
     CurvaturePerVertex_.clear();
     CurvaturePerVertex_.resize(vertices.size());
 
+    principalDir1_.clear();
+    principalDir1_.resize(vertices.size());
+
+    principalDir2_.clear();
+    principalDir2_.resize(vertices.size());
+
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,1}};
 
@@ -37,6 +64,7 @@ void CurvatureCurveFit::calculate()
 
         // How to rotate normal vector to be z vector
         Matrix rotationMat = LinAlg3x3::GetRotationMatrix(v.normals_, referenceDir); 
+        Matrix revrotMat   = LinAlg3x3::GetRotationMatrix(referenceDir, v.normals_);
         Real3 vector = LinAlg3x3::MatrixDotVector(rotationMat, v.normals_);
 
         Eigen::Matrix3d mat = Eigen::Matrix3d::Zero();
@@ -87,11 +115,33 @@ void CurvatureCurveFit::calculate()
         #endif 
 
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
+        Eigen::Matrix2d eigenvectors= eigensolver.eigenvectors().real();
+
         Real2 eigenvals;
         eigenvals[0] = eigenvalues[0];
         eigenvals[1] = eigenvalues[1];
 
         CurvaturePerVertex_[i] = eigenvals;
+
+        // rotate the eigenvectors 
+        Real3 eigvec1;
+        eigvec1.fill(0);
+        Real3 eigvec2;
+        eigvec2.fill(0);
+
+        eigvec1[0] = eigenvectors(0,0);
+        eigvec1[1] = eigenvectors(1,0);
+        eigvec2[0] = eigenvectors(0,1);
+        eigvec2[1] = eigenvectors(1,1);
+
+        std::array<Real3, 2> eigenvectorPair;
+
+        Real3 eigvec1Rot = LinAlg3x3::MatrixDotVector(revrotMat, eigvec1);
+        Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(revrotMat, eigvec2);
+
+        // eigenvectors in real space
+        principalDir1_[i] = eigvec1Rot;
+        principalDir2_[i] = eigvec2Rot;
     }
 }
 
