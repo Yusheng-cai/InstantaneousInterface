@@ -599,10 +599,20 @@ void Mesh::printTriangleIndices(std::string name)
 
 bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
 {
+    auto& vertices = mesh_.accessvertices();
+    auto& triangles= mesh_.accesstriangles();
+    vertices.clear();
+    triangles.clear();
+
     // open the file
     std::ifstream ifs_;
     std::stringstream ss_;
     ifs_.open(filename);
+
+    if (! ifs_.is_open())
+    {
+        return false;
+    }
 
     std::string sentence;
     int numfaces;
@@ -645,14 +655,21 @@ bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
         ss_.clear();
     }
 
+    std::cout << "Number of faces = " << numfaces << std::endl;
+    std::cout << "Number of vertices = " << numvertex << std::endl;
+
     ss_.clear();
     // read in the vertices as well as their normals     
     std::string datasentence;
     for (int i=0;i<numvertex;i++)
     {
         std::getline(ifs_, datasentence);
+        ss_.str(datasentence);
         std::string data;
         std::vector<std::string> vectordata;
+
+        vertex v;
+
         while (ss_ >> data)
         {
             vectordata.push_back(data);
@@ -666,16 +683,71 @@ bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
         for (int j=0;j<3;j++)
         {
             position[j] = StringTools::StringToType<Real>(vectordata[j]);
-            normals[j+3] = StringTools::StringToType<Real>(vectordata[j+3]);
+            normals[j] = StringTools::StringToType<Real>(vectordata[j+3]);
         }
+
+        v.position_ = position;
+        v.normals_ = normals;
+        v.index = i;
+
+        vertices.push_back(v);
+
+        ss_.clear();
     }
 
+    ss_.clear();
     // read in the triangles
+    std::string trianglesentence_;
     for (int i=0;i<numfaces;i++)
     {
+        std::getline(ifs_,trianglesentence_);
+        ss_.str(trianglesentence_);
+        std::string data;
+        std::vector<std::string> vectordata;
 
+        while (ss_ >> data)
+        {
+            vectordata.push_back(data);
+        }
+
+        ASSERT((vectordata.size() == 4), "The triangle file must contain 3 f1 f2 f3");
+
+        triangle t;
+
+        index3 faceid;
+
+        for (int j=0;j<3;j++)
+        {
+            faceid[j] = StringTools::StringToType<int>(vectordata[j+1]);
+        }
+
+        t.triangleindices_ = faceid;
+        for (int j=0;j<3;j++)
+        {
+            t.vertices_[j] = vertices[faceid[j]];
+        }
+
+        t.edges_[0].vertex1_ = t.vertices_[0];
+        t.edges_[0].vertex2_ = t.vertices_[1];
+
+        t.edges_[1].vertex1_ = t.vertices_[1];
+        t.edges_[1].vertex2_ = t.vertices_[2];
+
+        t.edges_[2].vertex1_ = t.vertices_[2];
+        t.edges_[2].vertex2_ = t.vertices_[0];
+
+        triangles.push_back(t);
+        ss_.clear();
     }
+
+    for (int i=0;i<triangles.size();i++)
+    {
+        std::cout << triangles[i].triangleindices_[0] << " " << triangles[i].triangleindices_[1] << " " << triangles[i].triangleindices_[2] << "\n";
+    }
+
     ifs_.close();
+
+    return true;
 }
 
 

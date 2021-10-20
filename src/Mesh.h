@@ -232,6 +232,7 @@ namespace MeshTools
 {
     using Real3 = CommonTypes::Real3;
     using Real  = CommonTypes::Real;
+    using index3= CommonTypes::index3;
 
     bool readPLY(std::string& filename, Mesh& mesh_);
     bool readPLYTriangle(std::string& filename, Mesh& mesh_);
