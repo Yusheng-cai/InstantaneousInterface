@@ -5,6 +5,7 @@ Curvature::Curvature(CurvatureInput& input)
 {
     input.pack.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
     input.pack.ReadVectorString("outputNames", ParameterPack::KeyType::Optional, OutputFileNames_);
+    outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
 
     ASSERT(( OutputNames_.size() == OutputFileNames_.size()), "The number of outputs does not agree with number of output files.");
 }

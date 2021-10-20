@@ -24,6 +24,7 @@ class Curvature
     public:
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;
+        using Real2 = CommonTypes::Real2;
 
         Curvature(CurvatureInput& input); 
         virtual ~Curvature(){};
@@ -34,6 +35,7 @@ class Curvature
         // calculates the curvature using a particular method
         virtual void calculate() = 0;
         virtual void printOutput();
+        virtual void printCurvature(std::string name) = 0;
 
     protected:
         Mesh& mesh_;
