@@ -20,6 +20,7 @@ target_sources(IIsrc PRIVATE
     "CurvatureCurveFit.cpp"
     "MeshRefineStrategy.cpp"
     "MeshLoopRefine.cpp"
+    "CurvatureJetFit.cpp"
 )
 
 set(IIsrc_HEADER
@@ -43,6 +44,7 @@ set(IIsrc_HEADER
     "CurvatureCurveFit.h"
     "MeshRefineStrategy.h"
     "MeshLoopRefine.h"
+    "CurvatureJetFit.h"
 )
 
 target_include_directories(IIsrc
@@ -52,6 +54,8 @@ target_include_directories(IIsrc
 )
 
 target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes)
+
+target_include_directories(IIsrc PUBLIC "/usr/local/include/")
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 
