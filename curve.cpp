@@ -24,21 +24,19 @@ int main(int argc, char** argv)
     ParameterPack pack;
     ip.ParseFile(fname, pack);
 
-    auto vertexPack = pack.findParamPack("vertexfile", ParameterPack::KeyType::Optional);
-    auto TrianglePack = pack.findParamPack("trianglefile", ParameterPack::KeyType::Optional);
+    auto plyPack    = pack.findParamPack("plyfile", ParameterPack::KeyType::Optional);
     auto curvaturePack = pack.findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
-    if (vertexPack != nullptr && TrianglePack != nullptr)
+    if (plyPack != nullptr)
     {
         std::string vertexFileName;
         std::string triangleFileName;
-        vertexPack->ReadString("name", ParameterPack::KeyType::Required, vertexFileName);
-        TrianglePack->ReadString("name", ParameterPack::KeyType::Required, triangleFileName);
+        std::string plyFileName;
+        plyPack->ReadString("name", ParameterPack::KeyType::Required,plyFileName);
 
         Meshptr mesh_ = Meshptr(new Mesh(pack));    
         
-        MeshTools::readPLY(vertexFileName, *mesh_);
-        MeshTools::readPLYTriangle(triangleFileName, *mesh_);
+        MeshTools::readWholePLY(plyFileName, *mesh_);
 
         mesh_ -> refine();
         mesh_ -> CalcTriangleAreaAndFacetNormals();
