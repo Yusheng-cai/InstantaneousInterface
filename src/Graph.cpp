@@ -7,6 +7,7 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
     NearbyIndicesNVertex.clear();
     NearbyIndicesNVertex.resize(NumberOfVertices);
 
+    #pragma omp parallel for
     for(int i=0;i<NumberOfVertices;i++)
     {
         int initial_count = 0;
@@ -32,7 +33,14 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
                 for (int k=initial_count;k<final_count;k++)
                 {
                     int id = currentNearbyIndicesNVertex[k];
-                    temp.insert(temp.end(), NearbyIndices[id].begin(), NearbyIndices[id].end());
+
+                    for (int m=0;m<NearbyIndices[id].size();m++)
+                    {
+                        if (NearbyIndices[id][m] != i)
+                        {
+                            temp.push_back(NearbyIndices[id][m]);
+                        }
+                    }
                 }
 
                 currentNearbyIndicesNVertex.insert(currentNearbyIndicesNVertex.end(), temp.begin(), temp.end());
