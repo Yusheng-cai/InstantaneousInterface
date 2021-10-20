@@ -26,16 +26,14 @@ int main(int argc, char** argv)
 
     auto vertexPack = pack.findParamPack("vertexfile", ParameterPack::KeyType::Optional);
     auto TrianglePack = pack.findParamPack("trianglefile", ParameterPack::KeyType::Optional);
-    auto curvaturePack = pack.findParamPack("curvature", ParameterPack::KeyType::Optional);
+    auto curvaturePack = pack.findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
     if (vertexPack != nullptr && TrianglePack != nullptr)
     {
         std::string vertexFileName;
         std::string triangleFileName;
-        std::string curvaturetype;
         vertexPack->ReadString("name", ParameterPack::KeyType::Required, vertexFileName);
         TrianglePack->ReadString("name", ParameterPack::KeyType::Required, triangleFileName);
-        curvaturePack->ReadString("type", ParameterPack::KeyType::Required,curvaturetype);
 
         Meshptr mesh_ = Meshptr(new Mesh(pack));    
         
@@ -49,12 +47,18 @@ int main(int argc, char** argv)
         auto& vertices = mesh_->accessvertices();
         auto& triangles= mesh_->accesstriangles();
 
+        for (int i=0;i<curvaturePack.size();i++)
+        {
+            auto& curvepack = curvaturePack[i];
+            CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
+            std::string curvaturetype;
 
-        CurvatureInput input = { const_cast<ParameterPack&>(*curvaturePack), *mesh_};
-        curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
+            curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
+            curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
 
-        curve -> calculate();
-        curve -> printOutput();
+            curve -> calculate();
+            curve -> printOutput();
+        }
     }
 
     // find the field
