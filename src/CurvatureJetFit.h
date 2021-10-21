@@ -15,6 +15,7 @@ class CurvatureJetFit : public Curvature
         using MongeViaJetFitting = CGAL::Monge_via_jet_fitting<DataKernel>;
         using Mongeform =  MongeViaJetFitting::Monge_form;
         using DVector    = DataKernel::Vector_3;
+        using Matrix     = CommonTypes::Matrix;
 
         CurvatureJetFit(CurvatureInput& input);
         virtual void calculate() override;
@@ -22,6 +23,7 @@ class CurvatureJetFit : public Curvature
         virtual void printCurvature(std::string name) override;
         void printNeighbors(std::string name);
         void printCoefficientPerVertex(std::string name);
+        void printPCAeigenvector(std::string name);
 
     private:
         MongeViaJetFitting jetfitter_;
@@ -29,8 +31,10 @@ class CurvatureJetFit : public Curvature
         int numneighbors_;
         int degree_=2;
         int MongeCoefficient_=2;
+        int numpoints_;
 
         std::vector<Real2> CurvaturePerVertex_;
         std::vector<std::vector<int>> NeighborIndicesNVertex_;
         std::vector<std::vector<Real>> coefficientsPerVertex_;
+        std::vector<Matrix> PCAeigenvector_;
 };
