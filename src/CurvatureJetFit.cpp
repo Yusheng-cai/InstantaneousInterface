@@ -8,7 +8,7 @@ namespace CurvatureRegistry
 CurvatureJetFit::CurvatureJetFit(CurvatureInput& input)
 :Curvature(input)
 {
-    input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Required, numneighbors_);
+    foundnumneighrs_ = input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, numneighbors_);
     input.pack.ReadNumber("degree", ParameterPack::KeyType::Optional, degree_);
     input.pack.ReadNumber("MongeCoefficient", ParameterPack::KeyType::Optional, MongeCoefficient_);
 
@@ -45,7 +45,18 @@ void CurvatureJetFit::calculate()
 
     const auto& VertexNeighbors_ = mesh_.getNeighborIndices();
     const auto& vertices = mesh_.getvertices();
-    Graph::getNearbyIndicesNVertexAway(VertexNeighbors_,numneighbors_,NeighborIndicesNVertex_);
+
+    if (foundnumneighrs_)
+    {
+        std::cout << "Using number of vertices." << std::endl;
+        Graph::getNearbyIndicesNVertexAway(VertexNeighbors_,numneighbors_,NeighborIndicesNVertex_);
+    }
+    else
+    {
+        std::cout << "Using number of neighbors." << std::endl;
+        Graph::getNNearbyIndices(VertexNeighbors_,numpoints_,NeighborIndicesNVertex_);
+    }
+
     CurvaturePerVertex_.resize(vertices.size());
     coefficientsPerVertex_.resize(vertices.size());
     PCAeigenvector_.resize(vertices.size());
