@@ -27,7 +27,11 @@ int main(int argc, char** argv)
     auto plyPack    = pack.findParamPack("plyfile", ParameterPack::KeyType::Optional);
     auto curvaturePack = pack.findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
-    if (plyPack != nullptr)
+    if (plyPack == nullptr)
+    {
+        std::cout << "No ply file is provided." << std::endl;
+    }
+    else
     {
         std::string vertexFileName;
         std::string triangleFileName;
@@ -61,6 +65,11 @@ int main(int argc, char** argv)
 
     // find the field
     auto fieldPack = pack.findParamPacks("field", ParameterPack::KeyType::Optional);
+
+    if (fieldPack.size() == 0)
+    {
+        std::cout << "No field is provided, program will now exit .... " << std::endl;
+    }
 
     for (int i=0;i<fieldPack.size();i++)
     {
