@@ -655,9 +655,6 @@ bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
         ss_.clear();
     }
 
-    std::cout << "Number of faces = " << numfaces << std::endl;
-    std::cout << "Number of vertices = " << numvertex << std::endl;
-
     ss_.clear();
     // read in the vertices as well as their normals     
     std::string datasentence;
@@ -738,11 +735,6 @@ bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
 
         triangles.push_back(t);
         ss_.clear();
-    }
-
-    for (int i=0;i<triangles.size();i++)
-    {
-        std::cout << triangles[i].triangleindices_[0] << " " << triangles[i].triangleindices_[1] << " " << triangles[i].triangleindices_[2] << "\n";
     }
 
     ifs_.close();
