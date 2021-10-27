@@ -10,6 +10,9 @@ UmbrellaSmoothing::UmbrellaSmoothing(MeshRefineStrategyInput& input)
 {
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
+    input.pack.ReadString("solver", ParameterPack::KeyType::Optional,solver_);
+
+    ASSERT((solver_ == "explicit" || solver_ == "implicit"), "The iterative type must either be explicit or implicit");
 }
 
 void UmbrellaSmoothing::refine()
@@ -24,9 +27,19 @@ void UmbrellaSmoothing::refine()
     // resize the new vertices 
     newVertices_.resize(vertices.size());
 
-    for (int i=0;i<numIterations_;i++)
+    if (solver_ == "implicit")
     {
-        refineStep();
+        refineStepImplicit();
+    }
+    else
+    {
+        for (int i=0;i<numIterations_;i++)
+        {
+            if (solver_ == "explicit")
+            {
+                refineStepExplicit();
+            }
+        }
     }
 
     auto& vert = mesh_.accessvertices();
@@ -34,7 +47,7 @@ void UmbrellaSmoothing::refine()
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
 }
 
-void UmbrellaSmoothing::refineStep()
+void UmbrellaSmoothing::refineStepExplicit()
 {
     // get the vertices 
     const auto& vertices = mesh_.getvertices();
@@ -82,4 +95,75 @@ void UmbrellaSmoothing::refineStep()
 
     oldVertices_.clear();
     oldVertices_.insert(oldVertices_.end(), newVertices_.begin(), newVertices_.end());
+}
+
+void UmbrellaSmoothing::refineStepImplicit()
+{
+    const auto& vertices = mesh_.getvertices();
+    Eigen::SparseMatrix<Real> L(vertices.size(), vertices.size());
+
+    const auto& neighborIndices = mesh_.getNeighborIndices();
+
+    triplets_.clear();
+    // 10 is a guess here 
+    triplets_.reserve(vertices.size()*10);
+
+    for (int i=0;i<vertices.size();i++)
+    {
+        int numneighbors = neighborIndices[i].size();
+        Real factor = 1.0/numneighbors;
+
+        for (int j=0;j<numneighbors;j++)
+        {
+            triplets_.push_back(triplet(i, neighborIndices[i][j], factor));
+        }
+
+        triplets_.push_back(triplet(i,i, -1));
+    }
+    L.setFromTriplets(triplets_.begin(), triplets_.end());
+
+    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
+
+    L = I - lambdadt_*L;
+    std::cout << L << std::endl;
+
+    // update L
+    for (int i=0;i<numIterations_;i++)
+    {
+        L = L * L;
+    }
+
+    // obtain the rhs of the equation to be solved 
+    std::vector<Eigen::VectorXf> rhs;
+    std::vector<Eigen::VectorXf> xyz;
+
+    rhs.resize(3, Eigen::VectorXf::Zero(vertices.size()));
+    xyz.resize(3, Eigen::VectorXf::Zero(vertices.size()));
+
+    for(int i = 0; i < vertices.size(); ++i)
+    {
+        rhs[0][i] = vertices[i].position_[0];
+        rhs[1][i] = vertices[i].position_[1];
+        rhs[2][i] = vertices[i].position_[2];
+    }
+
+    // Solve for x, y, z
+    Eigen::SparseLU<Sparse_mat> solver;
+    solver.analyzePattern(L);
+    solver.factorize(L);
+    //solver.compute( L_ );
+
+    for (int i=0;i<3;i++)
+    {
+        xyz[i] = solver.solve(rhs[i]);
+    }
+    std::cout << "Done?" << std::endl;
+
+    for (int i=0;i<vertices.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            newVertices_[i].position_[j] = xyz[j][i];
+        }
+    }
 }

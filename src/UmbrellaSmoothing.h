@@ -4,6 +4,11 @@
 #include "tools/Assert.h"
 #include "tools/CommonTypes.h"
 #include "Mesh.h"
+#include "Eigen/Core"
+#include "Eigen/Sparse"
+#include "Eigen/QR"
+#include "Eigen/LU"
+#include "Eigen/SparseLU"
 
 #include <vector>
 #include <array>
@@ -25,11 +30,15 @@
 class UmbrellaSmoothing : public MeshRefineStrategy
 {
     public:
+        using triplet = Eigen::Triplet<Real,int>;
+        using Sparse_mat = Eigen::SparseMatrix<Real>;
+
         UmbrellaSmoothing(MeshRefineStrategyInput& input);
 
         virtual void refine() override;
 
-        void refineStep();
+        void refineStepExplicit();
+        void refineStepImplicit();
     
     private:
         int numIterations_;
@@ -38,4 +47,9 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         std::vector<vertex> newVertices_;
         std::vector<vertex> oldVertices_;
+        std::string solver_="explicit";
+
+        // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
+        std::vector<triplet> triplets_;
+        Eigen::SparseMatrix<Real> L_;
 };
