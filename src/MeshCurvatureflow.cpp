@@ -15,16 +15,12 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
 void MeshCurvatureflow::refine()
 {
     mesh_.MapEdgeToFaces();
-    std::cout << "Before end." << std::endl;
 
     // find the boundary vertices
     mesh_.findBoundaryVertices();
-    std::cout << "second end." << std::endl;
 
     // find map from vertex to the face indices 
     mesh_.MapVertexToFaces();
-    std::cout << "Third end." << std::endl;
-
 
     // find number of vertices 
     const auto& v = mesh_.getvertices();
@@ -130,6 +126,7 @@ void MeshCurvatureflow::refineStep()
                     Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
                     Real sintheta = LinAlg3x3::findSinangle(vec1, vec2);
 
+                    std::cout << "Sum of cos2theta and sin2theta is " << costheta*costheta + sintheta*sintheta << std::endl;
                     factor += costheta/sintheta;
                 }
 
