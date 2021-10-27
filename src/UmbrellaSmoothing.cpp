@@ -125,12 +125,14 @@ void UmbrellaSmoothing::refineStepImplicit()
     Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
 
     L = I - lambdadt_*L;
+
+    L = L*L*L;
     std::cout << L << std::endl;
 
     // update L
     for (int i=0;i<numIterations_;i++)
     {
-        L = L * L;
+        L  = L* L;
     }
 
     // obtain the rhs of the equation to be solved 
