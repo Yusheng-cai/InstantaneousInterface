@@ -285,6 +285,37 @@ void Mesh::MapEdgeToFaces()
                 it -> second.push_back(i);
             }
         }
+
+        // map vertex to edges 
+        for (int j=0;j<3;j++)
+        {
+            int index1 = t.edges_[j].vertex1_.index;
+            int index2 = t.edges_[j].vertex2_.index;
+
+            std::array<int,2> indices = {{index1,index2}};
+
+            for (int k=0;k<2;k++)
+            {
+                auto it = MapVertexIndexToEdges_.find(indices[k]); 
+
+                if (it == MapVertexIndexToEdges_.end())
+                {
+                    std::vector<edge> temp;
+                    temp.push_back(t.edges_[j]);
+                    MapVertexIndexToEdges_.insert(std::make_pair(indices[k], temp));
+                }
+                else
+                {
+                    // find if the edge is already in the vector
+                    auto f = std::find(it ->second.begin(), it ->second.end(), t.edges_[j]);
+
+                    if (f == it -> second.end())
+                    {
+                        it -> second.push_back(t.edges_[j]);
+                    }
+                }
+            }
+        }
     }
 
     // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
@@ -293,6 +324,40 @@ void Mesh::MapEdgeToFaces()
         ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
         , however the calculated result shows " << it -> second.size());
     }
+}
+
+void Mesh::MapVertexToFaces()
+{
+    MapVertexIndicesToFaceIndices_.clear();
+    MapVertexIndicesToFaceIndices_.resize(vertices_.size());
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto t = triangles_[i].triangleindices_;
+        for (int j=0;j<3;j++)
+        {
+            MapVertexIndicesToFaceIndices_[t[j]].push_back(i);
+        }
+    }
+
+}
+
+std::vector<int>& Mesh::getFaceIndicesForEdge(const edge& e)
+{
+    auto it = MapEdgeToFace_.find(e);
+
+    ASSERT((it != MapEdgeToFace_.end()), "The edge with vertex indices " << e.vertex1_.index << " and " << e.vertex2_.index << " does not exist in the map from edge to face.");
+
+    return it -> second;
+}
+
+std::vector<edge>& Mesh::getEdgeForVertex(int i)
+{
+    auto it = MapVertexIndexToEdges_.find(i);
+
+    ASSERT((it != MapVertexIndexToEdges_.end()), "The vertex index " << i << " is not found with mapping to edge");
+
+    return it -> second;
 }
 
 void Mesh::findBoundaryVertices()
@@ -305,7 +370,7 @@ void Mesh::findBoundaryVertices()
         int size = it -> second.size();
         ASSERT(( size == 1 || size == 2), "An edge can only be shared by 1 or 2 faces.");
 
-        // if size == 1, then all the verices in the edge is part of the boundary_vertices
+        // if size == 1, then all the vertices in the edge is part of the boundary_vertices
         if (size == 1)
         {
             bool Notfound1 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex1_) == MapBoundaryVertexToBoundaryEdges_.end();
@@ -317,6 +382,7 @@ void Mesh::findBoundaryVertices()
                 e.push_back(it -> first);
 
                 MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex1_, e));
+                MapBoundaryVertexIndicesToTrue_.insert(std::make_pair(it->first.vertex1_.index,true));
             }
             else
             {
@@ -331,6 +397,7 @@ void Mesh::findBoundaryVertices()
                 e.push_back(it -> first);
 
                 MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex2_, e));
+                MapBoundaryVertexIndicesToTrue_.insert(std::make_pair(it->first.vertex2_.index,true));
             }
             else
             {
@@ -340,6 +407,22 @@ void Mesh::findBoundaryVertices()
             }
         }
     }
+}
+
+bool Mesh::isBoundary(int i)
+{
+    auto it = MapBoundaryVertexIndicesToTrue_.find(i);
+
+    if (it == MapBoundaryVertexIndicesToTrue_.end())
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void Mesh::findVertexNeighbors()
@@ -479,7 +562,6 @@ void Mesh::test()
 			cornerArea_[i][0] = -0.25f * l2[2] * area/LinAlg3x3::DotProduct(edge2, edge3);
 			cornerArea_[i][1] = area - cornerArea_[i][2] - cornerArea_[i][0];
 		} else if (bcw[2] <= 0.0f) {
-            std::cout << "t " << i << " is in 3" << std::endl;
 			cornerArea_[i][0] = -0.25f * l2[1] * area/LinAlg3x3::DotProduct(edge3, edge2);
 			cornerArea_[i][1] = -0.25f * l2[0] * area/LinAlg3x3::DotProduct(edge3, edge1);
 			cornerArea_[i][2] = area - cornerArea_[i][0] - cornerArea_[i][1];
@@ -514,6 +596,30 @@ void Mesh::test()
 		triangleArea_[t.triangleindices_[1]] += cornerArea_[i][1];
 		triangleArea_[t.triangleindices_[2]] += cornerArea_[i][2];
 	}
+}
+
+void Mesh::update()
+{
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            int index = t.triangleindices_[j];
+            t.vertices_[j] = vertices_[index];
+        }
+
+        // construct the edges of each triangle
+        t.edges_[0].vertex1_ = t.vertices_[0];
+        t.edges_[0].vertex2_ = t.vertices_[1];
+
+        t.edges_[1].vertex1_ = t.vertices_[1];
+        t.edges_[1].vertex2_ = t.vertices_[2];
+
+        t.edges_[2].vertex1_ = t.vertices_[2];
+        t.edges_[2].vertex2_ = t.vertices_[0];
+    }
 }
 
 void Mesh::CalcVertexNormals()

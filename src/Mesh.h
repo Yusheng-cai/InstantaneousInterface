@@ -152,11 +152,13 @@ class Mesh
         const std::vector<Real3>& getPerVertexDir2() const {return PerVertexdir2_;}
         const std::unordered_map<vertex, std::vector<edge>>& getMapBVertexToBEdges() const {return MapBoundaryVertexToBoundaryEdges_;}
         const std::vector<Real3>& getFaceNormals() const {return facetNormals_;}
+        const std::vector<std::vector<int>>& getMapVertexToFace() const {return MapVertexIndicesToFaceIndices_;}
 
         const std::vector<Real3>& getCornerAreas() const {return cornerArea_;}
 
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
+        bool isBoundary(int i);
         const std::unordered_map<edge, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
 
         // Find neighbors indices for a vertex
@@ -187,6 +189,16 @@ class Mesh
 
         // calculate the faces each edge corresponds to
         void MapEdgeToFaces();
+
+        // map vertex to faces
+        void MapVertexToFaces();
+
+        // update the triangles/vertex/edges if they were to be changed
+        void update();
+
+        // get the edges corresponds to the particular vertex
+        std::vector<edge>& getEdgeForVertex(int i);
+        std::vector<int>& getFaceIndicesForEdge(const edge& e);
     
     private:
         std::vector<vertex> vertices_;
@@ -217,6 +229,9 @@ class Mesh
         // a map from boundary vertices to their respective edges  
         std::unordered_map<vertex, std::vector<edge>> MapBoundaryVertexToBoundaryEdges_;
 
+        // a map from vertex indices to the face indices  
+        std::vector<std::vector<int>> MapVertexIndicesToFaceIndices_;
+
         // output function
         Output outputs_;
 
@@ -225,6 +240,12 @@ class Mesh
 
         // outputNames
         std::vector<std::string> outputNames_;
+
+        // indices of the boundary vertices 
+        std::unordered_map<int,bool> MapBoundaryVertexIndicesToTrue_;
+
+        // map vertex to edges 
+        std::unordered_map<int, std::vector<edge>> MapVertexIndexToEdges_;
 };
 
 
