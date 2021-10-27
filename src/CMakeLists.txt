@@ -21,6 +21,8 @@ target_sources(IIsrc PRIVATE
     "MeshRefineStrategy.cpp"
     "MeshLoopRefine.cpp"
     "CurvatureJetFit.cpp"
+    "UmbrellaSmoothing.cpp"
+    "MeshCurvatureflow.cpp"
 )
 
 set(IIsrc_HEADER
@@ -45,6 +47,8 @@ set(IIsrc_HEADER
     "MeshRefineStrategy.h"
     "MeshLoopRefine.h"
     "CurvatureJetFit.h"
+    "UmbrellaSmoothing.h"
+    "MeshCurvatureflow.h"
 )
 
 target_include_directories(IIsrc
