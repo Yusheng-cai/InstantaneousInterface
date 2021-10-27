@@ -33,6 +33,8 @@ class CurvatureJetFit : public Curvature
         int MongeCoefficient_=2;
         int numpoints_;
 
+        bool foundnumneighrs_;
+
         std::vector<Real2> CurvaturePerVertex_;
         std::vector<std::vector<int>> NeighborIndicesNVertex_;
         std::vector<std::vector<Real>> coefficientsPerVertex_;
