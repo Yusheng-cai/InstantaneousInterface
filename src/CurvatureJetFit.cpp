@@ -88,7 +88,6 @@ void CurvatureJetFit::calculate()
         #endif 
 
         std::vector<Real> coeff_;
-
         for (int i=0;i<mform_.coefficients().size();i++)
         {
             coeff_.push_back(mform_.coefficients()[i]);
