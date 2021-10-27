@@ -27,4 +27,10 @@ namespace LinAlg3x3
     // calculations from the trimesh code
     bool ldltdc(Matrix& A, Real3& vec);
     void ldltsl(const Matrix& A, const Real3& rdiag, const Real3& b, Real3& x);
+
+    // find cos(angle) between 2 vectors 
+    Real findCosangle(Real3& vec1, Real3& vec2);
+
+    // find sin(angle) between 2 vectors 
+    Real findSinangle(Real3& vec1, Real3& vec2);
 }

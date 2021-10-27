@@ -207,3 +207,22 @@ void LinAlg3x3::RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const R
 
     return;
 }
+
+LinAlg3x3::Real LinAlg3x3::findCosangle(Real3& vec1, Real3& vec2)
+{
+    Real dot = DotProduct(vec1, vec2);
+    Real normA = norm(vec1);
+    Real normB = norm(vec2);
+
+    return dot/(normA*normB);
+}
+
+LinAlg3x3::Real LinAlg3x3::findSinangle(Real3& vec1, Real3& vec2)
+{
+    Real3 cross = CrossProduct(vec1, vec2);
+    Real normcross = norm(cross);
+    Real normA = norm(vec1);
+    Real normB = norm(vec2);
+
+    return normcross/(normA * normB);
+}
