@@ -134,6 +134,7 @@ class Mesh
         void printVertices(std::string name);
         void printNormals(std::string name);
         void printPLYAng(std::string name);
+        void printPLYnm(std::string name);
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
@@ -164,11 +165,17 @@ class Mesh
         // Find neighbors indices for a vertex
         void findVertexNeighbors();
 
+        // Scale all the vertices by a single number 
+        void scaleVertices(Real num);
+
         // find all the boundary vertices
         void findBoundaryVertices();
 
         // function called when trying to refine a mesh
         void refine();
+
+        // function that updates the normals of a mesh
+        void updateNormals();
 
         void test();
 
@@ -249,6 +256,9 @@ class Mesh
 
         // map vertex to edges 
         std::unordered_map<int, std::vector<edge>> MapVertexIndexToEdges_;
+
+        // norms of all the edges in the mesh
+        std::vector<Real3> EdgeNorms_;
 };
 
 

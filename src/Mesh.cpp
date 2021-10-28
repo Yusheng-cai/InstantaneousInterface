@@ -9,6 +9,7 @@ Mesh::Mesh(const ParameterPack& pack)
     outputs_.registerOutputFunc("vertex", [this](std::string name) -> void {this -> printVertices(name);});
     outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printNormals(name);});
     outputs_.registerOutputFunc("plyAng", [this](std::string name)-> void {this -> printPLYAng(name);});
+    outputs_.registerOutputFunc("plynm", [this](std::string name) -> void {this -> printPLYnm(name);});
 
     // the mesh pack is the pack for the density field
     auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
@@ -27,6 +28,63 @@ Mesh::Mesh(const ParameterPack& pack)
         MeshPack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
     }
 }
+
+void Mesh::printPLYnm(std::string name)
+{
+    std::cout << "Printing ply nm" << std::endl;
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices_.size();
+    int sizetriangle = triangles_.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "property float nx\n";
+    ofs << "property float ny\n";
+    ofs << "property float nz\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].position_[j]/10.0 << " ";
+        }
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices_[i].normals_[j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+        auto& t = triangles_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << t.triangleindices_[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+
+}
+
 
 void Mesh::printPLYAng(std::string name)
 {
@@ -483,8 +541,8 @@ Mesh::Real Mesh::calculateVolume()
         int index3 = t.triangleindices_[2];
         for (int j=0;j<3;j++)
         {
-            vec1[j] = vertices_[index1].position_[j] - vertices_[index2].position_[j];
-            vec2[j] = vertices_[index1].position_[j] - vertices_[index3].position_[j];
+            vec1[j] = vertices_[index2].position_[j] - vertices_[index1].position_[j];
+            vec2[j] = vertices_[index3].position_[j] - vertices_[index1].position_[j];
         }
 
         Real3 N = LinAlg3x3::CrossProduct(vec1, vec2);
@@ -513,6 +571,20 @@ void Mesh::findTriangleIndices()
     }
 }
 
+void Mesh::scaleVertices(Real num)
+{
+    #pragma omp parallel for
+    for (int i=0;i<vertices_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            vertices_[i].position_[j] = num * vertices_[i].position_[j];
+        }
+    }
+
+    update();
+}
+
 void Mesh::CalcTriangleAreaAndFacetNormals()
 {
     triangleArea_.clear();
@@ -520,6 +592,9 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
 
     facetNormals_.clear();
     facetNormals_.resize(triangles_.size());
+
+    EdgeNorms_.clear();
+    EdgeNorms_.resize(triangles_.size());
 
     // calculate the area of the triangles as well as the normals of the faces of triangles
     for (int i=0;i<triangles_.size();i++)
@@ -531,12 +606,24 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
 
         Real3 diff1 = {};
         Real3 diff2 = {};
+        Real3 diff3 = {};
+        Real norm1, norm2, norm3;
 
         for (int i=0;i<3;i++)
         {
-            diff1[i] = vertices_[index2].position_[i] - vertices_[index1].position_[i];
-            diff2[i] = vertices_[index1].position_[i] - vertices_[index3].position_[i];
+            diff1[i] = vertices_[index1].position_[i] - vertices_[index2].position_[i];
+            diff2[i] = vertices_[index2].position_[i] - vertices_[index3].position_[i];
+            diff3[i] = vertices_[index3].position_[i] - vertices_[index1].position_[i];
         }
+
+        norm1 = LinAlg3x3::norm(diff1);
+        norm2 = LinAlg3x3::norm(diff2);
+        norm3 = LinAlg3x3::norm(diff3);
+
+        // update the edge norms of a triangle
+        EdgeNorms_[i][0] = norm1;
+        EdgeNorms_[i][1] = norm2;
+        EdgeNorms_[i][2] = norm3;
 
         Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
         Real norm = LinAlg3x3::norm(crossProduct);
@@ -550,6 +637,43 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
         facetNormals_[i] = normal_;
         triangleArea_[i] = Area;
     }
+}
+
+void Mesh::updateNormals()
+{
+    CalcTriangleAreaAndFacetNormals();
+
+    // clear the normals in the vertices 
+    for (int i=0;i<vertices_.size();i++)
+    {
+        vertices_[i].normals_.fill(0);
+    }
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto& t = triangles_[i].triangleindices_;
+        Real factor1 = 1.0/(EdgeNorms_[i][0] * EdgeNorms_[i][2]);
+        Real factor2 = 1.0/(EdgeNorms_[i][0] * EdgeNorms_[i][1]);
+        Real factor3 = 1.0/(EdgeNorms_[i][1] * EdgeNorms_[i][2]);
+
+        int index1 = t[0];
+        int index2 = t[1];
+        int index3 = t[2];
+
+        for (int j=0;j<3;j++)
+        {
+            vertices_[index1].normals_[j] += factor1 * facetNormals_[i][j];
+            vertices_[index2].normals_[j] += factor2 * facetNormals_[i][j];
+            vertices_[index3].normals_[j] += factor3 * facetNormals_[i][j];
+        }
+    }
+
+    for (int i=0;i<vertices_.size();i++)
+    {
+        LinAlg3x3::normalize(vertices_[i].normals_);
+    }
+
+    update();
 }
 
 // Compute per-vertex point areas
