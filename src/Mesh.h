@@ -175,6 +175,9 @@ class Mesh
         // printoutput
         void print();
 
+        // calculate volume
+        Real calculateVolume();
+
         // function that finds the triangle indices that a vertex belongs to 
         void findTriangleIndices();
 

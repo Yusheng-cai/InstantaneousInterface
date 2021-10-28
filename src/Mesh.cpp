@@ -459,6 +459,42 @@ void Mesh::findVertexNeighbors()
     }
 }
 
+Mesh::Real Mesh::calculateVolume()
+{
+    Real volume_ =0.0;
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto& t = triangles_[i];
+
+        Real3 g;
+        g.fill(0);
+        for (int j=0;j<3;j++)
+        {
+            int index= t.triangleindices_[j];
+            for (int k=0;k<3;k++)
+            {
+                g[k] += vertices_[index].position_[k] /3.0;
+            }
+        }
+
+        Real3 vec1, vec2;
+        int index1 = t.triangleindices_[0];
+        int index2 = t.triangleindices_[1];
+        int index3 = t.triangleindices_[2];
+        for (int j=0;j<3;j++)
+        {
+            vec1[j] = vertices_[index1].position_[j] - vertices_[index2].position_[j];
+            vec2[j] = vertices_[index1].position_[j] - vertices_[index3].position_[j];
+        }
+
+        Real3 N = LinAlg3x3::CrossProduct(vec1, vec2);
+
+        volume_ += 1.0/6.0 * LinAlg3x3::DotProduct(g,N);
+    }
+
+    return volume_;
+}
+
 void Mesh::findTriangleIndices()
 {
     VertexTriangleIndices_.clear();
