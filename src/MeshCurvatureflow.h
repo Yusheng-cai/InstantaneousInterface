@@ -52,4 +52,9 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // initialize the solver
         Eigen::BiCGSTAB<Sparse_mat> solver_;
+
+        // initial volume of the object 
+        Real initialVolume_;
+        // whether or not we scale the object by volume every step
+        bool scale_=false;
 };

@@ -11,6 +11,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.ReadString("solver", ParameterPack::KeyType::Optional, solverName_);
+    input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
@@ -30,6 +31,12 @@ void MeshCurvatureflow::refine()
     // calculate neighbors
     mesh_.findVertexNeighbors();
 
+    if (scale_)
+    {
+        initialVolume_ = mesh_.calculateVolume();
+        std::cout << "Initial volume of the mesh is " << initialVolume_ <<std::endl;
+    }
+
     // find number of vertices 
     const auto& v = mesh_.getvertices();
     newVertices_.insert(newVertices_.end(), v.begin(), v.end());
@@ -48,6 +55,8 @@ void MeshCurvatureflow::refine()
             refineImplicitStep();
         }
     }
+
+    mesh_.updateNormals();
 }
 
 std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId)
@@ -315,11 +324,6 @@ void MeshCurvatureflow::refineImplicitStep()
         }
     }
 
-    for (int i=0;i<vertexIndicesToface.size();i++)
-    {
-        std::cout << "Total area " << i << " = " << TotalArea_[i] << std::endl;
-    }
-
     getImplicitMatrix();
     const auto& vertices = mesh_.getvertices();
 
@@ -355,7 +359,21 @@ void MeshCurvatureflow::refineImplicitStep()
     auto& vert = mesh_.accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_.update();
+
+    // calculate the volume if needed 
+    if (scale_)
+    {
+        Real vol = mesh_.calculateVolume();
+        std::cout << "Volume = " << vol << std::endl;
+        Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
+
+        // this already performs update 
+        mesh_.scaleVertices(scale);
+    }
+    else
+    {
+        mesh_.update();
+    }
 }
 
 void MeshCurvatureflow::getImplicitMatrix()
