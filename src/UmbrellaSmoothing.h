@@ -10,6 +10,7 @@
 #include "Eigen/LU"
 #include "Eigen/SparseLU"
 
+
 #include <vector>
 #include <array>
 #include <string>
@@ -39,6 +40,8 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         void refineStepExplicit();
         void refineStepImplicit();
+
+        void prepareImplicitMatrix();
     
     private:
         int numIterations_;
@@ -47,9 +50,12 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         std::vector<vertex> newVertices_;
         std::vector<vertex> oldVertices_;
-        std::string solver_="explicit";
+        std::string solverName_="explicit";
 
         // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
         std::vector<triplet> triplets_;
         Eigen::SparseMatrix<Real> L_;
+
+        // initialize the solver
+        Eigen::BiCGSTAB<Sparse_mat> solver_;
 };
