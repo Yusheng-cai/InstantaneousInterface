@@ -11,6 +11,7 @@ UmbrellaSmoothing::UmbrellaSmoothing(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.ReadString("solver", ParameterPack::KeyType::Optional,solverName_);
+    input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
 
     ASSERT((solverName_ == "explicit" || solverName_ == "implicit"), "The iterative type must either be explicit or implicit");
 }
@@ -25,7 +26,14 @@ void UmbrellaSmoothing::refine()
     oldVertices_.insert(oldVertices_.end(), vertices.begin(), vertices.end());
 
     // resize the new vertices 
-    newVertices_.resize(vertices.size());
+    newVertices_.insert(newVertices_.end(), vertices.begin(), vertices.end());
+
+    // find volume if needed 
+    if ( scale_)
+    {
+        initialVolume_ = mesh_.calculateVolume();
+        std::cout << "Initial volume = " << initialVolume_ << std::endl;
+    }
 
     if (solverName_ == "implicit")
     {
@@ -48,6 +56,7 @@ void UmbrellaSmoothing::refine()
     auto& vert = mesh_.accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
+    mesh_.updateNormals();
 }
 
 void UmbrellaSmoothing::refineStepExplicit()
@@ -103,8 +112,8 @@ void UmbrellaSmoothing::refineStepExplicit()
 void UmbrellaSmoothing::refineStepImplicit()
 {
     const auto& vertices = mesh_.getvertices();
-    newVertices_.clear();
-    newVertices_.resize(vertices.size());
+    // newVertices_.clear();
+    // newVertices_.resize(vertices.size());
 
     // obtain the rhs of the equation to be solved 
     std::vector<Eigen::VectorXf> rhs;
@@ -136,7 +145,17 @@ void UmbrellaSmoothing::refineStepImplicit()
     auto& vert = mesh_.accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_.update();
+
+    if (scale_)
+    {
+        Real vol = mesh_.calculateVolume();
+        Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
+        mesh_.scaleVertices(scale);
+    }
+    else
+    {
+        mesh_.update();
+    }
 }
 
 

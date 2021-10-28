@@ -58,4 +58,8 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         // initialize the solver
         Eigen::BiCGSTAB<Sparse_mat> solver_;
+
+        bool scale_ = false;
+
+        Real initialVolume_;
 };
