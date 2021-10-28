@@ -4,6 +4,12 @@
 #include "tools/Assert.h"
 #include "tools/CommonTypes.h"
 #include "Mesh.h"
+#include "Eigen/Core"
+#include "Eigen/Sparse"
+#include "Eigen/QR"
+#include "Eigen/LU"
+#include "Eigen/SparseLU"
+#include "parallel/OpenMP_buffer.h"
 
 
 #include <vector>
@@ -14,12 +20,20 @@
 class MeshCurvatureflow : public MeshRefineStrategy
 {
     public:
+        using triplet = Eigen::Triplet<Real,int>;
+        using Sparse_mat = Eigen::SparseMatrix<Real>;
+
         MeshCurvatureflow(MeshRefineStrategyInput& input);
 
         virtual void refine() override;
 
         void refineStep();
+        void refineImplicitStep();
 
+        void getImplicitMatrix();
+
+        // calculate weights of its 1-ring neighbors of vertex i
+        std::vector<Real> calculateWeights(int i, std::vector<int>& neighborId);
 
     private:
         int numIterations_;
@@ -27,4 +41,15 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         std::vector<vertex> newVertices_;
         std::vector<Real> TotalArea_;
+
+        std::string solverName_="explicit";
+
+        // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
+        std::vector<triplet> triplets_;
+        OpenMP::OpenMP_buffer<std::vector<triplet>> triplets_buffer_;
+
+        Eigen::SparseMatrix<Real> L_;
+
+        // initialize the solver
+        Eigen::BiCGSTAB<Sparse_mat> solver_;
 };
