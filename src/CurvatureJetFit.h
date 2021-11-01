@@ -20,7 +20,6 @@ class CurvatureJetFit : public Curvature
         CurvatureJetFit(CurvatureInput& input);
         virtual void calculate() override;
 
-        virtual void printCurvature(std::string name) override;
         void printNeighbors(std::string name);
         void printCoefficientPerVertex(std::string name);
         void printPCAeigenvector(std::string name);
@@ -35,7 +34,6 @@ class CurvatureJetFit : public Curvature
 
         bool foundnumneighrs_;
 
-        std::vector<Real2> CurvaturePerVertex_;
         std::vector<std::vector<int>> NeighborIndicesNVertex_;
         std::vector<std::vector<Real>> coefficientsPerVertex_;
         std::vector<Matrix> PCAeigenvector_;

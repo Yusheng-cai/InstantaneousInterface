@@ -57,7 +57,6 @@ void CurvatureJetFit::calculate()
         Graph::getNNearbyIndices(VertexNeighbors_,numpoints_,NeighborIndicesNVertex_);
     }
 
-    CurvaturePerVertex_.resize(vertices.size());
     coefficientsPerVertex_.resize(vertices.size());
     PCAeigenvector_.resize(vertices.size());
 
@@ -106,23 +105,35 @@ void CurvatureJetFit::calculate()
 
 
         coefficientsPerVertex_[i] = coeff_;
-        CurvaturePerVertex_[i][0] = mform_.coefficients()[0];
-        CurvaturePerVertex_[i][1] = mform_.coefficients()[1];
+        CurvaturePerVertex_[i][0] = mform_.principal_curvatures(0);
+        CurvaturePerVertex_[i][1] = mform_.principal_curvatures(1);
+
+        DVector vec = mform_.maximal_principal_direction();
+        DVector vec2 = mform_.minimal_principal_direction();
+        Real3 v;
+        Real3 v2;
+
+        for (int j=0;j<3;j++)
+        {
+            v[j] = vec[j];
+            v2[j] = vec2[j];
+        }
+        principalDir1_[i] = v;
+        principalDir2_[i] = v2;
     }
-}
 
-
-void CurvatureJetFit::printCurvature(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
-
-    ofs_ << "# k1 k2" << "\n";
-    for(int i=0;i<CurvaturePerVertex_.size();i++)
+    for (int i=0;i<CurvaturePerVertex_.size();i++)
     {
-        ofs_ << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << "\n";
+        Real avg=0.0;
+        Real gauss = 1.0;
+        for (int j=0;j<2;j++)
+        {
+            gauss *= CurvaturePerVertex_[i][j];
+            avg   += CurvaturePerVertex_[i][j]/2.0;
+        }
+        avgCurvaturePerVertex_[i] = avg;
+        GaussCurvaturePerVertex_[i] = gauss;
     }
-    ofs_.close();
 }
 
 void CurvatureJetFit::printNeighbors(std::string name)
@@ -150,14 +161,28 @@ void CurvatureJetFit::printCoefficientPerVertex(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
+    ofs_ << "# ";
+    for (int i=0;i<coefficientsPerVertex_[0].size();i++)
+    {
+        ofs_ << "coefficient" << i+1 << " ";
+    }
+    ofs_ << "\n";
+   
+
     for (int i=0;i<coefficientsPerVertex_.size();i++)
     {
         int sizePerVertex = coefficientsPerVertex_[i].size();
         for (int j=0;j<sizePerVertex;j++)
         {
-            ofs_ << coefficientsPerVertex_[i][j] << " ";
+            if (j != sizePerVertex-1)
+            {
+                ofs_ << coefficientsPerVertex_[i][j] << " ";
+            }
+            else
+            {
+                ofs_ << coefficientsPerVertex_[i][j] << "\n";
+            }
         }
-        ofs_ << "\n";
     }
     ofs_.close();
 }
