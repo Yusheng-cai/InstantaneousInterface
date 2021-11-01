@@ -23,7 +23,6 @@ class CurvatureTensor: public Curvature
 
         virtual void calculate();
 
-        virtual void printCurvature(std::string name) override;
         void printPrincipalDirection(std::string name);
         void printFF2(std::string name);
         void printCurvatureDir(std::string name);
@@ -42,7 +41,6 @@ class CurvatureTensor: public Curvature
         std::vector<Real3> curvatureTensorPerVertex_;
         std::vector<std::array<Real3,2>> PrincipalDirections_;
 
-        std::vector<Real2> curvatureVec_;
         std::vector<Real> TotalAreaPerVertex_;
 
         std::ofstream curvatureDirOutputofs_;
