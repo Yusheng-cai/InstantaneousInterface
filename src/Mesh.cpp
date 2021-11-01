@@ -1,32 +1,67 @@
 #include "MarchingCubesWrapper.h"
 
-Mesh::Mesh(const ParameterPack& pack)
+Mesh::Mesh(const ParameterPack* pack)
 {
     // set up output 
     outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
     outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
-    outputs_.registerOutputFunc("triangles", [this](std::string name) -> void { this -> printTriangleIndices(name);});
-    outputs_.registerOutputFunc("vertex", [this](std::string name) -> void {this -> printVertices(name);});
-    outputs_.registerOutputFunc("normal", [this](std::string name) -> void { this -> printNormals(name);});
     outputs_.registerOutputFunc("plyAng", [this](std::string name)-> void {this -> printPLYAng(name);});
     outputs_.registerOutputFunc("plynm", [this](std::string name) -> void {this -> printPLYnm(name);});
+    outputs_.registerOutputFunc("plylibr", [this](std::string name) -> void {this -> printPLYlibr(name);});
 
-    // the mesh pack is the pack for the density field
-    auto MeshPack = pack.findParamPack("Mesh", ParameterPack::KeyType::Optional);
-
-    if (MeshPack != nullptr)
+    if (pack != nullptr)
     {
-        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*MeshPack)};
-        auto read = MeshPack->ReadString("type", ParameterPack::KeyType::Optional, refineStrategy_);
+        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*pack)};
+        auto read = pack->ReadString("type", ParameterPack::KeyType::Optional, refineStrategy_);
 
         if (read)
         {
             MeshRefine_ = refinePtr(MeshRefineStrategyFactory::factory::instance().create(refineStrategy_, input));
         }
 
-        MeshPack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
-        MeshPack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
+        pack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
+        pack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
+        pack->ReadNumber("factor", ParameterPack::KeyType::Optional, factor_);
     }
+}
+
+void Mesh::printPLYlibr(std::string name)
+{
+    std::vector<std::array<double,3>> positions(vertices_.size());
+    std::vector<std::vector<size_t>> fInd(triangles_.size());
+    std::vector<std::vector<double>> normals(3, std::vector<double>(vertices_.size(),0.0));
+
+    std::vector<std::string> directioNames = {"nx", "ny", "nz"};
+
+    for (int i=0;i<vertices_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            positions[i][j] = factor_ * vertices_[i].position_[j];
+            normals[j][i] = vertices_[i].normals_[j];
+        }
+    }
+
+    for (int i=0;i<triangles_.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            fInd[i].push_back(triangles_[i].triangleindices_[j]);
+        }
+    }
+
+    happly::PLYData plyOut;
+
+    plyOut.addVertexPositions(positions);
+    plyOut.addFaceIndices(fInd);
+
+    for (int i=0;i<3;i++)
+    {
+        plyOut.getElement("vertex").addProperty(directioNames[i], normals[i]);
+    }
+
+    plyOut.write(name, happly::DataFormat::ASCII);
+    std::cout << "Done reading." << std::endl;
 }
 
 void Mesh::printPLYnm(std::string name)
@@ -140,23 +175,6 @@ void Mesh::printPLYAng(std::string name)
 
     ofs.close();
 
-}
-
-void Mesh::printNormals(std::string name)
-{
-    std::ofstream ofs;
-    ofs.open(name);
-
-    for (int i=0;i<vertices_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].normals_[j] << "\t";
-        }
-        ofs << "\n";
-    }
-
-    ofs.close();
 }
 
 void Mesh::print()
@@ -825,45 +843,95 @@ void Mesh::CalcVertexNormals()
     }
 }
 
-void Mesh::printVertices(std::string name)
+bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
 {
-    std::ofstream ofs_;
+    happly::PLYData plydata(filename);
+    std::vector<std::array<double,3>> vPos = plydata.getVertexPositions();
+    std::vector<std::vector<size_t>> fInd = plydata.getFaceIndices<size_t>();
+    std::vector<std::string> normalNames = {"nx", "ny", "nz"};
+    std::vector<bool> hasProperty_(3, false);
+    std::vector<Real3> normals_;
+    normals_.resize(vPos.size());
 
-    ofs_.open(name);
-
-    for (int i=0;i<vertices_.size();i++)
+    auto names = plydata.getElement("vertex").getPropertyNames();
+    bool hasnormals=false;
+    for (int i=0;i<3;i++)
     {
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << vertices_[i].position_[j] << "\t";
-        }
-        ofs_ << "\n";
+        hasProperty_[i] = std::find(names.begin(), names.end(), normalNames[i]) != names.end();
     }
 
-    ofs_.close();
-
-}
-
-void Mesh::printTriangleIndices(std::string name)
-{
-    std::ofstream ofs_;
-
-    ofs_.open(name);
-
-    for (int i=0;i<triangles_.size();i++)
+    if (hasProperty_[0] && hasProperty_[1] && hasProperty_[2])
     {
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << triangles_[i].triangleindices_[j] << "\t";
-        }
+        hasnormals=true;
+    }
+    std::cout << "has normals = " << hasnormals << std::endl;
 
-        ofs_ <<"\n";
+    if (hasnormals)
+    {
+        for (int i=0;i<3;i++)
+        {
+            const auto& n = plydata.getElement("vertex").getProperty<double>(normalNames[i]);
+            ASSERT((n.size() == vPos.size()), "The size of nx must equal to the number of vertices.");
+
+            for (int j=0;j<vPos.size();j++)
+            {
+                normals_[j][i] = n[j];
+            }
+        }
     }
 
-    ofs_.close();
+    auto& vertices = mesh_.accessvertices();
+    auto& triangles= mesh_.accesstriangles();
+    vertices.clear();
+    triangles.clear();
+
+    vertices.resize(vPos.size());
+    triangles.resize(fInd.size());
+
+    for (int i=0;i<vertices.size();i++)
+    {
+        auto& v = vertices[i];
+        for (int j=0;j<3;j++)
+        {
+            v.position_[j] = vPos[i][j];
+            if (hasnormals)
+            {
+                v.normals_[j]  = normals_[i][j];
+            }
+        }
+        v.index = i;
+    }
+
+    for (int i=0;i<triangles.size();i++)
+    {
+        auto& t = triangles[i];
+
+        ASSERT((fInd[i].size() == 3), "We are reading triangles here while the provided face is " << fInd[i].size());
+
+        for (int j=0;j<3;j++)
+        {
+            t.triangleindices_[j] = fInd[i][j];
+            t.vertices_[j] = vertices[fInd[i][j]];
+        }
+
+        t.edges_[0].vertex1_ = t.vertices_[0];
+        t.edges_[0].vertex2_ = t.vertices_[1];
+
+        t.edges_[1].vertex1_ = t.vertices_[1];
+        t.edges_[1].vertex2_ = t.vertices_[2];
+
+        t.edges_[2].vertex1_ = t.vertices_[2];
+        t.edges_[2].vertex2_ = t.vertices_[0];
+    }
+
+    // calculate triangle areas and vertex normals 
+    mesh_.CalcTriangleAreaAndFacetNormals();
+    mesh_.CalcVertexNormals();
+
+    return true;
 }
 
-bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
+bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
 {
     auto& vertices = mesh_.accessvertices();
     auto& triangles= mesh_.accesstriangles();
@@ -1004,145 +1072,6 @@ bool MeshTools::readWholePLY(std::string& filename, Mesh& mesh_)
     }
 
     ifs_.close();
-
-    return true;
-}
-
-
-bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
-{
-    std::ifstream ifs_;
-    std::stringstream ss_;
-
-    ifs_.open(filename);
-    ASSERT((ifs_.is_open()), "The file with name " << filename << " is not opened.");
-
-    auto& vertices = mesh_.accessvertices();
-
-    std::string sentence;
-    while (std::getline(ifs_, sentence))
-    {
-        ss_.str(sentence);
-        std::string token;
-        
-        ss_ >> token;
-
-        if (token.empty())
-        {
-            continue;
-        }
-
-        double num;
-        if (StringTools::StringToType<double>(token, num))
-        {
-            continue;
-        }
-        else
-        {
-            std::vector<double> NumberPerLine;
-            double number;
-            StringTools::StringToType<double>(token, number);
-            NumberPerLine.push_back(number);
-
-            while (ss_ >> token)
-            {
-                bool fail = StringTools::StringToType<double>(token, number);
-
-                ASSERT((fail == false), "The read operation failed.");
-                NumberPerLine.push_back(number);
-            }
-
-            ASSERT((NumberPerLine.size()==6), "There are " << NumberPerLine.size() << " numbers on each line while it is required to have x,y,z,nx,ny,nz only");
-
-            vertex v;
-
-            for (int i=0;i<3;i++)
-            {
-                v.position_[i] = NumberPerLine[i];
-            }
-
-            for (int i=0;i<3;i++)
-            {
-                v.normals_[i] = NumberPerLine[i+3];
-            }
-
-            v.index = vertices.size();
-            vertices.push_back(v);
-        }
-
-        ss_.clear();
-    }
-
-    return true;
-}
-
-bool MeshTools::readPLYTriangle(std::string& filename, Mesh& mesh_)
-{
-    std::ifstream ifs_;
-    std::stringstream ss_;
-
-    ifs_.open(filename);
-    ASSERT((ifs_.is_open()), "The file with name " << filename << " is not opened.");
-
-    auto& vertices = mesh_.getvertices();
-    auto& triangles= mesh_.accesstriangles();
-
-    std::string sentence;
-    while (std::getline(ifs_, sentence))
-    {
-        ss_.str(sentence);
-        std::string token;
-        
-        ss_ >> token;
-
-        if (token.empty())
-        {
-            continue;
-        }
-
-        int num;
-        if (StringTools::StringToType<int>(token, num))
-        {
-            continue;
-        }
-        else
-        {
-            // ignore the first number
-            std::vector<int> NumberPerLine;
-            int number;
-
-            while (ss_ >> token)
-            {
-                bool fail = StringTools::StringToType<int>(token, number);
-
-                ASSERT((fail == false), "The read operation failed.");
-                NumberPerLine.push_back(number);
-            }
-
-            ASSERT((NumberPerLine.size()==3), "There are " << NumberPerLine.size() << " numbers on each line while it is required to have Id_x, Id_y, Id_z only");
-
-            triangle t;
-
-            for (int i=0;i<3;i++)
-            {
-                t.triangleindices_[i] = NumberPerLine[i];
-                t.vertices_[i] = vertices[t.triangleindices_[i]];
-            }
-
-            t.edges_[0].vertex1_ = t.vertices_[0];
-            t.edges_[0].vertex2_ = t.vertices_[1];
-
-            t.edges_[1].vertex1_ = t.vertices_[1];
-            t.edges_[1].vertex2_ = t.vertices_[2];
-
-            t.edges_[2].vertex1_ = t.vertices_[2];
-            t.edges_[2].vertex2_ = t.vertices_[0];
-
-            triangles.push_back(t);
-        }
-
-        ss_.clear();
-    }
 
     return true;
 }

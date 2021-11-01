@@ -5,6 +5,7 @@
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
 #include "tools/OutputFunction.h"
+#include "happly.h"
 
 #include <vector>
 #include <array>
@@ -25,6 +26,10 @@ struct vertex
 
     Real3 position_;
     Real3 normals_;
+    // The gaussian curvature of this particular vertex
+    Real Gcurvature_=0.0;
+    // The average curvature of this particular vertex 
+    Real Acurvature_=0.0;
     int index;
 
     bool operator==(const vertex& v1) const
@@ -122,7 +127,7 @@ class Mesh
         using Real  = CommonTypes::Real;
         using refinePtr = std::unique_ptr<MeshRefineStrategy>;
 
-        Mesh(const ParameterPack& pack);
+        Mesh(const ParameterPack* pack);
         Mesh() {};
         ~Mesh(){};
 
@@ -130,11 +135,10 @@ class Mesh
 
         void printSTL(std::string name);
         void printPLY(std::string name);
-        void printTriangleIndices(std::string name);
-        void printVertices(std::string name);
-        void printNormals(std::string name);
         void printPLYAng(std::string name);
         void printPLYnm(std::string name);
+        void printPLYlibr(std::string name);
+        void printPLYlibrCurvature(std::string name);
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
@@ -259,6 +263,9 @@ class Mesh
 
         // norms of all the edges in the mesh
         std::vector<Real3> EdgeNorms_;
+
+        // the factor to which all the vertices on the mesh will be multiplied by
+        Real factor_=1.0;
 };
 
 
@@ -269,6 +276,5 @@ namespace MeshTools
     using index3= CommonTypes::index3;
 
     bool readPLY(std::string& filename, Mesh& mesh_);
-    bool readPLYTriangle(std::string& filename, Mesh& mesh_);
-    bool readWholePLY(std::string& filename, Mesh& mesh_);
+    bool readPLYlibr(std::string& filename, Mesh& mesh_);
 };
