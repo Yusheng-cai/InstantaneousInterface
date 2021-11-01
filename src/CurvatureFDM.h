@@ -14,4 +14,5 @@ class CurvatureFDM: public Curvature
 
     private:
         std::string MeanMethod_="geometric";
+        std::vector<Real> curvature_;
 };
