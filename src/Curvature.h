@@ -7,6 +7,7 @@
 #include "tools/InputParser.h"
 #include "Eigen/Dense"
 #include "Eigen/Core"
+#include "happly.h"
 
 #include <vector>
 #include <array>
@@ -29,13 +30,12 @@ class Curvature
         Curvature(CurvatureInput& input); 
         virtual ~Curvature(){};
 
-        const std::vector<Real>& getCurvature() const {return curvature_;}
-        std::vector<Real>& accessCurvature() {return curvature_;}
-
         // calculates the curvature using a particular method
         virtual void calculate() = 0;
         virtual void printOutput();
-        virtual void printCurvature(std::string name) = 0;
+        virtual void printCurvature(std::string name);
+        virtual void printPLYlibr(std::string name);
+        virtual void printPrincipalDir(std::string name);
 
     protected:
         Mesh& mesh_;
@@ -43,10 +43,16 @@ class Curvature
         // The output files
         Output outputs_;
 
-        std::vector<Real> curvature_;
+        std::vector<Real> avgCurvaturePerVertex_;
+        std::vector<Real> GaussCurvaturePerVertex_;
+        std::vector<Real2> CurvaturePerVertex_;
 
         std::vector<std::string> OutputNames_;
         std::vector<std::string> OutputFileNames_;
+
+        // The principal directions used for some curvature calculations
+        std::vector<Real3> principalDir1_;
+        std::vector<Real3> principalDir2_;
 };
 
 
