@@ -164,7 +164,8 @@ AtomGroup& DensityField::accessAtomGroup(std::string& name)
 
 void DensityField::initializeMesh()
 {
-    mesh_ = Meshptr(new Mesh(pack_));
+    auto meshP = pack_.findParamPack("Mesh", ParameterPack::KeyType::Optional);
+    mesh_ = Meshptr(new Mesh(meshP));
 }
 
 void DensityField::findAtomsIndicesInBoundingBox()
