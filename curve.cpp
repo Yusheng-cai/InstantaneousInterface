@@ -38,28 +38,65 @@ int main(int argc, char** argv)
         std::string plyFileName;
         plyPack->ReadString("name", ParameterPack::KeyType::Required,plyFileName);
 
-        Meshptr mesh_ = Meshptr(new Mesh(pack));    
-        
-        MeshTools::readWholePLY(plyFileName, *mesh_);
+        const auto meshPacks = pack.findParamPacks("Mesh", ParameterPack::KeyType::Optional);
 
-        mesh_ -> refine();
-        mesh_ -> CalcTriangleAreaAndFacetNormals();
-        mesh_ -> print();
-
-        auto& vertices = mesh_->accessvertices();
-        auto& triangles= mesh_->accesstriangles();
-
-        for (int i=0;i<curvaturePack.size();i++)
+        // special case when no mesh is provided
+        if (meshPacks.size() == 0)  
         {
-            auto& curvepack = curvaturePack[i];
-            CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
-            std::string curvaturetype;
+            Meshptr mesh_ = Meshptr(new Mesh(nullptr));    
+        
+            MeshTools::readPLYlibr(plyFileName, *mesh_);
 
-            curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
-            curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
+            mesh_ -> refine();
+            mesh_ -> CalcTriangleAreaAndFacetNormals();
+            mesh_ -> print();
 
-            curve -> calculate();
-            curve -> printOutput();
+            auto& vertices = mesh_->accessvertices();
+            auto& triangles= mesh_->accesstriangles();
+
+
+            for (int i=0;i<curvaturePack.size();i++)
+            {
+                auto& curvepack = curvaturePack[i];
+                CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
+                std::string curvaturetype;
+
+                curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
+                curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
+
+                curve -> calculate();
+                curve -> printOutput();
+            }
+
+        }
+
+        for (int i=0;i<meshPacks.size();i++)
+        {
+            std::cout << "Doing mesh " << i << std::endl;
+            Meshptr mesh_ = Meshptr(new Mesh(meshPacks[i]));    
+        
+            MeshTools::readPLYlibr(plyFileName, *mesh_);
+
+            mesh_ -> refine();
+            mesh_ -> CalcTriangleAreaAndFacetNormals();
+            mesh_ -> print();
+
+            auto& vertices = mesh_->accessvertices();
+            auto& triangles= mesh_->accesstriangles();
+
+
+            for (int i=0;i<curvaturePack.size();i++)
+            {
+                auto& curvepack = curvaturePack[i];
+                CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
+                std::string curvaturetype;
+
+                curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
+                curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
+
+                curve -> calculate();
+                curve -> printOutput();
+            }
         }
     }
 
@@ -93,7 +130,7 @@ int main(int argc, char** argv)
         FieldTools::FieldReader(fname, *f);
 
         auto mpack = fpack -> findParamPack("Mesh", ParameterPack::KeyType::Required);
-        Meshptr mesh_ = Meshptr(new Mesh(const_cast<ParameterPack&>(*fpack)));
+        Meshptr mesh_ = Meshptr(new Mesh(mpack));
 
         // calculate the marching cubes
         mwrapper_.calculate(*f, *mesh_, val);
