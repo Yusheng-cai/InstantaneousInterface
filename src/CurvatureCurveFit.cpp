@@ -9,29 +9,6 @@ CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
 :Curvature(input)
 {
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
-
-    outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void {this -> printPrincipalDir(name);});
-}
-
-void CurvatureCurveFit::printPrincipalDir(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
-
-    for (int i=0;i<principalDir1_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << principalDir1_[i][j] << " ";
-        }
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << principalDir2_[i][j] << " ";
-        }
-        ofs_ << "\n";
-    }
-
-    ofs_.close();
 }
 
 void CurvatureCurveFit::calculate()
@@ -42,15 +19,6 @@ void CurvatureCurveFit::calculate()
     const auto& vertices = mesh_.getvertices();
     std::vector<std::vector<int>> NeighborIndicesNVertex_;
     Graph::getNearbyIndicesNVertexAway(VertexNeighbors_, NumNeighbors_,NeighborIndicesNVertex_);
-
-    CurvaturePerVertex_.clear();
-    CurvaturePerVertex_.resize(vertices.size());
-
-    principalDir1_.clear();
-    principalDir1_.resize(vertices.size());
-
-    principalDir2_.clear();
-    principalDir2_.resize(vertices.size());
 
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,1}};
@@ -143,17 +111,18 @@ void CurvatureCurveFit::calculate()
         principalDir1_[i] = eigvec1Rot;
         principalDir2_[i] = eigvec2Rot;
     }
-}
 
-void CurvatureCurveFit::printCurvature(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
-
-    ofs_ << "# k1 k2" << "\n";
-    for(int i=0;i<CurvaturePerVertex_.size();i++)
+    for (int i=0;i<CurvaturePerVertex_.size();i++)
     {
-        ofs_ << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << "\n";
+        Real avg = 0.0;
+        Real gauss = 1.0;
+        for (int j=0;j<2;j++)
+        {
+            avg += CurvaturePerVertex_[i][j]/2.0;
+            gauss *= CurvaturePerVertex_[i][j];
+        }
+
+        avgCurvaturePerVertex_[i] = avg;
+        GaussCurvaturePerVertex_[i] = gauss;
     }
-    ofs_.close();
 }
