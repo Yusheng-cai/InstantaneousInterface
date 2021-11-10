@@ -331,6 +331,7 @@ void Mesh::refine()
 
 void Mesh::MapEdgeToFaces()
 {
+    std::cout << "Mapping edges to faces." << std::endl;
     // clear whatever is in the previous edgetofaces map
     MapEdgeToFace_.clear();
 
@@ -438,9 +439,6 @@ std::vector<edge>& Mesh::getEdgeForVertex(int i)
 
 void Mesh::findBoundaryVertices()
 {
-    // first get the map from edges to faces
-    MapEdgeToFaces();
-
     for (auto it = MapEdgeToFace_.begin(); it != MapEdgeToFace_.end(); it ++)
     {
         int size = it -> second.size();
