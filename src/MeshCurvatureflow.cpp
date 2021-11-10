@@ -51,7 +51,6 @@ void MeshCurvatureflow::refine()
         }
         else
         {
-            std::cout << "Doing implicit." << std::endl;
             refineImplicitStep();
         }
     }
