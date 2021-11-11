@@ -1,6 +1,6 @@
 #include "Curvature.h"
-#include <CGAL/Simple_cartesian.h>
-#include <CGAL/Monge_via_jet_fitting.h>
+#include "CGAL/Simple_cartesian.h"
+#include "CGAL/Monge_via_jet_fitting.h"
 #include "tools/CommonTypes.h"
 #include "Graph.h"
 #define CGAL_EIGEN3_ENABLED 1
