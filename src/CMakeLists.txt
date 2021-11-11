@@ -59,7 +59,11 @@ target_include_directories(IIsrc
 
 target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes)
 
-target_include_directories(IIsrc PUBLIC "/usr/local/include/")
+# target_include_directories(IIsrc PUBLIC "/usr/local/include/")
+if(Boost_FOUND)
+    target_include_directories(IIsrc PUBLIC ${Boost_INCLUDE_DIRS})
+endif()
+message("Boost include dir = ${Boost_INCLUDE_DIRS}")
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 
