@@ -1,0 +1,34 @@
+plyfile = {
+    name = zac.ply
+}
+
+curvature = {
+    type = jetfit
+    outputs = [ curvature neighborIndices ] 
+    outputNames = [ jetfit1.dat nnN.out ]
+    #neighbors = 3
+    degree = 2
+    MongeCoefficient = 2
+}
+
+curvature = {
+    type = jetfit
+    outputs = [ curvature neighborIndices ] 
+    outputNames = [ jetfit2.dat nnN2.out ]
+    neighbors = 3
+    degree = 2
+    MongeCoefficient = 2
+}
+
+curvature = {
+    type = tensor
+    outputs = [ curvature ] 
+    outputNames = [ tensor.dat ]
+}
+
+curvature = {
+    type = curvefit
+    outputs = [ curvature ] 
+    outputNames = [ curvefit.dat ]
+    neighbors = 3
+}

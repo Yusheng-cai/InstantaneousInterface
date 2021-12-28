@@ -1,0 +1,25 @@
+plyfile = {
+    name = sample_sphere.ply
+}
+
+curvature = {
+    type = jetfit
+    outputs = [ curvature ] 
+    outputNames = [ jetfit.out ]
+    # neighbors = 2
+    degree = 4
+    MongeCoefficient = 4
+}
+
+curvature = {
+    type = curvefit
+    outputs = [ curvature ] 
+    outputNames = [ curvefit.out ]
+    neighbors = 2
+}
+
+curvature = {
+    type = tensor
+    outputs = [ curvature ] 
+    outputNames = [ tensor.out ]
+}
