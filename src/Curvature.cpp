@@ -1,17 +1,21 @@
 #include "Curvature.h"
 
 Curvature::Curvature(CurvatureInput& input)
-:mesh_(input.mesh_)
+:pack_(input.pack)
 {
     input.pack.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
     input.pack.ReadVectorString("outputNames", ParameterPack::KeyType::Optional, OutputFileNames_);
+    input.pack.ReadString("name", ParameterPack::KeyType::Optional, name_);
+
     outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
-    outputs_.registerOutputFunc("ply", [this](std::string name) -> void {this -> printPLYlibr(name);});
     outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void {this -> printPrincipalDir(name);});
 
     ASSERT(( OutputNames_.size() == OutputFileNames_.size()), "The number of outputs does not agree with number of output files.");
+}
 
-    const auto& vertices = mesh_.getvertices();
+void Curvature::initialize(Mesh& mesh)
+{
+    const auto& vertices = mesh.getvertices();
     CurvaturePerVertex_.resize(vertices.size());
     avgCurvaturePerVertex_.resize(vertices.size() ,0.0);
     GaussCurvaturePerVertex_.resize(vertices.size(),0.0);
@@ -40,51 +44,6 @@ void Curvature::printCurvature(std::string name)
         << GaussCurvaturePerVertex_[i] << "\n";
     }
     ofs_.close();
-}
-
-void Curvature::printPLYlibr(std::string name)
-{
-    const auto& vertices = mesh_.getvertices();
-    const auto& triangles = mesh_.gettriangles();
-
-    std::vector<std::array<double,3>> positions(vertices.size());
-    std::vector<std::vector<size_t>> fInd(triangles.size());
-    std::vector<std::vector<double>> normals(3, std::vector<double>(vertices.size(),0.0));
-
-    std::vector<std::string> directioNames = {"nx", "ny", "nz"};
-
-    for (int i=0;i<vertices.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            positions[i][j] = vertices[i].position_[j];
-            normals[j][i] = vertices[i].normals_[j];
-        }
-    }
-
-    for (int i=0;i<triangles.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            fInd[i].push_back(triangles[i].triangleindices_[j]);
-        }
-    }
-
-    happly::PLYData plyOut;
-
-    plyOut.addVertexPositions(positions);
-    plyOut.addFaceIndices(fInd);
-
-    for (int i=0;i<3;i++)
-    {
-        plyOut.getElement("vertex").addProperty(directioNames[i], normals[i]);
-    }
-
-    // add average curvature information
-    plyOut.getElement("vertex").addProperty("acurv", avgCurvaturePerVertex_);
-    plyOut.getElement("vertex").addProperty("gcurve", GaussCurvaturePerVertex_);
-
-    plyOut.write(name, happly::DataFormat::ASCII);
 }
 
 void Curvature::printPrincipalDir(std::string name)

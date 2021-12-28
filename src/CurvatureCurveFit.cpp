@@ -11,12 +11,15 @@ CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
 }
 
-void CurvatureCurveFit::calculate()
+void CurvatureCurveFit::calculate(Mesh& mesh)
 {
-    mesh_.findVertexNeighbors();
+    initialize(mesh);
 
-    const auto& VertexNeighbors_ = mesh_.getNeighborIndices();
-    const auto& vertices = mesh_.getvertices();
+    mesh.findVertexNeighbors();
+
+    const auto& VertexNeighbors_ = mesh.getNeighborIndices();
+    const auto& vertices = mesh.getvertices();
+
     std::vector<std::vector<int>> NeighborIndicesNVertex_;
     Graph::getNearbyIndicesNVertexAway(VertexNeighbors_, NumNeighbors_,NeighborIndicesNVertex_);
 

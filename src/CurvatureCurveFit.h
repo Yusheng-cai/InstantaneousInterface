@@ -16,7 +16,7 @@ class CurvatureCurveFit : public Curvature
         using Real2  = CommonTypes::Real2;
         CurvatureCurveFit(CurvatureInput& input);
 
-        virtual void calculate() override;
+        virtual void calculate(Mesh& mesh) override;
     
     private:
         int NumParameters_ = 3;

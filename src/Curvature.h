@@ -17,7 +17,6 @@
 struct CurvatureInput
 {
     ParameterPack& pack;
-    Mesh& mesh_;
 };
 
 class Curvature
@@ -31,14 +30,22 @@ class Curvature
         virtual ~Curvature(){};
 
         // calculates the curvature using a particular method
-        virtual void calculate() = 0;
+        virtual void calculate(Mesh& mesh) = 0;
         virtual void printOutput();
         virtual void printCurvature(std::string name);
-        virtual void printPLYlibr(std::string name);
         virtual void printPrincipalDir(std::string name);
 
+        std::string getName() {return name_;}
+
+        void initialize(Mesh& mesh);
+
+        const std::vector<Real>& getAvgCurvaturePerVertex() {return avgCurvaturePerVertex_;}
+        const std::vector<Real>& getGaussCurvaturePerVertex() {return GaussCurvaturePerVertex_;}
+
     protected:
-        Mesh& mesh_;
+        ParameterPack& pack_;
+
+        std::string name_="c";
 
         // The output files
         Output outputs_;
