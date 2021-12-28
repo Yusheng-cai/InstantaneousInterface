@@ -38,13 +38,21 @@ void CurvatureJetFit::printPCAeigenvector(std::string name)
     ofs_.close();
 }
 
-void CurvatureJetFit::calculate()
+void CurvatureJetFit::calculate(Mesh& mesh)
 {
-    std::cout << "Calculating Jet fitting." << std::endl;
-    mesh_.findVertexNeighbors();
+    initialize(mesh);
 
-    const auto& VertexNeighbors_ = mesh_.getNeighborIndices();
-    const auto& vertices = mesh_.getvertices();
+    mesh.findVertexNeighbors();
+
+    const auto& VertexNeighbors_ = mesh.getNeighborIndices();
+    const auto& vertices = mesh.getvertices();
+
+    CurvaturePerVertex_.resize(vertices.size());
+    avgCurvaturePerVertex_.resize(vertices.size() ,0.0);
+    GaussCurvaturePerVertex_.resize(vertices.size(),0.0);
+
+    principalDir1_.resize(vertices.size());
+    principalDir2_.resize(vertices.size());
 
     if (foundnumneighrs_)
     {
@@ -54,7 +62,7 @@ void CurvatureJetFit::calculate()
     else
     {
         std::cout << "Using number of neighbors." << std::endl;
-        Graph::getNNearbyIndices(VertexNeighbors_,numpoints_,NeighborIndicesNVertex_);
+        Graph::getNNearbyIndices(VertexNeighbors_,numpoints_-1,NeighborIndicesNVertex_);
     }
 
     coefficientsPerVertex_.resize(vertices.size());
@@ -62,7 +70,6 @@ void CurvatureJetFit::calculate()
 
     for (int i=0;i<NeighborIndicesNVertex_.size();i++)
     {
-        std::cout << i << " has " << NeighborIndicesNVertex_[i].size() << " neighbors." << std::endl;
         std::vector<Dpoint> vec_;
         auto& thisVertex = vertices[i];
         auto& thisPos = vertices[i].position_;
@@ -79,6 +86,9 @@ void CurvatureJetFit::calculate()
             vec_.push_back(point);
         }
 
+        ASSERT((vec_.size() >= numpoints_), "The neighbors for indices " << i << " " << vec_.size() << " is not enough for fitting for degree " << degree_ <<\
+         " which has to be at least " << numpoints_);
+
         mform_ = jetfitter_(vec_.begin(), vec_.end(), degree_, MongeCoefficient_);
         for (int j=0;j<3;j++)
         {
@@ -88,7 +98,7 @@ void CurvatureJetFit::calculate()
             }
         }
 
-        DVector norm(thisNormal[0], thisNormal[1], thisNormal[2]);
+        DVector norm(-thisNormal[0], -thisNormal[1], -thisNormal[2]);
 
         mform_.comply_wrt_given_normal(norm);
         #ifdef MY_DEBUG
@@ -102,7 +112,6 @@ void CurvatureJetFit::calculate()
         {
             coeff_.push_back(mform_.coefficients()[i]);
         }
-
 
         coefficientsPerVertex_[i] = coeff_;
         CurvaturePerVertex_[i][0] = mform_.principal_curvatures(0);

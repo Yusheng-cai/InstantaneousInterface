@@ -8,46 +8,20 @@ namespace CurvatureRegistry
 CurvatureTensor::CurvatureTensor(CurvatureInput& input)
 :Curvature(input)
 {
-    outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void { this -> printPrincipalDirection(name);});
     outputs_.registerOutputFunc("FF2", [this](std::string name) -> void {this -> printFF2(name);});
-
-    bool readCurvatureDir = input.pack.ReadVectorArrayNumber("curvaturedir", ParameterPack::KeyType::Optional, curvatureDir_);
-
-    if (readCurvatureDir)
-    {
-        for (int i=0;i<curvatureDir_.size();i++)
-        {
-            LinAlg3x3::normalize(curvatureDir_[i]);
-        }
-
-        bool readcurvatureoutput = input.pack.ReadString("curvatureDirOutput", ParameterPack::KeyType::Optional, curvatureDirOutputName_);
-
-        if (! readcurvatureoutput)
-        {
-            std::cout << "WARNING: You are calculating curvature direction without outputting it to some file." << std::endl;
-        }
-        else
-        {
-            curvatureDirOutputofs_.open(curvatureDirOutputName_);
-
-            ASSERT((curvatureDirOutputofs_.is_open()), "The file with name " << curvatureDirOutputName_ << " is not opened.");
-        }
-    }
 }
 
-void CurvatureTensor::calculate()
+void CurvatureTensor::calculate(Mesh& mesh)
 {
-    mesh_.CalcPerVertexDir();
-    //mesh_.CalcTriangleAreaAndFacetNormals();
-    mesh_.test();
-    //mesh_.CalcVertexNormals();
+    mesh.CalcPerVertexDir();
+    mesh.CalculateCornerArea();
 
-    const auto& triangles = mesh_.gettriangles();
-    const auto& vertices  = mesh_.getvertices();
-    const auto& pervertexdir1 = mesh_.getPerVertexDir1();
-    const auto& pervertexdir2 = mesh_.getPerVertexDir2();
-    const auto& triangleArea = mesh_.getTriangleArea();
-    const auto& cornerArea   = mesh_.getCornerAreas();
+    const auto& triangles = mesh.gettriangles();
+    const auto& vertices  = mesh.getvertices();
+    const auto& pervertexdir1 = mesh.getPerVertexDir1();
+    const auto& pervertexdir2 = mesh.getPerVertexDir2();
+    const auto& triangleArea = mesh.getTriangleArea();
+    const auto& cornerArea   = mesh.getCornerAreas();
 
     Real3 zeroArr_ = {{0,0,0}};
     curvatureTensorPerTriangle_.resize(triangles.size());
@@ -243,19 +217,24 @@ void CurvatureTensor::calculate()
         }
     } 
 
-
-    calculatePrincipalCurvatures();
-    calculateCurvatureInDir();
+    calculatePrincipalCurvatures(mesh);
 }
 
-void CurvatureTensor::calculatePrincipalCurvatures()
+void CurvatureTensor::calculatePrincipalCurvatures(Mesh& mesh)
 {
-    const auto& vertices  = mesh_.getvertices();
-    const auto& pointArea = mesh_.getTriangleArea();
+    initialize(mesh);
+
+    const auto& vertices  = mesh.getvertices();
+    const auto& pointArea = mesh.getTriangleArea();
 
     // Use z as a reference direection
     Real3 referenceDir = {{0,0,1}};
-    PrincipalDirections_.resize(vertices.size());
+    CurvaturePerVertex_.resize(vertices.size());
+    avgCurvaturePerVertex_.resize(vertices.size() ,0.0);
+    GaussCurvaturePerVertex_.resize(vertices.size(),0.0);
+
+    principalDir1_.resize(vertices.size());
+    principalDir2_.resize(vertices.size());
 
     for (int i=0;i<vertices.size();i++)
     {
@@ -287,8 +266,16 @@ void CurvatureTensor::calculatePrincipalCurvatures()
         eigensolver.compute(mat);
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
 
-        CurvaturePerVertex_[i][0] = eigenvalues[0];
-        CurvaturePerVertex_[i][1] = eigenvalues[1];
+        if (eigenvalues[0] > eigenvalues[1])
+        {
+            CurvaturePerVertex_[i][0] = eigenvalues[0];
+            CurvaturePerVertex_[i][1] = eigenvalues[1];
+        }
+        else
+        {
+            CurvaturePerVertex_[i][0] = eigenvalues[1];
+            CurvaturePerVertex_[i][1] = eigenvalues[0];
+        }
 
         Eigen::Matrix2d eigenvectors = eigensolver.eigenvectors().real();
 
@@ -307,11 +294,16 @@ void CurvatureTensor::calculatePrincipalCurvatures()
         Real3 eigvec1Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec1);
         Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(rotationMat, eigvec2);
 
-        // eigenvectors in real space
-        eigenvectorPair[0] = eigvec1Rot;
-        eigenvectorPair[1] = eigvec2Rot;
-
-        PrincipalDirections_[i]=eigenvectorPair;
+        if (eigenvalues[0] >= eigenvalues[1])
+        {
+            principalDir1_[i] = eigvec1Rot;
+            principalDir2_[i] = eigvec2Rot;
+        }
+        else
+        {
+            principalDir2_[i] = eigvec1Rot;
+            principalDir1_[i] = eigvec2Rot;
+        }
     }
     #ifdef MY_DEBUG
     for (int i=0;i<curvatureTensorPerVertex_.size();i++)
@@ -335,27 +327,6 @@ void CurvatureTensor::calculatePrincipalCurvatures()
     }
 }
 
-void CurvatureTensor::printPrincipalDirection(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
-
-    for (int i=0;i<PrincipalDirections_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << PrincipalDirections_[i][0][j] << " ";
-        }
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << PrincipalDirections_[i][1][j] << " ";
-        }
-        ofs_ << "\n";
-    }
-
-    ofs_.close();
-}
-
 void CurvatureTensor::printFF2(std::string name)
 {
     std::ofstream ofs_;
@@ -370,54 +341,6 @@ void CurvatureTensor::printFF2(std::string name)
         ofs_ << "\n";
     }
     ofs_.close();
-}
-
-void CurvatureTensor::printCurvatureDir(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
-
-    const auto& vertices = mesh_.getvertices();
-
-    for (int i=0;i<vertices.size();i++)
-    {
-        for (int j=0;j<curvaturesInDir_.size();j++)
-        {
-            ofs_ << curvaturesInDir_[j][i] << " ";
-        }
-        ofs_ << "\n";
-    }
-
-    ofs_.close();
-}
-
-void CurvatureTensor::calculateCurvatureInDir()
-{
-    if (curvatureDir_.size() != 0)
-    {
-        const auto& vertices = mesh_.getvertices();
-        const auto& PerVertexDir1 = mesh_.getPerVertexDir1();
-        const auto& PerVertexDir2 = mesh_.getPerVertexDir2();
-        curvaturesInDir_.resize(curvatureDir_.size(), std::vector<Real>(vertices.size()));
-
-        for (int i=0;i<curvatureDir_.size();i++)
-        {
-            auto dir = curvatureDir_[i];
-            for (int j=0;j<vertices.size();j++)
-            {
-                auto& tensor = curvatureTensorPerVertex_[j];
-                auto& dir1   = PerVertexDir1[j];
-                auto& dir2   = PerVertexDir2[j];
-
-                Real s = LinAlg3x3::DotProduct(dir1, dir);
-                Real t = LinAlg3x3::DotProduct(dir2, dir);
-
-                Real c = s*s*tensor[0] + 2*s*t*tensor[1] + tensor[2]*t*t;
-
-                curvaturesInDir_[i][j] = c;
-            }
-        }
-    }
 }
 
 CurvatureTensor::Real3 CurvatureTensor::projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature)

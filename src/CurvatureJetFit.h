@@ -18,11 +18,14 @@ class CurvatureJetFit : public Curvature
         using Matrix     = CommonTypes::Matrix;
 
         CurvatureJetFit(CurvatureInput& input);
-        virtual void calculate() override;
+        virtual void calculate(Mesh& mesh) override;
 
         void printNeighbors(std::string name);
         void printCoefficientPerVertex(std::string name);
         void printPCAeigenvector(std::string name);
+
+        // function that outputs the monge normals 
+        // void printMongeNormal(std::string name);
 
     private:
         MongeViaJetFitting jetfitter_;

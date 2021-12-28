@@ -21,9 +21,8 @@ class CurvatureTensor: public Curvature
         CurvatureTensor(CurvatureInput& input); 
         virtual ~CurvatureTensor(){};
 
-        virtual void calculate();
+        virtual void calculate(Mesh& mesh);
 
-        void printPrincipalDirection(std::string name);
         void printFF2(std::string name);
         void printCurvatureDir(std::string name);
 
@@ -31,15 +30,11 @@ class CurvatureTensor: public Curvature
         // project from oldu & oldv to newu & newv
         Real3 projectCurvature(const Real3& oldu, const Real3& oldv, const Real3& refu, const Real3& refv,const Real3& curvature);
 
-        void calculatePrincipalCurvatures();
-
-        // Calculate the curvature in a certain direction as specified by user
-        void calculateCurvatureInDir();
+        void calculatePrincipalCurvatures(Mesh& mesh);
 
     private:
         std::vector<Real3> curvatureTensorPerTriangle_;
         std::vector<Real3> curvatureTensorPerVertex_;
-        std::vector<std::array<Real3,2>> PrincipalDirections_;
 
         std::vector<Real> TotalAreaPerVertex_;
 
@@ -48,6 +43,4 @@ class CurvatureTensor: public Curvature
         std::string curvatureDirOutputName_;
 
         std::vector<std::vector<Real3>> CurvaturePerVertex_tot;
-        std::vector<Real3> curvatureDir_;
-        std::vector<std::vector<Real>> curvaturesInDir_;
 };

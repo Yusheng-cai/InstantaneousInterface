@@ -5,10 +5,10 @@ class CurvatureFDM: public Curvature
     public:
         CurvatureFDM(CurvatureInput& input);
 
-        virtual void calculate();
+        virtual void calculate(Mesh& mesh);
         virtual ~CurvatureFDM(){};
-        void calculateArithmeticMean();
-        void calculateGeometricMean(); 
+        void calculateArithmeticMean(Mesh& mesh);
+        void calculateGeometricMean(Mesh& mesh); 
 
         virtual void printCurvature(std::string name) override;
 

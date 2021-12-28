@@ -12,17 +12,19 @@ CurvatureFDM::CurvatureFDM(CurvatureInput& input)
     ASSERT((MeanMethod_ == "arithmetic" || MeanMethod_ == "geometric"), "The method for calculating mean must be either arithmetic or geometric.");
 }
 
-void CurvatureFDM::calculate()
+void CurvatureFDM::calculate(Mesh& mesh)
 {
-    mesh_.findVertexNeighbors();
+    initialize(mesh);
+
+    mesh.findVertexNeighbors();
 
     if (MeanMethod_ == "arithmetic")
     {
-        calculateArithmeticMean();
+        calculateArithmeticMean(mesh);
     }
     else
     { 
-        calculateGeometricMean();
+        calculateGeometricMean(mesh);
     }
 }
 
@@ -47,15 +49,15 @@ void CurvatureFDM::printCurvature(std::string name)
     ofs_.close();
 }
 
-void CurvatureFDM::calculateArithmeticMean()
+void CurvatureFDM::calculateArithmeticMean(Mesh& mesh)
 {   
     curvature_.clear();
-    curvature_.resize(mesh_.getNumVertices());
+    curvature_.resize(mesh.getNumVertices());
     std::fill(curvature_.begin(), curvature_.end(),0.0);
 
-    const auto& vertices_ = mesh_.getvertices();
-    const auto& neighbor_indices_ = mesh_.getNeighborIndices();
-    const auto& numNeighbors = mesh_.getNumNeighbors();
+    const auto& vertices_ = mesh.getvertices();
+    const auto& neighbor_indices_ = mesh.getNeighborIndices();
+    const auto& numNeighbors = mesh.getNumNeighbors();
 
     // Now we calculate the curvature
     for (int i=0;i<vertices_.size();i++)
@@ -109,15 +111,15 @@ void CurvatureFDM::calculateArithmeticMean()
 
 }
 
-void CurvatureFDM::calculateGeometricMean()
+void CurvatureFDM::calculateGeometricMean(Mesh& mesh)
 {
     curvature_.clear();
-    curvature_.resize(mesh_.getNumVertices());
+    curvature_.resize(mesh.getNumVertices());
     std::fill(curvature_.begin(), curvature_.end(),1.0);
 
-    const auto& vertices_ = mesh_.getvertices();
-    const auto& neighbor_indices_ = mesh_.getNeighborIndices();
-    const auto& numNeighbors = mesh_.getNumNeighbors();
+    const auto& vertices_ = mesh.getvertices();
+    const auto& neighbor_indices_ = mesh.getNeighborIndices();
+    const auto& numNeighbors = mesh.getNumNeighbors();
 
     // Now we calculate the curvature
     for (int i=0;i<vertices_.size();i++)
