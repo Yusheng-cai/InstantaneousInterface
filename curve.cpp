@@ -20,12 +20,26 @@ int main(int argc, char** argv)
     std::string fname = argv[1];
 
     InputParser ip;
+    std::vector<curveptr> curves_;
 
     ParameterPack pack;
     ip.ParseFile(fname, pack);
 
     auto plyPack    = pack.findParamPack("plyfile", ParameterPack::KeyType::Optional);
     auto curvaturePack = pack.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+
+    // initialize the curvatures 
+    for (int i=0;i<curvaturePack.size();i++)
+    {
+        auto& curvepack = curvaturePack[i];
+        CurvatureInput input = { const_cast<ParameterPack&>(*curvepack)};
+        std::string curvaturetype;
+
+        curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
+        curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
+
+        curves_.push_back(std::move(curve));
+    }
 
     if (plyPack == nullptr)
     {
@@ -57,17 +71,10 @@ int main(int argc, char** argv)
 
             for (int i=0;i<curvaturePack.size();i++)
             {
-                auto& curvepack = curvaturePack[i];
-                CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
-                std::string curvaturetype;
-
-                curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
-                curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
-
-                curve -> calculate();
+                auto& curve = curves_[i];
+                curve -> calculate(*mesh_);
                 curve -> printOutput();
             }
-
         }
 
         for (int i=0;i<meshPacks.size();i++)
@@ -87,14 +94,8 @@ int main(int argc, char** argv)
 
             for (int i=0;i<curvaturePack.size();i++)
             {
-                auto& curvepack = curvaturePack[i];
-                CurvatureInput input = { const_cast<ParameterPack&>(*curvepack), *mesh_};
-                std::string curvaturetype;
-
-                curvepack -> ReadString("type", ParameterPack::KeyType::Required, curvaturetype);
-                curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
-
-                curve -> calculate();
+                auto& curve = curves_[i];
+                curve -> calculate(*mesh_);
                 curve -> printOutput();
             }
         }
@@ -145,10 +146,10 @@ int main(int argc, char** argv)
             auto cp = cpack[j];
             cp -> ReadString("type", ParameterPack::KeyType::Required, curvetype);
 
-            CurvatureInput input = { const_cast<ParameterPack&>(*cp), *mesh_};
+            CurvatureInput input = { const_cast<ParameterPack&>(*cp)};
             curveptr c = curveptr(CurvatureRegistry::Factory::instance().create(curvetype, input));
 
-            c -> calculate();
+            c -> calculate(*mesh_);
             c -> printOutput();
         }
     }
