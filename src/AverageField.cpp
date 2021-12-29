@@ -42,7 +42,7 @@ void AverageField::finishCalculate()
 
     for (int i=0;i<curvatures_.size();i++)
     {
-        curvatures_[i]->calculate();
+        curvatures_[i]->calculate(*mesh_);
     }
 }
 

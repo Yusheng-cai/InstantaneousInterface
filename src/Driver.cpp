@@ -1,6 +1,7 @@
 #include "Driver.h"
 
 Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
+: pack_(pack)
 {
     bool read = cmd.readString("abspath", CommandLineArguments::Keys::Optional, abs_path_);
     if ( ! read)
@@ -27,9 +28,11 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
     auto boundingboxPack = pack.findParamPacks("boundingbox", ParameterPack::KeyType::Required);
     initializeBoundingBox(boundingboxPack);
 
+    // initialize curvature 
+    initializeCurvature();
+
     // find the density field
-    auto DensityPack = pack.findParamPack("densityfield", ParameterPack::KeyType::Required);
-    initializeDensityField(DensityPack);
+    initializeDensityField();
 
     // find the driver pack which is optional
     auto DriverPack = pack.findParamPack("driver", ParameterPack::KeyType::Optional);
@@ -73,12 +76,14 @@ void Driver::initializeDriver(const ParameterPack* driverPack)
     simstate_.setTotalFramesToBeCalculated(totalFrames);
 }
 
-void Driver::initializeDensityField(const ParameterPack* densityPack)
+void Driver::initializeDensityField()
 {
-    std::string densityType;
-    densityPack->ReadString("type", ParameterPack::KeyType::Required, densityType);
+    auto DensityPack = pack_.findParamPack("densityfield", ParameterPack::KeyType::Required);
 
-    DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*densityPack)};
+    std::string densityType;
+    DensityPack->ReadString("type", ParameterPack::KeyType::Required, densityType);
+
+    DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*DensityPack), reg_};
     densityfield_ = DensityPtr(DensityFieldRegistry::Factory::instance().create(densityType, input));
 }
 
@@ -95,6 +100,31 @@ void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
         BoundingBox box(input);
 
         simstate_.registerBoundingBox(bbName, box);
+    }
+}
+
+void Driver::initializeCurvature()
+{
+    std::cout << "In initialize curvature" << std::endl;
+    auto Cpack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+    std::cout << "Cpack size = " << Cpack.size() << std::endl;
+
+    for (int i=0;i<Cpack.size();i++)
+    {
+        std::string curvatureType;
+        std::string name;
+        auto& p = Cpack[i];
+
+        p -> ReadString("type", ParameterPack::KeyType::Required, curvatureType);
+
+        CurvatureInput input = { const_cast<ParameterPack&>(*(p))};
+        curveptr ptr = curveptr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
+
+        curvatures_.push_back(std::move(ptr)); 
+
+        std::cout << "Curvature " << i << " has name " << curvatures_[i] -> getName() << std::endl;
+
+        reg_.registerCurvature(curvatures_[i] -> getName(), *curvatures_[i]);
     }
 }
 

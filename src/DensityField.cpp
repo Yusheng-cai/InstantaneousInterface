@@ -1,7 +1,7 @@
 #include "DensityField.h"
 
 DensityField::DensityField(const DensityFieldInput& input)
-:simstate_(input.simstate_), pack_(input.pack_)
+:simstate_(input.simstate_), pack_(input.pack_), reg_(input.reg_)
 {
     // Read the dimensions of the system, as in (Nx, Ny, Nz)
     input.pack_.ReadArrayNumber("dimensions", ParameterPack::KeyType::Required, dimensions_);
@@ -49,27 +49,21 @@ DensityField::DensityField(const DensityFieldInput& input)
     }
 
     initializeMesh();
+
+    // stores a vector of pointers to the curvature 
+    // registry owns the curvature objects 
     initializeCurvature();
 }
 
 void DensityField::initializeCurvature()
 {
-    auto pack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+    std::vector<std::string> cvec;
+    pack_.ReadVectorString("curvature", ParameterPack::KeyType::Optional, cvec);
 
-    if( pack.size() != 0)
+    for (int i=0;i<cvec.size();i++)
     {
-        for (int i=0;i<pack.size();i++)
-        {
-            std::string curvatureType;
-            auto& p = pack[i];
-
-            p -> ReadString("type", ParameterPack::KeyType::Required, curvatureType);
-
-            CurvatureInput input = { const_cast<ParameterPack&>(*(p)), *mesh_ };
-            CurvaturePtr ptr = CurvaturePtr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
-
-            curvatures_.push_back(std::move(ptr)); 
-        }
+        auto& c = reg_.getCurvature(cvec[i]);
+        curvatures_.push_back(&c); 
     }
 }
 

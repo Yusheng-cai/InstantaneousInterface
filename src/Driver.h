@@ -1,3 +1,5 @@
+#pragma once
+
 #include "AtomGroup.h"
 #include "SimulationState.h"
 #include "DensityField.h"
@@ -7,6 +9,8 @@
 #include "tools/CommandLineArguments.h"
 #include "tools/FileSystem.h"
 #include "BoundingBox.h"
+#include "Curvature.h"
+#include "Registry.h"
 
 #include <vector>
 #include <memory>
@@ -19,6 +23,7 @@ class Driver
         using DensityPtr = std::unique_ptr<DensityField>;
         using BBPtr  = std::unique_ptr<BoundingBox>;
         using Real3  = CommonTypes::Real3;
+        using curveptr = std::unique_ptr<Curvature>;
 
         Driver(const ParameterPack& pack, const CommandLineArguments& cmd);
 
@@ -30,9 +35,11 @@ class Driver
 
         void initializeBoundingBox(std::vector<const ParameterPack*>& bbPack);
 
-        void initializeDensityField(const ParameterPack* densityPack);
+        void initializeDensityField();
 
         void initializeDriver(const ParameterPack* driverPack);
+
+        void initializeCurvature();
 
         // Read information from xdr
         void readFrameXdr(int FrameNum);
@@ -60,6 +67,8 @@ class Driver
         AtomGroup& getAtomGroup(const std::string& name);
 
     private:
+        ParameterPack pack_;
+
         SimulationState simstate_;
         GroFile grofile_;
 
@@ -76,6 +85,11 @@ class Driver
         DensityPtr densityfield_;
 
         BBPtr boundingbox_;
+
+        // vector of curvature objects
+        std::vector<curveptr> curvatures_;
+
+        Registry reg_;
 
         int Totalframes_;
 

@@ -11,6 +11,7 @@
 #include "MarchingCubesWrapper.h"
 #include "tools/OutputFunction.h"
 #include "Curvature.h"
+#include "Registry.h"
 
 
 #include <vector>
@@ -26,6 +27,7 @@ struct DensityFieldInput
 {
     SimulationState& simstate_;
     ParameterPack& pack_;
+    Registry& reg_;
 };
 
 class DensityField
@@ -65,6 +67,7 @@ class DensityField
         int getAtomGroupID(std::string& name);
         const AtomGroup& getAtomGroup(std::string& name);
         AtomGroup& accessAtomGroup(std::string& name);
+        Mesh& accessMesh() {return *mesh_;}
 
     protected:
         // the atomgroups
@@ -81,12 +84,16 @@ class DensityField
         // The simulation state that keeps track of atom groups and bounding box
         SimulationState& simstate_;
 
+        // registry that keeps track of all the miscellaneous things like curvature
+        Registry& reg_;
+
         // sigma used for gaussian smoothing 
         Real sigma_;
 
         // we cut off n sigmas away
         Real n_ = 2.5;
         Real cutoff_;
+
 
         // Name of the bounding box
         std::string boundingboxName_;
@@ -123,7 +130,7 @@ class DensityField
         ParameterPack& pack_;
 
         // curvature calculators 
-        std::vector<CurvaturePtr> curvatures_;
+        std::vector<Curvature*> curvatures_;
 };
 
 namespace DensityFieldRegistry
