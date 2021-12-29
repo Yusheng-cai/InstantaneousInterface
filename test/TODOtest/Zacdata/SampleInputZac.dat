@@ -1,9 +1,9 @@
 xdrfile = {
-    path = traj_comp.xtc
+    path = ../../SampleTraj/traj_comp.xtc
 }
 
 grofile = {
-    path = confout.gro
+    path = ../../SampleTraj/confout.gro
 }
 
 atomgroup = {
@@ -15,24 +15,25 @@ curvature   = {
         name = c
 	type = tensor
 	outputs = [ curvature ]
-	outputNames = [ c.out ] 
+	outputNames = [ IIcurvature.out ] 
 }
 
 densityfield = {
     type        = averagefield
     Mesh = {
 	outputs  = [ ply ]
-	outputNames = [ zac.ply ] 
+	outputNames = [ zacII.ply ] 
     }
 
     isosurfacevalue  = 16
+    curvature   = [ c ]
     dimensions  = [ 160 40 50 ]
     boundingbox = bb
     sigma       = 0.24
     cutoff      = 2.5
     atomgroup   = ice
-    outputs 	= [ field vertex normal triangle ]
-    outputFiles = [ test.out vertex.out normals.out triangle.out ]
+    outputs 	= [ field ]
+    outputFiles = [ zacfield.out ]
 }
 
 boundingbox = {
