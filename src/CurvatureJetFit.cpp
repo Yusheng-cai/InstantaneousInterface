@@ -68,80 +68,86 @@ void CurvatureJetFit::calculate(Mesh& mesh)
     coefficientsPerVertex_.resize(vertices.size());
     PCAeigenvector_.resize(vertices.size());
 
-    for (int i=0;i<NeighborIndicesNVertex_.size();i++)
+    #pragma omp parallel
     {
-        std::vector<Dpoint> vec_;
-        auto& thisVertex = vertices[i];
-        auto& thisPos = vertices[i].position_;
-        auto& thisNormal = thisVertex.normals_;
-        Dpoint point(thisPos[0], thisPos[1], thisPos[2]);
-        vec_.push_back(point);
+        MongeViaJetFitting jetfitterLocal;
 
-        for (int j=0;j<NeighborIndicesNVertex_[i].size();j++)
+        #pragma omp for
+        for (int i=0;i<NeighborIndicesNVertex_.size();i++)
         {
-            int neighborIndex = NeighborIndicesNVertex_[i][j];
-            auto& vertpos = vertices[neighborIndex].position_;
+            std::vector<Dpoint> vec;
+            Real3 thisPos = vertices[i].position_;
+            Real3 thisNormal = vertices[i].normals_;
+            Dpoint point(thisPos[0], thisPos[1], thisPos[2]);
+            vec.push_back(point);
 
-            Dpoint point(vertpos[0], vertpos[1], vertpos[2]);
-            vec_.push_back(point);
-        }
-
-        ASSERT((vec_.size() >= numpoints_), "The neighbors for indices " << i << " " << vec_.size() << " is not enough for fitting for degree " << degree_ <<\
-         " which has to be at least " << numpoints_);
-
-        mform_ = jetfitter_(vec_.begin(), vec_.end(), degree_, MongeCoefficient_);
-        for (int j=0;j<3;j++)
-        {
-            for (int k=0;k<3;k++)
+            for (int j=0;j<NeighborIndicesNVertex_[i].size();j++)
             {
-                PCAeigenvector_[i][j][k] = jetfitter_.pca_basis(j).second[k];
+                int neighborIndex = NeighborIndicesNVertex_[i][j];
+                Real3 vertpos = vertices[neighborIndex].position_;
+
+                Dpoint point(vertpos[0], vertpos[1], vertpos[2]);
+                vec.push_back(point);
             }
+
+            ASSERT((vec.size() >= numpoints_), "The neighbors for indices " << i << " " << vec.size() << " is not enough for fitting for degree " << degree_ <<\
+            " which has to be at least " << numpoints_);
+
+            auto mform = jetfitterLocal(vec.begin(), vec.end(), degree_, MongeCoefficient_);
+            for (int j=0;j<3;j++)
+            {
+                for (int k=0;k<3;k++)
+                {
+                    PCAeigenvector_[i][j][k] = jetfitterLocal.pca_basis(j).second[k];
+                }
+            }
+
+            DVector norm(-thisNormal[0], -thisNormal[1], -thisNormal[2]);
+
+            mform.comply_wrt_given_normal(norm);
+            #ifdef MY_DEBUG
+            std::cout << "Origin = " << mform.origin() << std::endl;
+            std::cout << "Position1 = " << vec_[0] << std::endl;
+            std::cout << "vertex position = " << vertices[i].position_[0] << " " << vertices[i].position_[1] << " " << vertices[i].position_[2] << std::endl;
+            #endif 
+
+            std::vector<Real> coeff;
+            for (int i=0;i<mform.coefficients().size();i++)
+            {
+                coeff.push_back(mform.coefficients()[i]);
+            }
+
+            coefficientsPerVertex_[i] = coeff;
+            CurvaturePerVertex_[i][0] = mform.principal_curvatures(0);
+            CurvaturePerVertex_[i][1] = mform.principal_curvatures(1);
+
+            DVector vec1 = mform.maximal_principal_direction();
+            DVector vec2 = mform.minimal_principal_direction();
+            Real3 v;
+            Real3 v2;
+
+            for (int j=0;j<3;j++)
+            {
+                v[j] = vec1[j];
+                v2[j] = vec2[j];
+            }
+            principalDir1_[i] = v;
+            principalDir2_[i] = v2;
         }
 
-        DVector norm(-thisNormal[0], -thisNormal[1], -thisNormal[2]);
-
-        mform_.comply_wrt_given_normal(norm);
-        #ifdef MY_DEBUG
-        std::cout << "Origin = " << mform_.origin() << std::endl;
-        std::cout << "Position1 = " << vec_[0] << std::endl;
-        std::cout << "vertex position = " << vertices[i].position_[0] << " " << vertices[i].position_[1] << " " << vertices[i].position_[2] << std::endl;
-        #endif 
-
-        std::vector<Real> coeff_;
-        for (int i=0;i<mform_.coefficients().size();i++)
+        #pragma omp for
+        for (int i=0;i<CurvaturePerVertex_.size();i++)
         {
-            coeff_.push_back(mform_.coefficients()[i]);
+            Real avg=0.0;
+            Real gauss = 1.0;
+            for (int j=0;j<2;j++)
+            {
+                gauss *= CurvaturePerVertex_[i][j];
+                avg   += CurvaturePerVertex_[i][j]/2.0;
+            }
+            avgCurvaturePerVertex_[i] = avg;
+            GaussCurvaturePerVertex_[i] = gauss;
         }
-
-        coefficientsPerVertex_[i] = coeff_;
-        CurvaturePerVertex_[i][0] = mform_.principal_curvatures(0);
-        CurvaturePerVertex_[i][1] = mform_.principal_curvatures(1);
-
-        DVector vec = mform_.maximal_principal_direction();
-        DVector vec2 = mform_.minimal_principal_direction();
-        Real3 v;
-        Real3 v2;
-
-        for (int j=0;j<3;j++)
-        {
-            v[j] = vec[j];
-            v2[j] = vec2[j];
-        }
-        principalDir1_[i] = v;
-        principalDir2_[i] = v2;
-    }
-
-    for (int i=0;i<CurvaturePerVertex_.size();i++)
-    {
-        Real avg=0.0;
-        Real gauss = 1.0;
-        for (int j=0;j<2;j++)
-        {
-            gauss *= CurvaturePerVertex_[i][j];
-            avg   += CurvaturePerVertex_[i][j]/2.0;
-        }
-        avgCurvaturePerVertex_[i] = avg;
-        GaussCurvaturePerVertex_[i] = gauss;
     }
 }
 

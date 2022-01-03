@@ -28,7 +28,6 @@ class CurvatureJetFit : public Curvature
         // void printMongeNormal(std::string name);
 
     private:
-        MongeViaJetFitting jetfitter_;
         Mongeform mform_;
         int numneighbors_;
         int degree_=2;
