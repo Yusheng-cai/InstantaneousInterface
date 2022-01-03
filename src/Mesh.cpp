@@ -331,7 +331,6 @@ void Mesh::refine()
 
 void Mesh::MapEdgeToFaces()
 {
-    std::cout << "Mapping edges to faces." << std::endl;
     // clear whatever is in the previous edgetofaces map
     MapEdgeToFace_.clear();
 
@@ -693,7 +692,7 @@ void Mesh::updateNormals()
 }
 
 // Compute per-vertex point areas
-void Mesh::test()
+void Mesh::CalculateCornerArea()
 {
     triangleArea_.clear();
     triangleArea_.resize(vertices_.size(),0.0);
@@ -800,6 +799,52 @@ void Mesh::update()
 
 void Mesh::CalcVertexNormals()
 {
+    // First calculate triangle faces normals 
+    CalcTriangleAreaAndFacetNormals();
+
+    // calculate vertex normals
+    vertexNormals_.resize(vertices_.size());
+    Real3 zeroArr = {{0,0,0}};
+    std::fill(vertexNormals_.begin(), vertexNormals_.end(), zeroArr);
+
+    // calculate the normals of each vertices
+    for (int i=0;i<triangles_.size();i++)
+    {
+        auto& t = triangles_[i];
+        Real3 normals = facetNormals_[i];
+
+        for (int j=0;j<3;j++)
+        {
+            int index = t.triangleindices_[j];
+            auto& vNorm = vertexNormals_[index];
+
+            for (int k=0;k<3;k++)
+            {
+                vNorm[k] += normals[k];
+            }
+        }
+    }
+
+
+    for (int i=0;i<vertexNormals_.size();i++)
+    {
+        Real norm = LinAlg3x3::norm(vertexNormals_[i]);
+
+        for (int j=0;j<3;j++)
+        {
+            vertexNormals_[i][j] = vertexNormals_[i][j]/norm;
+        }
+    }
+
+    for (int i=0;i<vertices_.size();i++)
+    {
+        vertices_[i].normals_ = vertexNormals_[i];
+    }
+
+}
+
+void Mesh::CalcVertexNormalsAreaWeighted()
+{
     // calculate vertex normals
     vertexNormals_.resize(vertices_.size());
     Real3 zeroArr = {{0,0,0}};
@@ -835,7 +880,7 @@ void Mesh::CalcVertexNormals()
         }
     }
 
-    for(int i=0;i<vertices_.size();i++)
+    for (int i=0;i<vertices_.size();i++)
     {
         vertices_[i].normals_ = vertexNormals_[i];
     }
@@ -864,6 +909,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
     }
     std::cout << "has normals = " << hasnormals << std::endl;
 
+    // do something when it does have normals
     if (hasnormals)
     {
         for (int i=0;i<3;i++)
@@ -878,6 +924,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
         }
     }
 
+    // first we update the mesh
     auto& vertices = mesh_.accessvertices();
     auto& triangles= mesh_.accesstriangles();
     vertices.clear();
@@ -892,10 +939,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
         for (int j=0;j<3;j++)
         {
             v.position_[j] = vPos[i][j];
-            if (hasnormals)
-            {
-                v.normals_[j]  = normals_[i][j];
-            }
+            v.normals_[j]  = normals_[i][j];
         }
         v.index = i;
     }
@@ -922,9 +966,16 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
         t.edges_[2].vertex2_ = t.vertices_[0];
     }
 
-    // calculate triangle areas and vertex normals 
+    // calculate triangle areas and facet normals 
     mesh_.CalcTriangleAreaAndFacetNormals();
-    mesh_.CalcVertexNormals();
+
+    if ( ! hasnormals)
+    {
+        std::cout << "Calculating normals by myself." << std::endl;
+        mesh_.CalcVertexNormalsAreaWeighted();
+
+        mesh_.update();
+    }
 
     return true;
 }

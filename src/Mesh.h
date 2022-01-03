@@ -181,7 +181,8 @@ class Mesh
         // function that updates the normals of a mesh
         void updateNormals();
 
-        void test();
+        // Calculate the corner area according to trimesh code C++
+        void CalculateCornerArea();
 
         // printoutput
         void print();
@@ -195,7 +196,10 @@ class Mesh
         // function that finds the area of all the triangules on the surface
         void CalcTriangleAreaAndFacetNormals();
 
-        // function that calculates the normals of each of the vertex
+        // function that calculates the normals of each of the vertex --> weighted by area 
+        void CalcVertexNormalsAreaWeighted();
+
+        // function that calculates the normals of each of the vertex --> not weighted by anything and updates the normals in each vertices
         void CalcVertexNormals();
 
         // Find the 
