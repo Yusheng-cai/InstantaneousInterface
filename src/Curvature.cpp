@@ -16,11 +16,19 @@ Curvature::Curvature(CurvatureInput& input)
 void Curvature::initialize(Mesh& mesh)
 {
     const auto& vertices = mesh.getvertices();
+    CurvaturePerVertex_.clear();
     CurvaturePerVertex_.resize(vertices.size());
+
+    avgCurvaturePerVertex_.clear();
     avgCurvaturePerVertex_.resize(vertices.size() ,0.0);
+
+    GaussCurvaturePerVertex_.clear();
     GaussCurvaturePerVertex_.resize(vertices.size(),0.0);
 
+    principalDir1_.clear();
     principalDir1_.resize(vertices.size());
+
+    principalDir2_.clear();
     principalDir2_.resize(vertices.size());
 }
 
