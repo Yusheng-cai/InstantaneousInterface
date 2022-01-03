@@ -972,7 +972,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
     if ( ! hasnormals)
     {
         std::cout << "Calculating normals by myself." << std::endl;
-        mesh_.CalcVertexNormalsAreaWeighted();
+        mesh_.CalcVertexNormals();
 
         mesh_.update();
     }
