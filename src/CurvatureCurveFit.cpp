@@ -13,6 +13,7 @@ CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
 
 void CurvatureCurveFit::calculate(Mesh& mesh)
 {
+    // initialize the mesh 
     initialize(mesh);
 
     mesh.findVertexNeighbors();
@@ -20,16 +21,16 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     const auto& VertexNeighbors_ = mesh.getNeighborIndices();
     const auto& vertices = mesh.getvertices();
 
-    std::vector<std::vector<int>> NeighborIndicesNVertex_;
-    Graph::getNearbyIndicesNVertexAway(VertexNeighbors_, NumNeighbors_,NeighborIndicesNVertex_);
+    std::vector<std::vector<int>> NeighborIndicesNVertex;
+    Graph::getNearbyIndicesNVertexAway(VertexNeighbors_, NumNeighbors_,NeighborIndicesNVertex);
 
     // the reference direction of the normal vector is the z vector
-    Real3 referenceDir = {{0,0,1}};
+    Real3 referenceDir = {{0,0,-1}};
 
     for (int i=0;i<vertices.size();i++)
     {
         auto& v = vertices[i];
-        auto& neighbors = NeighborIndicesNVertex_[i];
+        auto& neighbors = NeighborIndicesNVertex[i];
 
         ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3.");
 
@@ -38,9 +39,11 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         Matrix revrotMat   = LinAlg3x3::GetRotationMatrix(referenceDir, v.normals_);
         Real3 vector = LinAlg3x3::MatrixDotVector(rotationMat, v.normals_);
 
+        // initialize the 
         Eigen::Matrix3d mat = Eigen::Matrix3d::Zero();
         Eigen::Vector3d b = Eigen::Vector3d::Zero();
 
+        // Fitting equation to the form of b1*x^2 + b2 * y^2 + b3 * x * y
         for (int j=0;j<neighbors.size();j++)
         {
             int neighborId = neighbors[j];
@@ -55,43 +58,57 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
             // Rotate neighbor position to the frame of reference of interest
             Real3 neighborRotatedPos = LinAlg3x3::MatrixDotVector(rotationMat, diff);
+            Real xpos = neighborRotatedPos[0];
+            Real ypos = neighborRotatedPos[1];
+            Real zpos = neighborRotatedPos[2];
 
-            mat(0,0) += 0.25*std::pow(neighborRotatedPos[0],4.0);
-            mat(0,1) += 0.5*std::pow(neighborRotatedPos[0],3.0)*neighborRotatedPos[1];
-            mat(0,2) += 0.25*std::pow(neighborRotatedPos[0],2.0)*std::pow(neighborRotatedPos[1],2.0);
-            mat(1,0) += 0.5*std::pow(neighborRotatedPos[0],3.0)*neighborRotatedPos[1];
-            mat(1,1) += std::pow(neighborRotatedPos[0],2.0)*std::pow(neighborRotatedPos[1],2.0);
-            mat(1,2) += 0.5*neighborRotatedPos[0]*std::pow(neighborRotatedPos[1],3.0);
-            mat(2,0) += 0.25*std::pow(neighborRotatedPos[0],2.0)*std::pow(neighborRotatedPos[1],2.0);
-            mat(2,1) += 0.5*neighborRotatedPos[0]*std::pow(neighborRotatedPos[1],3.0);
-            mat(2,2) += 0.25*std::pow(neighborRotatedPos[1],4.0);
+            mat(0,0) += std::pow(xpos, 4.0);
+            mat(0,1) += std::pow(xpos, 2.0) * std::pow(ypos, 2.0);
+            mat(0,2) += std::pow(xpos, 3.0) * ypos;
+            mat(1,1) += std::pow(ypos, 4.0);
+            mat(1,2) += xpos * std::pow(ypos, 3.0);
 
-            b[0] += 0.5*std::pow(neighborRotatedPos[0],2.0)*neighborRotatedPos[2];
-            b[1] += neighborRotatedPos[0]*neighborRotatedPos[1]*neighborRotatedPos[2];
-            b[2] += 0.5*std::pow(neighborRotatedPos[1],2.0)*neighborRotatedPos[2];
+            b[0] += std::pow(xpos, 2.0) * zpos;
+            b[1] += std::pow(ypos, 2.0) * zpos;
+            b[2] += xpos * ypos * zpos;
         }
+        mat(1,0) = mat(0,1);
+        mat(2,0) = mat(0,2);
+        mat(2,1) = mat(1,2);
+        mat(2,2) = mat(0,1);
+
+        // Solve the least squares fitting problem 
         Eigen::Vector3d ans = mat.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
 
+        // Ans = [ b1, b2, b12 ]
         Eigen::Matrix2d SecondFundamentalMat;
-        SecondFundamentalMat(0,0) = ans[0];
-        SecondFundamentalMat(0,1) = ans[1];
-        SecondFundamentalMat(1,0) = ans[1];
-        SecondFundamentalMat(1,1) = ans[2];
-
+        SecondFundamentalMat(0,0) = 2*ans[0];
+        SecondFundamentalMat(0,1) = ans[2];
+        SecondFundamentalMat(1,0) = ans[2];
+        SecondFundamentalMat(1,1) = 2*ans[1];
         eigensolver.compute(SecondFundamentalMat);
 
         #ifdef MY_DEBUG
         std::cout << "2FF matrix of triangle " << SecondFundamentalMat << std::endl;
         #endif 
 
+        // Compute the eigenvalues 
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
         Eigen::Matrix2d eigenvectors= eigensolver.eigenvectors().real();
 
+        // sort the eigenvalues from greater to smaller 
         Real2 eigenvals;
         eigenvals[0] = eigenvalues[0];
         eigenvals[1] = eigenvalues[1];
+        bool Switch=false;
 
+        if (eigenvals[0] < eigenvals[1])
+        {
+            Switch=true;
+        }
+
+        std::sort(eigenvals.begin(), eigenvals.end(), std::greater<Real>());
         CurvaturePerVertex_[i] = eigenvals;
 
         // rotate the eigenvectors 
@@ -111,8 +128,16 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(revrotMat, eigvec2);
 
         // eigenvectors in real space
-        principalDir1_[i] = eigvec1Rot;
-        principalDir2_[i] = eigvec2Rot;
+        if (Switch)
+        {
+            principalDir1_[i] = eigvec2Rot;
+            principalDir2_[i] = eigvec1Rot;
+        }
+        else
+        {
+            principalDir1_[i] = eigvec1Rot;
+            principalDir2_[i] = eigvec2Rot;
+        }
     }
 
     for (int i=0;i<CurvaturePerVertex_.size();i++)
