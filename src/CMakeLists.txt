@@ -25,6 +25,7 @@ target_sources(IIsrc PRIVATE
     "MeshCurvatureflow.cpp"
     "MeshCurvature.cpp"
     "Registry.cpp"
+    "KDTree.cpp"
 )
 
 set(IIsrc_HEADER
@@ -53,6 +54,7 @@ set(IIsrc_HEADER
     "MeshCurvatureflow.h"
     "MeshCurvature.h"
     "Registry.h"
+    "KDTree.h"
 )
 
 target_include_directories(IIsrc
