@@ -8,6 +8,13 @@ XtcFile::XtcFile(const XdrInput& input)
 :XdrWrapper(input)
 {}
 
+XtcFile::XtcFile(std::string filename, std::string mode)
+:XdrWrapper(filename, mode)
+{
+
+}
+
+
 void XtcFile::readNumAtoms()
 {
     ASSERT((isOpen()), "The file is not opened.");
@@ -16,6 +23,33 @@ void XtcFile::readNumAtoms()
 
     ASSERT((success == exdrOK), "The process to read xtc natoms is not sucessful.");
 }
+
+void XtcFile::writeFrame(const std::vector<Real3>& pos, int step, Real time, Matrix box)
+{
+    int size = pos.size();
+    std::vector<rvec> tempRvec(size);
+
+    for (int i=0;i<size;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            tempRvec[i][j] = pos[i][j];
+        }
+    }
+
+    matrix mat;
+    for (int i=0;i<3;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            mat[i][j] = box[i][j];
+        }
+    }
+
+    int res = write_xtc(file_, size, step, time, mat, tempRvec.data(), 3);
+    ASSERT((res == exdrOK), "Write failed.");
+}
+
 
 void XtcFile::readNframes()
 {
