@@ -22,6 +22,8 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+set( BOOST_ROOT "" CACHE PATH "Boost library path" )
+set( Boost_NO_SYSTEM_PATHS on CACHE BOOL "Do not search system for Boost" )
 find_package(Boost REQUIRED)
 message("Boost found = ${Boost_FOUND}")
 
