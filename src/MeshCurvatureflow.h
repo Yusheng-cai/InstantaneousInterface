@@ -11,7 +11,6 @@
 #include "Eigen/SparseLU"
 #include "parallel/OpenMP_buffer.h"
 
-
 #include <vector>
 #include <array>
 #include <iterator>
@@ -55,6 +54,10 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // initial volume of the object 
         Real initialVolume_;
+
         // whether or not we scale the object by volume every step
         bool scale_=false;
+
+        // The curvature we are setting the surface to be 
+        Real k0_ = 0;
 };

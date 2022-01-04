@@ -12,6 +12,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.ReadString("solver", ParameterPack::KeyType::Optional, solverName_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
+    input.pack.ReadNumber("k0", ParameterPack::KeyType::Optional, k0_);
 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
@@ -163,8 +164,10 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 
 void MeshCurvatureflow::refineStep()
 {
-    std::cout << "refinestep" << std::endl;
     mesh_.CalcTriangleAreaAndFacetNormals();
+
+    // calculate vertex normals but unweighted
+    mesh_.CalcVertexNormals();
 
     const auto& vertexIndicesToface = mesh_.getMapVertexToFace();
     const auto& triangleArea = mesh_.getTriangleArea();
@@ -172,8 +175,6 @@ void MeshCurvatureflow::refineStep()
     const auto& triangles= mesh_.gettriangles();
 
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
-    std::cout << "Totalarea.size = " << TotalArea_.size() << std::endl;
-    std::cout << "vertexindicestoface.size = " << vertexIndicesToface.size() << std::endl;
 
     #pragma omp parallel for
     for (int i=0;i<vertexIndicesToface.size();i++)
@@ -253,7 +254,6 @@ void MeshCurvatureflow::refineStep()
                     Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
                     Real sintheta = LinAlg3x3::findSinangle(vec1, vec2);
 
-                    std::cout << "Sum of cos2theta and sin2theta is " << costheta*costheta + sintheta*sintheta << std::endl;
                     factor += costheta/sintheta;
                 }
 
@@ -294,7 +294,7 @@ void MeshCurvatureflow::refineStep()
             // multiply step by the factors 
             for (int j=0;j<3;j++)
             {
-                newVertices_[i].position_[j] = vertices[i].position_[j] + 1.0/(factor_sum) * lambdadt_ * step[j];
+                newVertices_[i].position_[j] = vertices[i].position_[j] + lambdadt_ * k0_ * vertices[i].normals_[j] + 1.0/(factor_sum) * lambdadt_ * step[j];
             }
         }
     }
@@ -310,6 +310,10 @@ void MeshCurvatureflow::refineImplicitStep()
 {
     // obtain the areas of the triangles 
     mesh_.CalcTriangleAreaAndFacetNormals();
+
+    // obtain the normals of the surfaces 
+    mesh_.CalcVertexNormalsAreaWeighted();
+
     auto& vertexIndicesToface = mesh_.getMapVertexToFace();
     const auto& triangleArea = mesh_.getTriangleArea();
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
@@ -378,12 +382,12 @@ void MeshCurvatureflow::refineImplicitStep()
 void MeshCurvatureflow::getImplicitMatrix()
 {
     const auto& vertices = mesh_.getvertices();
+    L_.setZero();
     L_.resize(vertices.size(), vertices.size());
 
     const auto& neighborIndices = mesh_.getNeighborIndices();
 
     triplets_.clear();
-    // 10 is a guess here 
     triplets_buffer_.set_master_object(triplets_);
 
     #pragma omp parallel
