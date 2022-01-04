@@ -6,7 +6,7 @@ curvature = {
     type = jetfit
     outputs = [ curvature ] 
     outputNames = [ jetfit.out ]
-    # neighbors = 2
+    neighbors = 2
     degree = 4
     MongeCoefficient = 4
 }
