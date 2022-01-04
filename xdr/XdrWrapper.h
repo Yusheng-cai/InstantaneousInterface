@@ -27,6 +27,7 @@ class XdrWrapper
 {
     public:
         using Real = CommonTypes::Real;
+        using Real3= CommonTypes::Real3;
         using Matrix = CommonTypes::Matrix;
 
         enum Mode
@@ -35,6 +36,7 @@ class XdrWrapper
         };
 
         XdrWrapper(const XdrInput&);    
+        XdrWrapper(std::string filename, std::string mode);
         void open();
         virtual ~XdrWrapper();
 
@@ -47,6 +49,7 @@ class XdrWrapper
         int getNumAtoms() const {return natoms_;}
 
         virtual bool readFrame(int FrameNum) = 0;
+        virtual void writeFrame(const std::vector<Real3>& pos, int step, Real time, Matrix box){};
         virtual void readNumAtoms()  = 0;
         virtual void readNframes(){};
         const Frame::VectorReal3& getPositions() const{return frame_.getPositions();}
@@ -70,7 +73,6 @@ class XdrWrapper
         Frame frame_;
         int nframes_=0;
 
-        const ParameterPack& pack_;
         std::string apath_;
 };
 

@@ -1,17 +1,22 @@
 #include "XdrWrapper.h"
 XdrWrapper::XdrWrapper(const XdrInput& input)
-:pack_(input.pack), apath_(input.apath_)
+: apath_(input.apath_)
 {
-    pack_.ReadString("path", ParameterPack::KeyType::Required, path_);
+    input.pack.ReadString("path", ParameterPack::KeyType::Required, path_);
     path_ = FileSystem::joinPath(apath_, path_);
 
-    bool readmode = pack_.ReadString("mode", ParameterPack::KeyType::Optional, operation_mode_);
+    bool readmode = input.pack.ReadString("mode", ParameterPack::KeyType::Optional, operation_mode_);
  
 
     if ( ! readmode)
     {
         operation_mode_ = "read";
     }
+}
+
+XdrWrapper::XdrWrapper(std::string filename, std::string mode)
+:operation_mode_(mode) , path_(filename)
+{
 }
 
 void XdrWrapper::open()
@@ -38,11 +43,14 @@ void XdrWrapper::open()
     ASSERT((isOpen()), "The file did not open correctly.");
 
     // Read Number of Atoms 
-    readNumAtoms();
+    if (mode_ == "r")
+    {
+        readNumAtoms();
 
-    frame_.setNumAtoms(natoms_);
+        frame_.setNumAtoms(natoms_);
 
-    readNframes();
+        readNframes();
+    }
 }
 
 
