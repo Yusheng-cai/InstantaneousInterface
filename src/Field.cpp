@@ -22,9 +22,9 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     field_.resize(Nx*Ny*Nz);
     zero();
 
-    dx_ = Lx_/Nx_;
-    dy_ = Ly_/Ny_;
-    dz_ = Lz_/Nz_;
+    dx_ = Lx_/(Nx_-1);
+    dy_ = Ly_/(Ny_-1);
+    dz_ = Lz_/(Nz_-1);
 }
 
 void Field::clearField()
