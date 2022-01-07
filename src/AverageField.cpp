@@ -35,7 +35,7 @@ void AverageField::finishCalculate()
         fieldVec[i] = avgFac*fieldVec[i]; 
     }
 
-    MarchingCubes_.calculate(field_, *mesh_, isoSurfaceVal_);
+    MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, pbc_);
 
     // refine the mesh 
     mesh_ -> refine();

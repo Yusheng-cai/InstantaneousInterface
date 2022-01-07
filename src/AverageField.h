@@ -26,4 +26,6 @@ class AverageField:public DensityField
         void printTriangleIndices(std::string name);
         void printVertices(std::string name);
         void printNormals(std::string name);
+    private:
+        MarchingCubesWrapper mC_;
 };
