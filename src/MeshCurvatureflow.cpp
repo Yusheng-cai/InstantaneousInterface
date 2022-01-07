@@ -126,13 +126,11 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
         {
             int pidx = otherPoints[k];
             Real3 vec1, vec2, vec3;
+            Real vec1sq, vec2sq, vec3sq;
 
-            for (int m=0;m<3;m++)
-            {
-                vec1[m] = vertices[index1].position_[m] - vertices[pidx].position_[m];
-                vec2[m] = vertices[index2].position_[m] - vertices[pidx].position_[m];
-                vec3[m] = vertices[index1].position_[m] - vertices[index2].position_[m];
-            }
+            mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
+            mesh_.getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
+            mesh_.getVertexDistance(vertices[index1], vertices[index2], vec3, vec3sq);
 
             Real cos1 = LinAlg3x3::findSinangle(vec1,vec3);
             Real cos2 = LinAlg3x3::findSinangle(vec2,vec3);
@@ -244,12 +242,11 @@ void MeshCurvatureflow::refineStep()
                 {
                     int pidx = otherPoints[k];
                     Real3 vec1, vec2;
+                    Real vec1sq, vec2sq;
 
-                    for (int m=0;m<3;m++)
-                    {
-                        vec1[m] = vertices[index1].position_[m] - vertices[pidx].position_[m];
-                        vec2[m] = vertices[pidx].position_[m] - vertices[index2].position_[m];
-                    }
+                    mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
+                    mesh_.getVertexDistance(vertices[pidx], vertices[index2], vec2, vec2sq);
+                    
 
                     Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
                     Real sintheta = LinAlg3x3::findSinangle(vec1, vec2);
@@ -345,6 +342,7 @@ void MeshCurvatureflow::refineImplicitStep()
         rhs[2][i] = vertices[i].position_[2];
     }
 
+    // solver 
     for (int i=0;i<3;i++)
     {
         xyz[i] = solver_.solveWithGuess(rhs[i],rhs[i]);
@@ -386,6 +384,7 @@ void MeshCurvatureflow::getImplicitMatrix()
     L_.resize(vertices.size(), vertices.size());
 
     const auto& neighborIndices = mesh_.getNeighborIndices();
+    Real epsilon=1e-5;
 
     triplets_.clear();
     triplets_buffer_.set_master_object(triplets_);
@@ -407,19 +406,24 @@ void MeshCurvatureflow::getImplicitMatrix()
                 std::vector<Real> weights = calculateWeights(i, neighborId);
                 ASSERT((weights.size() == numneighbors), "The number of weights provided for a vertex does not agree with the number of neighbors.");
                 Real w = 0.0;
-                Real factor = 1.0/(4.0 * TotalArea_[i]);
 
-                for (int j=0;j<numneighbors;j++)
+                // Skip the calculation is Total area is 0 --> less than some threshold --> 1e-5
+                if (TotalArea_[i] > epsilon)
                 {
-                    w += weights[j];
-                }
+                    Real factor = 1.0/(4.0 * TotalArea_[i]);
 
-                for (int j=0;j<numneighbors;j++)
-                {
-                    trip_omp.push_back(triplet(i, neighborId[j], factor * weights[j]));
-                }
+                    for (int j=0;j<numneighbors;j++)
+                    {
+                        w += weights[j];
+                    }
 
-                trip_omp.push_back(triplet(i,i, -factor * w));
+                    for (int j=0;j<numneighbors;j++)
+                    {
+                        trip_omp.push_back(triplet(i, neighborId[j], factor * weights[j]));
+                    }
+
+                    trip_omp.push_back(triplet(i,i, -factor * w));
+                }
             }
         }
     }
