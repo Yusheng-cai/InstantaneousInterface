@@ -105,9 +105,7 @@ void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
 
 void Driver::initializeCurvature()
 {
-    std::cout << "In initialize curvature" << std::endl;
     auto Cpack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
-    std::cout << "Cpack size = " << Cpack.size() << std::endl;
 
     for (int i=0;i<Cpack.size();i++)
     {
@@ -121,8 +119,6 @@ void Driver::initializeCurvature()
         curveptr ptr = curveptr(CurvatureRegistry::Factory::instance().create(curvatureType, input));
 
         curvatures_.push_back(std::move(ptr)); 
-
-        std::cout << "Curvature " << i << " has name " << curvatures_[i] -> getName() << std::endl;
 
         reg_.registerCurvature(curvatures_[i] -> getName(), *curvatures_[i]);
     }
