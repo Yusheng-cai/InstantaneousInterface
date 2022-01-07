@@ -22,9 +22,9 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     field_.resize(Nx*Ny*Nz);
     zero();
 
-    dx_ = Lx_/(Nx_-1);
-    dy_ = Ly_/(Ny_-1);
-    dz_ = Lz_/(Nz_-1);
+    dx_ = Lx_/Nx_;
+    dy_ = Ly_/Ny_;
+    dz_ = Lz_/Nz_;
 }
 
 void Field::clearField()
@@ -56,31 +56,17 @@ void Field::fixIndex(index3& index)
     ASSERT((index[1] >= -Ny_ && index[1] <= 2*Ny_-1), "y index out of range.");
     ASSERT((index[2] >= -Nz_ && index[2] <= 2*Nz_-1), "z index out of range.");
 
-    if (index[0] < 0 && index[0] >= -Nx_)
+    index3 N = {{Nx_, Ny_, Nz_}};
+    for (int i=0;i<3;i++)
     {
-        index[0] = index[0] + Nx_;
-    }
-    else if (index[0] >= Nx_ && index[0] <= 2*Nx_-1)
-    {
-        index[0] = index[0] - Nx_;
-    }
-    
-    if (index[1] < 0 && index[1] >= -Ny_)
-    {
-        index[1] = index[1] + Ny_;
-    }
-    else if (index[1] >= Ny_ && index[1] <= 2*Ny_-1)
-    {
-        index[1] = index[1] - Ny_;
-    }
-
-    if (index[2] < 0 && index[2] >= -Nz_)
-    {
-        index[2] = index[2] + Nz_;
-    }
-    else if (index[2] >= Nz_ && index[2] <= 2*Nz_-1)
-    {
-        index[2] = index[2] - Nz_;
+        if (index[i] < 0)
+        {
+            index[i] += N[i];
+        }
+        else
+        {
+            index[i] = index[i] % N[i];
+        }
     }
 }
 
