@@ -16,8 +16,6 @@
 #include <unordered_map>
 #include <iomanip>
 
-class MarchingCubesWrapper;
-
 
 struct vertex
 {
@@ -139,6 +137,8 @@ class Mesh
         void printPLYnm(std::string name);
         void printPLYlibr(std::string name);
         void printPLYlibrCurvature(std::string name);
+        void printBoundaryVertices(std::string name);
+        void printArea(std::string name);
 
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
@@ -193,7 +193,7 @@ class Mesh
         // function that finds the triangle indices that a vertex belongs to 
         void findTriangleIndices();
 
-        // function that finds the area of all the triangules on the surface
+        // function that finds the area of all the triangules on the surface --> Now takes into account PBC
         void CalcTriangleAreaAndFacetNormals();
 
         // function that calculates the normals of each of the vertex --> weighted by area 
@@ -202,7 +202,7 @@ class Mesh
         // function that calculates the normals of each of the vertex --> not weighted by anything and updates the normals in each vertices
         void CalcVertexNormals();
 
-        // Find the 
+        // Find the vertex direction 
         void CalcPerVertexDir();
 
         // calculate the faces each edge corresponds to
@@ -213,6 +213,15 @@ class Mesh
 
         // update the triangles/vertex/edges if they were to be changed
         void update();
+
+        // Check whether or not the mesh is periodic 
+        bool isPeriodic() {return isPeriodic_;}
+
+        // find PBC distance between 2 vertices 
+        void getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist);
+
+        // find shifted vertex position
+        Real3 getShiftedVertexPosition(const vertex& v1, const vertex& v2);
 
         // get the edges corresponds to the particular vertex
         std::vector<edge>& getEdgeForVertex(int i);
@@ -270,6 +279,10 @@ class Mesh
 
         // the factor to which all the vertices on the mesh will be multiplied by
         Real factor_=1.0;
+
+        // whether or not the mesh is periodic
+        bool isPeriodic_=false;
+        Real3 boxLength_;
 };
 
 
