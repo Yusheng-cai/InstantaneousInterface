@@ -121,10 +121,8 @@ LinAlg3x3::Matrix LinAlg3x3::GetRotationMatrix(const Real3& v1, const Real3& v2)
     Real denom = 1.0 + cosine;
     Real factor;
 
-    if (std::abs(cosine) < 1e-7) { factor = 0.0;}
-    else if (std::abs(denom) < 1e-7)
+    if (std::abs(denom) < 1e-7)
     {
-
     }
     else{factor = 1.0/(1.0 + cosine);}
 
