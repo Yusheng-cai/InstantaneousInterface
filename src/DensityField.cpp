@@ -19,6 +19,9 @@ DensityField::DensityField(const DensityFieldInput& input)
     // Read in the isoSurface value
     input.pack_.ReadNumber("isosurfacevalue", ParameterPack::KeyType::Required, isoSurfaceVal_);
 
+    // Read in the pbc 
+    input.pack_.Readbool("pbc", ParameterPack::KeyType::Optional, pbc_);
+
     // Read in the bounding box
     input.pack_.ReadString("boundingbox", ParameterPack::KeyType::Required,boundingboxName_);
     bound_box_ = &simstate_.getBoundingBox(boundingboxName_);
@@ -200,6 +203,7 @@ void DensityField::findAtomsIndicesInBoundingBox()
 
 void DensityField::CalculateInstantaneousInterface()
 {
+    // the master object will not be zero'd
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
     {
         it -> zero();
@@ -227,6 +231,8 @@ void DensityField::CalculateInstantaneousInterface()
             Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
             index3 Index       = fieldbuf.getClosestGridIndex(correctedPos);
 
+            // Fix the index 
+            fieldbuf.fixIndex(Index);
 
             for(int j=0;j<offsetIndex_.size();j++)
             {

@@ -9,6 +9,7 @@
 #include "GaussianCoarseGrainFunction.h"
 #include "tools/GenericFactory.h"
 #include "MarchingCubesWrapper.h"
+#include "marching_cubes.hpp"
 #include "tools/OutputFunction.h"
 #include "Curvature.h"
 #include "Registry.h"
@@ -94,6 +95,9 @@ class DensityField
         Real n_ = 2.5;
         Real cutoff_;
 
+        // whether we do pbc or not for marching cubes 
+        bool pbc_=false;
+
 
         // Name of the bounding box
         std::string boundingboxName_;
@@ -113,7 +117,7 @@ class DensityField
         // The isosurface value, usually in units of atom/nm3
         Real isoSurfaceVal_;
 
-        MarchingCubesWrapper MarchingCubes_;
+        MarchingCubes MarchingCubes_;
         Meshptr mesh_;
 
         std::vector<int> AtomIndicesInside_;
