@@ -1,15 +1,20 @@
 #include "Mesh.h"
 
 Mesh::Mesh(const ParameterPack* pack)
+: pack_(pack)
 {
     // set up output 
     outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
+    // print ply file by myself 
     outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
-    outputs_.registerOutputFunc("plyAng", [this](std::string name)-> void {this -> printPLYAng(name);});
-    outputs_.registerOutputFunc("plynm", [this](std::string name) -> void {this -> printPLYnm(name);});
+    // print ply file but using library
     outputs_.registerOutputFunc("plylibr", [this](std::string name) -> void {this -> printPLYlibr(name);});
     outputs_.registerOutputFunc("boundary", [this](std::string name) -> void {this -> printBoundaryVertices(name);});
     outputs_.registerOutputFunc("area", [this](std::string name) -> void {this -> printArea(name);});
+    outputs_.registerOutputFunc("cutted", [this](std::string name) -> void {this -> printCuttedMesh(name);});
+    outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printNonPBCMesh(name);});
+    outputs_.registerOutputFunc("translate",[this](std::string name) -> void {this -> printTranslatedMesh(name);});
+    outputs_.registerOutputFunc("neighbor", [this](std::string name) -> void {this -> printNeighbors(name);});
 
 
     if (pack != nullptr)
@@ -24,9 +29,30 @@ Mesh::Mesh(const ParameterPack* pack)
 
         pack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
         pack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
-        isPeriodic_ = pack->ReadArrayNumber("BoxLength", ParameterPack::KeyType::Optional, boxLength_);
         pack->ReadNumber("factor", ParameterPack::KeyType::Optional, factor_);
+
+        // if box length is read, then the mesh is periodic 
+        isPeriodic_ = pack->ReadArrayNumber("BoxLength", ParameterPack::KeyType::Optional, boxLength_);
     }
+}
+
+void Mesh::printNeighbors(std::string name)
+{
+    findVertexNeighbors();
+    std::ofstream ofs;
+    ofs.open(name);
+
+    for (int i=0;i<neighborIndices_.size();i++)
+    {
+        ofs << i << " ";
+        for (auto ind : neighborIndices_[i])
+        {
+            ofs << ind << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
 }
 
 void Mesh::printArea(std::string name)
@@ -44,20 +70,184 @@ void Mesh::printArea(std::string name)
     ofs.close();
 }
 
+void Mesh::clearDegenerateTriangles()
+{
+
+}
+
+void Mesh::printTranslatedMesh(std::string name)
+{
+    Real3 translate;
+    bool readTranslate = pack_->ReadArrayNumber("translation", ParameterPack::KeyType::Optional, translate);
+
+    if (readTranslate)
+    {
+        std::vector<Real3> tempVertices;
+        std::vector<index3> tempFaces;
+        tempVertices.resize(vertices_.size());
+        int index=0;
+        for (auto& v : vertices_)
+        {
+            for (int i=0;i<3;i++)
+            {
+                 tempVertices[index][i] = v.position_[i] + translate[i];
+            }
+            index++;
+        }
+
+        for (auto& t : triangles_)
+        {
+            tempFaces.push_back(t.triangleindices_);
+        }
+        MeshTools::writePLY(name, tempVertices, tempFaces);
+    }
+}
+
+void Mesh::printNonPBCMesh(std::string name)
+{
+    std::vector<Real3> tempVertices;
+    std::vector<index3> tempFaces;
+    ConvertToNonPBCMesh(tempVertices, tempFaces);
+
+    MeshTools::writePLY(name, tempVertices, tempFaces);
+}
+
+void Mesh::ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<index3>& faces)
+{
+    // if periodic, then do something, else do nothing 
+    if (isPeriodic())
+    {
+        // first let's copy all the vertices 
+        vertices.clear();
+        for (auto& v : vertices_)
+        {
+            vertices.push_back(v.position_);
+        }
+
+        // check if triangle is periodic 
+        for (auto& t : triangles_)
+        {
+            // find all the edge lengths
+            bool periodicTriangle=false;
+            for (int i=0;i<3;i++)
+            {
+                int index1 = t.triangleindices_[i];
+                int index2 = t.triangleindices_[(i+1) % 3]; 
+                Real3 diff;
+                for (int j=0;j<3;j++)
+                {
+                    diff[j] = vertices_[index1].position_[j] - vertices_[index2].position_[j];
+
+                    if (std::abs(diff[j]) >= 0.5 * boxLength_[j])
+                    {
+                        periodicTriangle=true;
+                        break;
+                    }
+                }
+            }
+
+            // if this particular triangle is not periodic 
+            if (! periodicTriangle)
+            {
+                faces.push_back(t.triangleindices_);
+            }
+            // if it's periodic triangle, then we push back 3 new vertices 
+            else
+            {
+                Real3 verticesNew1;
+                Real3 verticesNew2, verticesDiff2;
+                Real distsq2;
+                Real3 verticesNew3, verticesDiff3;
+                Real distsq3;
+                int idx1 = t.triangleindices_[0];
+                int idx2 = t.triangleindices_[1];
+                int idx3 = t.triangleindices_[2];
+
+                // get the pbc corrected distance 
+                getVertexDistance(vertices_[idx2].position_, vertices_[idx1].position_,verticesDiff2, distsq2);
+                getVertexDistance(vertices_[idx3].position_, vertices_[idx1].position_,verticesDiff3, distsq3); 
+
+                // get the new vertices --> with respect to position 1
+                for (int j=0;j<3;j++)
+                {
+                    verticesNew2[j] = vertices_[idx1].position_[j] + verticesDiff2[j];
+                    verticesNew3[j] = vertices_[idx1].position_[j] + verticesDiff3[j];
+                }
+
+                // Find approximately the center of the triangle
+                Real3 center_of_triangle = {};
+                for (int j=0;j<3;j++)
+                {
+                    center_of_triangle[j] += vertices_[idx1].position_[j];
+                    center_of_triangle[j] += verticesNew2[j];
+                    center_of_triangle[j] += verticesNew3[j];
+                }
+
+                for (int j=0;j<3;j++)
+                {
+                    center_of_triangle[j] *= 1.0/3.0;
+                }
+
+                Real3 shift = getShiftIntoBox(center_of_triangle);
+
+                for (int j=0;j<3;j++)
+                {
+                    verticesNew1[j] = vertices_[idx1].position_[j] + shift[j];
+                    verticesNew2[j] = verticesNew2[j] + shift[j];
+                    verticesNew3[j] = verticesNew3[j] + shift[j];
+                }
+
+                int NewIndex1 = vertices.size();
+                vertices.push_back(verticesNew1);
+                int NewIndex2 = vertices.size();
+                vertices.push_back(verticesNew2);
+                int NewIndex3 = vertices.size();
+                vertices.push_back(verticesNew3);
+
+                index3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
+                faces.push_back(NewT);
+            }
+        }
+    }
+}
+
+void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
+{
+    if (isPeriodic())
+    {
+        Real3 boxCenter;
+        for (int i=0;i<3;i++)
+        {
+            boxCenter[i] = boxLength_[i] * 0.5;
+        }
+
+        Real3 diff;
+        for (int i=0;i<3;i++)
+        {
+            diff[i] = OldVerPos[i] - boxCenter[i];
+
+            if (diff[i] >= boxLength_[i] * 0.5) diff[i] = diff[i] - boxLength_[i];
+            if (diff[i] <= -boxLength_[i] * 0.5) diff[i] = diff[i] + boxLength_[i]; 
+
+            NewVerPos[i] = boxCenter[i] + diff[i];
+        }
+    }
+}
+
 void Mesh::printBoundaryVertices(std::string name)
 {
     std::ofstream ofs;
     ofs.open(name);
 
-    MapEdgeToFaces();
-
     findBoundaryVertices();
 
+    ofs << "# Index Vx Vy Vz Nx Ny Nz" << "\n";
     for (int i=0;i<vertices_.size();i++)
     {
         if (isBoundary(i))
         {
-            ofs << i << "\n";
+            ofs << i << " " << vertices_[i].position_[0] << " " << vertices_[i].position_[1] << " " << vertices_[i].position_[2] << \
+            " " << vertices_[i].normals_[0] << " " << vertices_[i].normals_[1] << " " << vertices_[i].normals_[2] << "\n";
         }
     }
 
@@ -100,120 +290,56 @@ void Mesh::printPLYlibr(std::string name)
     }
 
     plyOut.write(name, happly::DataFormat::ASCII);
-    std::cout << "Done reading." << std::endl;
 }
 
-void Mesh::printPLYnm(std::string name)
+void Mesh::printCuttedMesh(std::string name)
 {
-    std::cout << "Printing ply nm" << std::endl;
-    std::ofstream ofs;
-    ofs.open(name);
+    ASSERT((pack_ != nullptr), "If you wanted to print cutted Mesh, you must provide a parameter pack for mesh.");
+    Real3 volume;
 
-    ofs << "ply" << "\n";
-    ofs << "format ascii 1.0\n";
-    ofs << "comment Created by Yusheng Cai\n";
+    pack_->ReadArrayNumber("largerthan", ParameterPack::KeyType::Required, volume);
 
-    int sizeVertex = vertices_.size();
-    int sizetriangle = triangles_.size();
-
-    ofs << "element vertex " << sizeVertex << std::endl; 
-    ofs << "property float x\n";
-    ofs << "property float y\n";
-    ofs << "property float z\n";
-    ofs << "property float nx\n";
-    ofs << "property float ny\n";
-    ofs << "property float nz\n";
-    ofs << "element face " << sizetriangle << "\n";
-    ofs << "property list uchar uint vertex_indices\n";
-    ofs << "end_header\n";
-
-    ofs << std::fixed << std::setprecision(6);
-    for (int i=0;i<sizeVertex;i++)
+    int index=0;
+    std::map<int,int> MapOldIndexToNew;
+    std::vector<vertex> newVertices;
+    for (auto& v : vertices_)
     {
-        for (int j=0;j<3;j++)
+        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
         {
-            ofs << vertices_[i].position_[j]/10.0 << " ";
+            int oldindex = v.index;
+            int newindex = index;
+            newVertices.push_back(v);
+            MapOldIndexToNew.insert(std::make_pair(oldindex, newindex));
+            index ++;
         }
-
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].normals_[j] << " ";
-        }
-
-        ofs << "\n";
     }
 
-    for (int i=0;i<sizetriangle;i++)
+    vertices_.clear();
+    vertices_.insert(vertices_.end(), newVertices.begin(), newVertices.end());
+
+    std::vector<triangle> newTriangles;
+
+    for (auto& t : triangles_)
     {
-        ofs << 3 << " ";
-        auto& t = triangles_[i];
+        bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
+        bool it2 = MapOldIndexToNew.find(t.triangleindices_[1]) != MapOldIndexToNew.end();
+        bool it3 = MapOldIndexToNew.find(t.triangleindices_[2]) != MapOldIndexToNew.end();
 
-        for (int j=0;j<3;j++)
+        if (it1 && it2 && it3)
         {
-            ofs << t.triangleindices_[j] << " ";
+            for (int i=0;i<3;i++)
+            {
+                auto it = MapOldIndexToNew.find(t.triangleindices_[i]);
+                int newIndex = it -> second;
+                t.triangleindices_[i] = newIndex;
+            }
+            newTriangles.push_back(t);
         }
-        ofs << "\n";
     }
+    triangles_.clear();
+    triangles_.insert(triangles_.end(), newTriangles.begin(), newTriangles.end());
 
-    ofs.close();
-
-}
-
-
-void Mesh::printPLYAng(std::string name)
-{
-    std::cout << "Printing ply Ang" << std::endl;
-    std::ofstream ofs;
-    ofs.open(name);
-
-    ofs << "ply" << "\n";
-    ofs << "format ascii 1.0\n";
-    ofs << "comment Created by Yusheng Cai\n";
-
-    int sizeVertex = vertices_.size();
-    int sizetriangle = triangles_.size();
-
-    ofs << "element vertex " << sizeVertex << std::endl; 
-    ofs << "property float x\n";
-    ofs << "property float y\n";
-    ofs << "property float z\n";
-    ofs << "property float nx\n";
-    ofs << "property float ny\n";
-    ofs << "property float nz\n";
-    ofs << "element face " << sizetriangle << "\n";
-    ofs << "property list uchar uint vertex_indices\n";
-    ofs << "end_header\n";
-
-    ofs << std::fixed << std::setprecision(6);
-    for (int i=0;i<sizeVertex;i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].position_[j]*10.0 << " ";
-        }
-
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].normals_[j] << " ";
-        }
-
-        ofs << "\n";
-    }
-
-    for (int i=0;i<sizetriangle;i++)
-    {
-        ofs << 3 << " ";
-        auto& t = triangles_[i];
-
-        for (int j=0;j<3;j++)
-        {
-            ofs << t.triangleindices_[j] << " ";
-        }
-        ofs << "\n";
-    }
-
-    ofs.close();
-
+    printPLY(name);
 }
 
 void Mesh::print()
@@ -253,7 +379,7 @@ void Mesh::printPLY(std::string name)
     {
         for (int j=0;j<3;j++)
         {
-            ofs << vertices_[i].position_[j] << " ";
+            ofs << vertices_[i].position_[j] * factor_ << " ";
         }
 
         for (int j=0;j<3;j++)
@@ -377,7 +503,13 @@ void Mesh::MapEdgeToFaces()
 
         for (int j=0;j<3;j++)
         {
-            auto it = MapEdgeToFace_.find(t.edges_[j]);
+            int idx1 = t.triangleindices_[j];
+            int idx2 = t.triangleindices_[(j+1)%3];
+            int minIndex = std::min(idx1, idx2);
+            int maxIndex = std::max(idx1, idx2);
+            index2 arr = {{minIndex, maxIndex}};
+
+            auto it = MapEdgeToFace_.find(arr);
 
             #ifdef MY_DEBUG
             std::cout << "For triangle " << i << " edge " << j << ", vertex1 index = " << t.edges_[j].vertex1_.index << \
@@ -389,7 +521,7 @@ void Mesh::MapEdgeToFaces()
                 std::vector<int> faceIndices;
                 faceIndices.push_back(i);
 
-                MapEdgeToFace_.insert(std::make_pair(t.edges_[j], faceIndices));
+                MapEdgeToFace_.insert(std::make_pair(arr,faceIndices));
             }
             else
             {
@@ -400,10 +532,12 @@ void Mesh::MapEdgeToFaces()
         // map vertex to edges 
         for (int j=0;j<3;j++)
         {
-            int index1 = t.edges_[j].vertex1_.index;
-            int index2 = t.edges_[j].vertex2_.index;
+            int idx1 = t.triangleindices_[j];
+            int idx2 = t.triangleindices_[(j+1)%3];
+            int minIdx = std::min(idx1, idx2);
+            int maxIdx = std::max(idx1, idx2);
 
-            std::array<int,2> indices = {{index1,index2}};
+            index2 indices = {{minIdx, maxIdx}};
 
             for (int k=0;k<2;k++)
             {
@@ -411,18 +545,18 @@ void Mesh::MapEdgeToFaces()
 
                 if (it == MapVertexIndexToEdges_.end())
                 {
-                    std::vector<edge> temp;
-                    temp.push_back(t.edges_[j]);
+                    std::vector<index2> temp;
+                    temp.push_back(indices);
                     MapVertexIndexToEdges_.insert(std::make_pair(indices[k], temp));
                 }
                 else
                 {
                     // find if the edge is already in the vector
-                    auto f = std::find(it ->second.begin(), it ->second.end(), t.edges_[j]);
+                    auto f = std::find(it ->second.begin(), it ->second.end(), indices);
 
                     if (f == it -> second.end())
                     {
-                        it -> second.push_back(t.edges_[j]);
+                        it -> second.push_back(indices);
                     }
                 }
             }
@@ -430,10 +564,20 @@ void Mesh::MapEdgeToFaces()
     }
 
     // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
+    int id = 0;
     for (auto it=MapEdgeToFace_.begin(); it != MapEdgeToFace_.end();it++)
     {
+        if (it -> second.size() > 2)
+        {
+            std::cout << "This is for edge " << id << " consisting of vertex " << it ->first[0] <<" " << it->first[1] <<"\n";
+            for (auto s : it -> second)
+            {
+                std::cout << "Face it corresponds to : " << s <<"\n";
+            }
+        }
         ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
         , however the calculated result shows " << it -> second.size());
+        id ++;
     }
 }
 
@@ -455,14 +599,25 @@ void Mesh::MapVertexToFaces()
 
 std::vector<int>& Mesh::getFaceIndicesForEdge(const edge& e)
 {
-    auto it = MapEdgeToFace_.find(e);
+    int minIndex = std::min(e.vertex1_.index, e.vertex2_.index);
+    int maxIndex = std::min(e.vertex1_.index, e.vertex2_.index);
+    index2 arr   = {{minIndex, maxIndex}};
 
+    auto it = MapEdgeToFace_.find(arr);
     ASSERT((it != MapEdgeToFace_.end()), "The edge with vertex indices " << e.vertex1_.index << " and " << e.vertex2_.index << " does not exist in the map from edge to face.");
 
     return it -> second;
 }
 
-std::vector<edge>& Mesh::getEdgeForVertex(int i)
+std::vector<int>& Mesh::getFaceIndicesForEdgeIndex(const index2& e)
+{
+    auto it = MapEdgeToFace_.find(e);
+    ASSERT((it != MapEdgeToFace_.end()), "The edge with vertex indices " <<  e[0] << " and " << e[1] << " does not exist in the map from edge to face.");
+
+    return it -> second;
+}
+
+std::vector<Mesh::index2>& Mesh::getEdgeIndexForVertex(int i)
 {
     auto it = MapVertexIndexToEdges_.find(i);
 
@@ -473,64 +628,38 @@ std::vector<edge>& Mesh::getEdgeForVertex(int i)
 
 void Mesh::findBoundaryVertices()
 {
+    MapEdgeToFaces();
+
+    MapBoundaryVertexIndicesToTrue_.clear();
+    MapBoundaryVertexIndicesToTrue_.resize(vertices_.size(), false);
+
     for (auto it = MapEdgeToFace_.begin(); it != MapEdgeToFace_.end(); it ++)
     {
         int size = it -> second.size();
         ASSERT(( size == 1 || size == 2), "An edge can only be shared by 1 or 2 faces.");
+        index2 arr = it -> first;
 
-        // if size == 1, then all the vertices in the edge is part of the boundary_vertices
+        // if the edge size == 1, then it is a boundary edge
         if (size == 1)
         {
-            bool Notfound1 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex1_) == MapBoundaryVertexToBoundaryEdges_.end();
-            bool Notfound2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex2_) == MapBoundaryVertexToBoundaryEdges_.end();
-
-            if (Notfound1)
-            {
-                std::vector<edge> e;
-                e.push_back(it -> first);
-
-                MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex1_, e));
-                MapBoundaryVertexIndicesToTrue_.insert(std::make_pair(it->first.vertex1_.index,true));
-            }
-            else
-            {
-                auto it2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex1_);
-
-                it2 -> second.push_back(it -> first);
-            }
-
-            if (Notfound2)
-            {
-                std::vector<edge> e;
-                e.push_back(it -> first);
-
-                MapBoundaryVertexToBoundaryEdges_.insert(std::make_pair(it -> first.vertex2_, e));
-                MapBoundaryVertexIndicesToTrue_.insert(std::make_pair(it->first.vertex2_.index,true));
-            }
-            else
-            {
-                auto it2 = MapBoundaryVertexToBoundaryEdges_.find(it -> first.vertex2_);
-
-                it2 -> second.push_back(it -> first);
-            }
+            MapBoundaryVertexIndicesToTrue_[arr[0]] = true;
+            MapBoundaryVertexIndicesToTrue_[arr[1]] = true;
         }
     }
 }
 
 bool Mesh::isBoundary(int i)
 {
-    auto it = MapBoundaryVertexIndicesToTrue_.find(i);
+    bool res = MapBoundaryVertexIndicesToTrue_[i];
 
-    if (it == MapBoundaryVertexIndicesToTrue_.end())
-    {
-        return false;
-    }
-    else
+    if (res)
     {
         return true;
     }
-
-    return false;
+    else
+    {
+        return false;
+    }
 }
 
 void Mesh::findVertexNeighbors()
@@ -634,6 +763,29 @@ void Mesh::scaleVertices(Real num)
 
     update();
 }
+
+void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist)
+{
+    for (int i=0;i<3;i++)
+        {
+            Real diff = v1[i] - v2[i];
+            distVec[i] = diff;
+    }
+
+    dist = LinAlg3x3::norm(distVec);
+
+    if (isPeriodic())
+    {
+        for (int i=0;i<3;i++)
+        {
+            if (distVec[i] > boxLength_[i] * 0.5) distVec[i] -= boxLength_[i];
+            if (distVec[i] < -boxLength_[i] * 0.5) distVec[i] += boxLength_[i];
+        }
+
+        dist = LinAlg3x3::norm(distVec);
+    }
+}
+
 void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist)
 {
     for (int i=0;i<3;i++)
@@ -681,7 +833,7 @@ void Mesh::CalcTriangleAreaAndFacetNormals()
         Real norm1, norm2, norm3;
 
         getVertexDistance(vertices_[index1], vertices_[index2], diff1, norm1);
-        getVertexDistance(vertices_[index2], vertices_[index3], diff2, norm2);
+        getVertexDistance(vertices_[index3], vertices_[index2], diff2, norm2);
         getVertexDistance(vertices_[index3], vertices_[index1], diff3, norm3);
 
         // update the edge norms of a triangle
@@ -756,6 +908,27 @@ Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2)
     }
 
     return ret;
+}
+
+Mesh::Real3 Mesh::getShiftIntoBox(const Real3& v1)
+{
+    Real3 shift;
+    Real3 center;
+    for (int i=0;i<3;i++)
+    {
+        center[i] = boxLength_[i] * 0.5;
+    }
+
+    for (int i=0;i<3;i++)
+    {
+        Real diff = v1[i] - center[i];
+
+        if (diff >= boxLength_[i] * 0.5) shift[i] = -boxLength_[i];
+        else if (diff <= - boxLength_[i] * 0.5) shift[i] = boxLength_[i];
+        else shift[i] = 0.0;
+    }
+
+    return shift;
 }
 
 // Compute per-vertex point areas
@@ -900,11 +1073,6 @@ void Mesh::CalcVertexNormals()
     {
         Real norm = LinAlg3x3::norm(vertexNormals_[i]);
 
-        if (norm < 1e-5)
-        {
-            std::cout << " vertex " << i << " " <<  vertexNormals_[i][0] << " " << vertexNormals_[i][1] << " " << vertexNormals_[i][2] << "\n";
-        }
-
         for (int j=0;j<3;j++)
         {
             vertexNormals_[i][j] = vertexNormals_[i][j]/norm;
@@ -961,6 +1129,107 @@ void Mesh::CalcVertexNormalsAreaWeighted()
     }
 }
 
+void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<index3>& faces, const std::vector<Real3>& normals)
+{
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices.size();
+    int sizetriangle = faces.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "property float nx\n";
+    ofs << "property float ny\n";
+    ofs << "property float nz\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices[i][j] << " ";
+        }
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << normals[i][j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+        auto& t = faces[i];
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << t[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+}
+
+
+void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<index3>& faces)
+{
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices.size();
+    int sizetriangle = faces.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices[i][j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+        auto& t = faces[i];
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << t[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+}
+
 bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
 {
     happly::PLYData plydata(filename);
@@ -982,7 +1251,6 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
     {
         hasnormals=true;
     }
-    std::cout << "has normals = " << hasnormals << std::endl;
 
     // do something when it does have normals
     if (hasnormals)
