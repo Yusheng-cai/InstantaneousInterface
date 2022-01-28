@@ -4,6 +4,7 @@
 #include "src/Field.h"
 #include "tools/CommonTypes.h"
 #include "src/MarchingCubesWrapper.h"
+#include "src/marching_cubes.hpp"
 
 #include <string>
 #include <vector>
@@ -115,16 +116,18 @@ int main(int argc, char** argv)
 
         std::array<int,3> index;
         int Nx, Ny, Nz;
+        bool pbc=false;
         Range xrange, yrange, zrange;
         Real val;
         std::string fname;
-        MarchingCubesWrapper mwrapper_;
+        MarchingCubes mwrapper_;
         fpack -> ReadArrayNumber("xrange", ParameterPack::KeyType::Required, xrange);
         fpack -> ReadArrayNumber("yrange", ParameterPack::KeyType::Required, yrange);
         fpack -> ReadArrayNumber("zrange", ParameterPack::KeyType::Required, zrange);
         fpack -> ReadArrayNumber("dimension", ParameterPack::KeyType::Required, index);
         fpack -> ReadNumber("file", ParameterPack::KeyType::Required,fname);
         fpack -> ReadNumber("isosurfaceval", ParameterPack::KeyType::Required,val);
+        fpack -> Readbool("pbc", ParameterPack::KeyType::Optional, pbc);
 
         // find the field pointer
         fieldptr f = fieldptr(new Field(index[0], index[1],index[2], xrange, yrange, zrange));
@@ -134,7 +137,7 @@ int main(int argc, char** argv)
         Meshptr mesh_ = Meshptr(new Mesh(mpack));
 
         // calculate the marching cubes
-        mwrapper_.calculate(*f, *mesh_, val);
+        mwrapper_.triangulate_field(*f, *mesh_, val, pbc);
         auto cpack = fpack -> findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
         mesh_ -> refine();
