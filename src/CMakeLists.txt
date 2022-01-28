@@ -27,6 +27,8 @@ target_sources(IIsrc PRIVATE
     "Registry.cpp"
     "KDTree.cpp"
     "marching_cubes.cpp"
+    "MeshGeneration.cpp"
+    "Mesh2d.cpp"
 )
 
 set(IIsrc_HEADER
@@ -57,6 +59,8 @@ set(IIsrc_HEADER
     "Registry.h"
     "KDTree.h"
     "marching_cubes.hpp"
+    "MeshGeneration.h"
+    "Mesh2d.h"
 )
 
 target_include_directories(IIsrc
@@ -65,13 +69,17 @@ target_include_directories(IIsrc
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
-target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes)
 
-# target_include_directories(IIsrc PUBLIC "/usr/local/include/")
-if(Boost_FOUND)
-    target_include_directories(IIsrc PUBLIC ${Boost_INCLUDE_DIRS})
+#if(Boost_FOUND)
+#    target_include_directories(IIsrc PUBLIC ${Boost_INCLUDE_DIRS})
+#endif()
+
+if (CGAL_FOUND)
+   target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
-message("Boost include dir = ${Boost_INCLUDE_DIRS}")
+target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes CGAL::CGAL)
+#message("Boost include dir = ${Boost_INCLUDE_DIRS}")
+#message("Boost library dir = ${Boost_LIBRARIES}")
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 
