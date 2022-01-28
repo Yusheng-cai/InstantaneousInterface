@@ -80,7 +80,7 @@ Point MarchingCubes::interpolate(Point& v1, Real val1, Point& v2, Real val2, Rea
             interpolatedPos[i] += N_[i];
         }
 
-        if (interpolatedPos[i] >= N_[i])
+        if (interpolatedPos[i] > N_[i])
         {
             interpolatedPos[i] -= N_[i];
         }
@@ -239,6 +239,22 @@ void MarchingCubes::initializeGridSearch()
     }
 }
 
+void MarchingCubes::CorrectPBCposition(Point& p)
+{
+    Real3 pos = {{p.x, p.y, p.z}};
+
+    for (int i=0;i<3;i++)
+    {
+        if (pos[i] > N_[i]) { pos[i] -= N_[i];}
+        if (pos[i] < 0) { pos[i] += N_[i];}
+        if (std::abs(pos[i] - N_[i]) < tol_[i]) { pos[i] = 0.0;}
+    }
+
+    p.x = pos[0];
+    p.y = pos[1];
+    p.z = pos[2];
+}
+
 void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, bool pbc)
 {
     pbc_ = pbc;
@@ -247,7 +263,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     for (int i =0;i<3;i++)
     {
         end_[i] = N_[i];
-        tol_[i] = 1e-5;
+        tol_[i] = 1e-4;
     }
 
     // Find where the end points are  --> that constructs the pbc box too
@@ -341,6 +357,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     // make a list of the offsets
     initializeGridSearch();
 
+    // We go through this voxel by voxel
     std::vector<Real3> AllVertices;
     for (int i=0;i+inc_<N_[0];i++)
     {
@@ -390,6 +407,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
                         if (MapFromVertexIndexToNewIndex[GridIndex] == INITIAL_)
                         {
                             MapFromVertexIndexToNewIndex[GridIndex] = AllVertices.size();
+                            CorrectPBCposition(initialV[m]);
 
                             Real3 mposCorrected = {{initialV[m].x * spaceX, initialV[m].y * spaceY , initialV[m].z * spaceZ}};
                             AllVertices.push_back(mposCorrected);

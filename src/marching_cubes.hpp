@@ -407,6 +407,9 @@ class MarchingCubes
         // Fix Cell Grid index 
         void FixCellGridIndex(index3& index);
 
+        // correct pbc position
+        void CorrectPBCposition(Point& p);
+
         // Convert Cell Grid index
         int ConvertCellGridIndex(index3& index);
 
