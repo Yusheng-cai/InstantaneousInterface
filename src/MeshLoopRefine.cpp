@@ -59,7 +59,10 @@ void MeshLoopRefine::calculateTriangles()
 
             for (auto e:edges)
             {
-                auto it = MapEdgesToVertex_.find(e);
+                int id1 = e.vertex1_.index;
+                int id2 = e.vertex2_.index;
+                index2 idd = {{std::min(id1, id2), std::max(id1, id2)}};
+                auto it = MapEdgesToVertex_.find(idd);
                 ASSERT((it != MapEdgesToVertex_.end()), "The edge is not found.");
 
                 if (id == e.vertex1_.index)
@@ -89,8 +92,11 @@ void MeshLoopRefine::calculateTriangles()
         for (int j=0;j<3;j++)
         {
             edge e = edges[j];
+            int id1 = e.vertex1_.index;
+            int id2 = e.vertex2_.index;
+            index2 arr = {{std::min(id1, id2), std::max(id1,id2)}};
 
-            auto it = MapEdgesToVertex_.find(e);
+            auto it = MapEdgesToVertex_.find(arr);
 
             ASSERT((it != MapEdgesToVertex_.end()), "The edge with e.vertex1 = " << e.vertex1_.index << " and e.vertex2 = " << e.vertex2_.index << \
             " is not in Map from edges to vertex.");
@@ -175,7 +181,7 @@ void MeshLoopRefine::calculateOddPoints()
         std::advance(it,i);
 
         // find the edge
-        edge e = it -> first;
+        index2 e = it -> first;
 
         int NumFaces = it -> second.size();
         auto& faceIndex = it -> second;
@@ -191,7 +197,7 @@ void MeshLoopRefine::calculateOddPoints()
             vertex v;
             for (int i=0;i<3;i++)
             {
-                pos[i] = 0.5*(e.vertex1_.position_[i] + e.vertex2_.position_[i]);
+                pos[i] = 0.5*(e[0] + e[1]);
             }
             v.position_ = pos;
             v.index     = Points_.size();
@@ -217,7 +223,7 @@ void MeshLoopRefine::calculateOddPoints()
             auto t2 = triangles[faceIndex[1]];
             std::array<triangle,2> trPair = {{t1,t2}};
 
-            std::array<int,2> thisEdge = {{e.vertex1_.index, e.vertex2_.index}};
+            std::array<int,2> thisEdge = {{e[0], e[1]}};
             std::vector<int> OtherEdge;
 
             #ifdef MY_DEBUG
@@ -286,7 +292,6 @@ void MeshLoopRefine::calculateEvenPoints()
 
     const auto& neighbors = mesh_.getNeighborIndices();
     const auto& vertices  = mesh_.getvertices();
-    const auto& bVertTobEdge = mesh_.getMapBVertexToBEdges();
 
     // resize the evenpoints
     int numPoints = neighbors.size();
@@ -301,11 +306,8 @@ void MeshLoopRefine::calculateEvenPoints()
 
         vertex v;
 
-        // see if this point is a boundary point
-        auto it = bVertTobEdge.find(vertices[i]);
-
         // if the point is not a boundary vertices 
-        if (it == bVertTobEdge.end())
+        if (mesh_.isBoundary(i))
         {
             for (int j=0;j<lenNeighbors;j++)
             {
@@ -324,7 +326,7 @@ void MeshLoopRefine::calculateEvenPoints()
         else
         {
             // if the point is a boundary vertex 
-            std::vector<edge> edges = it -> second;
+            std::vector<index2> edges = mesh_.getEdgeIndexForVertex(i);
 
             // assert that there must be 2 edges
             ASSERT((edges.size() == 2), "The number of edges for a boundary point must be 2 while it is " << edges.size());
@@ -333,14 +335,14 @@ void MeshLoopRefine::calculateEvenPoints()
 
             for (auto e:edges)
             {
-                if (e.vertex1_.index != i)
+                if (e[0] != i)
                 {
-                    OtherPoints.push_back(e.vertex1_.position_);
+                    OtherPoints.push_back(vertices[e[0]].position_);
                 }
 
-                if (e.vertex2_.index != i)
+                if (e[1] != i)
                 {
-                    OtherPoints.push_back(e.vertex2_.position_);
+                    OtherPoints.push_back(vertices[e[1]].position_);
                 }
             }
 

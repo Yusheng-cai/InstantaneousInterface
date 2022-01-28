@@ -1,4 +1,5 @@
 #pragma once
+
 #include "MeshRefineStrategy.h"
 #include "Mesh.h"
 
@@ -11,6 +12,7 @@ class MeshLoopRefine : public MeshRefineStrategy
 {
     public:
         using index3 = CommonTypes::index3;
+        using index2 = CommonTypes::index2;
         MeshLoopRefine(MeshRefineStrategyInput& input);
 
         virtual void refine();
@@ -31,5 +33,5 @@ class MeshLoopRefine : public MeshRefineStrategy
         std::vector<index3> triangle_indices_;
 
         // create a map to map from edges to the new points
-        std::unordered_map<edge, vertex> MapEdgesToVertex_;
+        std::map<index2, vertex> MapEdgesToVertex_;
 };
