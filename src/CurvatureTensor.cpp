@@ -36,13 +36,11 @@ void CurvatureTensor::calculate(Mesh& mesh)
     {
         auto& t = triangles[i].triangleindices_; 
         std::array<Real3,3> edges;
+        Real edge0sq, edge1sq, edge2sq;
 
-        for (int j=0;j<3;j++)
-        {
-            edges[0][j] = vertices[t[2]].position_[j] - vertices[t[1]].position_[j];
-            edges[1][j] = vertices[t[0]].position_[j] - vertices[t[2]].position_[j];
-            edges[2][j] = vertices[t[1]].position_[j] - vertices[t[0]].position_[j];
-        }
+        mesh.getVertexDistance(vertices[t[2]],vertices[t[1]], edges[0], edge0sq);
+        mesh.getVertexDistance(vertices[t[0]], vertices[t[2]], edges[1], edge1sq);
+        mesh.getVertexDistance(vertices[t[1]], vertices[t[0]], edges[2], edge2sq);
 
         #ifdef MY_DEBUG
         Real3 length;
@@ -210,7 +208,6 @@ void CurvatureTensor::calculate(Mesh& mesh)
             
             for (int k = 0;k<3;k++)
             {
-                //curvatureTensorPerVertex_[id_][k] += newcurv[k] * triangleArea[i];
                 curvatureTensorPerVertex_[id_][k] += newcurv[k] * cornerArea[i][j];
             }
             TotalAreaPerVertex_[id_] += triangleArea[i];

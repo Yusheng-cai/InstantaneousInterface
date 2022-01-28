@@ -21,8 +21,6 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
 
 void MeshCurvatureflow::refine()
 {
-    mesh_.MapEdgeToFaces();
-
     // find the boundary vertices
     mesh_.findBoundaryVertices();
 
@@ -50,7 +48,7 @@ void MeshCurvatureflow::refine()
         {
             refineStep();
         }
-        else
+        else 
         {
             refineImplicitStep();
         }
@@ -59,14 +57,13 @@ void MeshCurvatureflow::refine()
     mesh_.updateNormals();
 }
 
-std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId)
+std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor)
 {
     // obtain the edges that corresponds to this particular vertex 
-    auto& edges = mesh_.getEdgeForVertex(i);
+    auto& edgesIndices = mesh_.getEdgeIndexForVertex(i);
     const auto& triangles = mesh_.gettriangles();
     const auto& vertices = mesh_.getvertices();
-    int edgesize = edges.size();
-    const auto& neighbors = mesh_.getNeighborIndices();
+    int edgesize = edgesIndices.size();
 
     std::vector<Real> factors;
     Real factor_sum = 0.0;
@@ -75,9 +72,9 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
     for (int j=0;j<edgesize;j++)
     {
         // obtain the edge 
-        auto& e = edges[j];
-        int index1 = e.vertex1_.index;
-        int index2 = e.vertex2_.index;
+        auto& e = edgesIndices[j];
+        int index1 = e[0];
+        int index2 = e[1];
 
         #ifdef MY_DEBUG
         std::cout << "edge " << j << " index1 = " << index1 << std::endl;
@@ -100,7 +97,7 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
         std::vector<int> otherPoints;
 
         // obtain the face indices for this particular edge 
-        std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdge(e);
+        std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdgeIndex(e);
 
         ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
 
@@ -130,11 +127,11 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 
             mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
             mesh_.getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
-            mesh_.getVertexDistance(vertices[index1], vertices[index2], vec3, vec3sq);
 
+            #ifdef MY_DEBUG
+            mesh_.getVertexDistance(vertices[index1], vertices[index2], vec3, vec3sq);
             Real cos1 = LinAlg3x3::findSinangle(vec1,vec3);
             Real cos2 = LinAlg3x3::findSinangle(vec2,vec3);
-            #ifdef MY_DEBUG
             std::cout << "cos1 = " << std::sqrt(1 - cos1*cos1) << std::endl;
             std::cout << "cos2 = " << std::sqrt(1 - cos2*cos2) << std::endl;
             std::cout << "vec1 dist = " << LinAlg3x3::norm(vec1) << std::endl;
@@ -152,6 +149,47 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
             #endif 
 
             factor += costheta/sintheta;
+
+            #ifdef DEBUG
+            if (std::abs(costheta/sintheta) > 10)
+            {
+                std::cout << "The three triangles are : " << "\n";
+                std::cout << index1 << ". " << vertices[index1].position_[0] << " " << vertices[index1].position_[1] << " " << vertices[index1].position_[2] << "\n";
+                std::cout << pidx << ". " << vertices[pidx].position_[0] << " " << vertices[pidx].position_[1] << " " << vertices[pidx].position_[2] << "\n";
+                std::cout << index2 << ". " << vertices[index2].position_[0] << " " << vertices[index2].position_[1] << " " << vertices[index2].position_[2] << "\n";
+                std::cout << "vec1 = " << vec1[0] << " " << vec1[1] << " " << vec1[2] << "\n";
+                std::cout << "vec2 = " << vec2[0] << " " << vec2[1] << " " << vec2[2] << "\n";
+                std::cout << "Costheta = " << costheta << "\n";
+                std::cout << "Sintheta = " << sintheta << "\n";
+                Real3 crossproduct = LinAlg3x3::CrossProduct(vec1, vec2);
+                Real area = LinAlg3x3::norm(crossproduct);
+                std::cout << "Area = " << area << "\n";
+            }
+            #endif
+        }
+
+        if (mesh_.isPeriodic())
+        {
+            auto boxLength = mesh_.getBoxLength();
+
+            for (int k=0;k<3;k++)
+            {
+                Real diff = vertices[neighborId[j]].position_[k] - vertices[i].position_[k];
+                Real Lj = 0.0;
+
+                if (diff > boxLength[k] * 0.5)
+                {
+                    Lj = - boxLength[k];
+                }
+
+                if (diff < -boxLength[k] * 0.5)
+                {
+                    Lj = boxLength[k];
+                }
+
+
+                Lfactor[k] += factor * Lj;
+            }
         }
 
         factors.push_back(factor);
@@ -162,8 +200,6 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 
 void MeshCurvatureflow::refineStep()
 {
-    mesh_.CalcTriangleAreaAndFacetNormals();
-
     // calculate vertex normals but unweighted
     mesh_.CalcVertexNormals();
 
@@ -190,8 +226,8 @@ void MeshCurvatureflow::refineStep()
         if (! mesh_.isBoundary(i))
         {
             // obtain the edges that corresponds to this particular vertex 
-            auto& edges = mesh_.getEdgeForVertex(i);
-            int edgesize = edges.size();
+            auto& edgeIndices = mesh_.getEdgeIndexForVertex(i);
+            int edgesize = edgeIndices.size();
 
             // initialize the step 
             Real3 step;
@@ -203,20 +239,18 @@ void MeshCurvatureflow::refineStep()
             for (int j=0;j<edgesize;j++)
             {
                 // obtain the edge 
-                auto& e = edges[j];
-                int index1 = e.vertex1_.index;
-                int index2 = e.vertex2_.index;
-
-                #ifdef MY_DEBUG
-                std::cout << "edge " << j << " index1 = " << index1 << std::endl;
-                std::cout << "edge " << j << " index2 = " << index2 << std::endl;
-                #endif
-
-                std::array<int,2> vIndices = {{index1, index2}};
+                auto& vIndices = edgeIndices[j];
+                int idx1 = vIndices[0];
+                int idx2 = vIndices[1];
                 std::vector<int> otherPoints;
 
+                #ifdef MY_DEBUG
+                std::cout << "edge " << j << " index1 = " << vIndices[0] << std::endl;
+                std::cout << "edge " << j << " index2 = " << vIndices[1] << std::endl;
+                #endif
+
                 // obtain the face indices for this particular edge 
-                std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdge(e);
+                std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdgeIndex(vIndices);
 
                 ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
 
@@ -244,8 +278,8 @@ void MeshCurvatureflow::refineStep()
                     Real3 vec1, vec2;
                     Real vec1sq, vec2sq;
 
-                    mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
-                    mesh_.getVertexDistance(vertices[pidx], vertices[index2], vec2, vec2sq);
+                    mesh_.getVertexDistance(vertices[idx1], vertices[pidx], vec1, vec1sq);
+                    mesh_.getVertexDistance(vertices[idx2], vertices[pidx], vec2, vec2sq);
                     
 
                     Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
@@ -259,10 +293,10 @@ void MeshCurvatureflow::refineStep()
                 diff.fill(0);
                 for (int k=0;k<3;k++)
                 {
-                    diff[k] = vertices[index1].position_[k] - vertices[index2].position_[k]; 
+                    diff[k] = vertices[idx1].position_[k] - vertices[idx2].position_[k]; 
                 }
 
-                if (e.vertex1_.index == i)
+                if (idx1 == i)
                 {
                     for (int k=0;k<3;k++)
                     {
@@ -305,11 +339,8 @@ void MeshCurvatureflow::refineStep()
 
 void MeshCurvatureflow::refineImplicitStep()
 {
-    // obtain the areas of the triangles 
-    mesh_.CalcTriangleAreaAndFacetNormals();
-
     // obtain the normals of the surfaces 
-    mesh_.CalcVertexNormalsAreaWeighted();
+    mesh_.CalcVertexNormals();
 
     auto& vertexIndicesToface = mesh_.getMapVertexToFace();
     const auto& triangleArea = mesh_.getTriangleArea();
@@ -337,15 +368,19 @@ void MeshCurvatureflow::refineImplicitStep()
     #pragma omp parallel for
     for(int i = 0; i < vertices.size(); ++i)
     {
-        rhs[0][i] = vertices[i].position_[0];
-        rhs[1][i] = vertices[i].position_[1];
-        rhs[2][i] = vertices[i].position_[2];
+        rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
+        rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
+        rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
+
+        xyz[0][i] = vertices[i].position_[0];
+        xyz[1][i] = vertices[i].position_[1];
+        xyz[2][i] = vertices[i].position_[2];
     }
 
     // solver 
     for (int i=0;i<3;i++)
     {
-        xyz[i] = solver_.solveWithGuess(rhs[i],rhs[i]);
+        xyz[i] = solver_.solveWithGuess(rhs[i],xyz[i]);
     }
 
     #pragma omp parallel for
@@ -383,6 +418,9 @@ void MeshCurvatureflow::getImplicitMatrix()
     L_.setZero();
     L_.resize(vertices.size(), vertices.size());
 
+    Lfactors_.clear();
+    Lfactors_.resize(vertices.size(), {{0,0,0}});
+
     const auto& neighborIndices = mesh_.getNeighborIndices();
     Real epsilon=1e-5;
 
@@ -403,7 +441,8 @@ void MeshCurvatureflow::getImplicitMatrix()
                 std::vector<int> neighborId;
 
                 // get the weights of the neighbor indices 
-                std::vector<Real> weights = calculateWeights(i, neighborId);
+                Real3 Lfactor = {};
+                std::vector<Real> weights = calculateWeights(i, neighborId, Lfactor);
                 ASSERT((weights.size() == numneighbors), "The number of weights provided for a vertex does not agree with the number of neighbors.");
                 Real w = 0.0;
 
@@ -422,6 +461,12 @@ void MeshCurvatureflow::getImplicitMatrix()
                         trip_omp.push_back(triplet(i, neighborId[j], factor * weights[j]));
                     }
 
+                    for (int j=0;j<3;j++)
+                    {
+                        Lfactor[j] = Lfactor[j] * factor;
+                    }
+                    Lfactors_[i] = Lfactor;
+
                     trip_omp.push_back(triplet(i,i, -factor * w));
                 }
             }
@@ -433,6 +478,7 @@ void MeshCurvatureflow::getImplicitMatrix()
     {
         size += it->size();
     }
+
     triplets_.reserve(size);
     for (auto it = triplets_buffer_.beginworker(); it < triplets_buffer_.endworker(); it++)
     {

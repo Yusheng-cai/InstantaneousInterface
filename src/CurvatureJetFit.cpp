@@ -84,7 +84,9 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             for (int j=0;j<NeighborIndicesNVertex_[i].size();j++)
             {
                 int neighborIndex = NeighborIndicesNVertex_[i][j];
-                Real3 vertpos = vertices[neighborIndex].position_;
+                Real3 vertpos;
+
+                vertpos = mesh.getShiftedVertexPosition(vertices[neighborIndex], vertices[i]);
 
                 Dpoint point(vertpos[0], vertpos[1], vertpos[2]);
                 vec.push_back(point);

@@ -21,6 +21,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
     public:
         using triplet = Eigen::Triplet<Real,int>;
         using Sparse_mat = Eigen::SparseMatrix<Real>;
+        using Sparse_Chol= Eigen::SimplicialLDLT<Sparse_mat>;
 
         MeshCurvatureflow(MeshRefineStrategyInput& input);
 
@@ -32,7 +33,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
         void getImplicitMatrix();
 
         // calculate weights of its 1-ring neighbors of vertex i
-        std::vector<Real> calculateWeights(int i, std::vector<int>& neighborId);
+        std::vector<Real> calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor);
 
     private:
         int numIterations_;
@@ -60,4 +61,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // The curvature we are setting the surface to be 
         Real k0_ = 0;
+
+        // Lfactors 
+        std::vector<Real3> Lfactors_;
 };
