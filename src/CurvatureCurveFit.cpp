@@ -27,6 +27,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,-1}};
 
+    #pragma omp parallel for
     for (int i=0;i<vertices.size();i++)
     {
         auto& v = vertices[i];
@@ -47,14 +48,10 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         for (int j=0;j<neighbors.size();j++)
         {
             int neighborId = neighbors[j];
-            Real3 neighborPos = vertices[neighborId].position_;
             Real3 diff;
-            diff.fill(0);
+            Real diffsq;
 
-            for (int k=0;k<3;k++)
-            {
-                diff[k] = neighborPos[k] - v.position_[k];
-            }
+            mesh.getVertexDistance(vertices[neighborId], v, diff, diffsq);
 
             // Rotate neighbor position to the frame of reference of interest
             Real3 neighborRotatedPos = LinAlg3x3::MatrixDotVector(rotationMat, diff);
