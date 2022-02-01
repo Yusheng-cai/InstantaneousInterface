@@ -9,6 +9,7 @@
 #include <string>
 #include <array>
 #include <memory>
+#include <chrono>
 
 // We are trying to solve the general equation of 
 // dxi/dt = (k0 - kmean) * ni
@@ -66,5 +67,5 @@ class MeshCurvature : public MeshRefineStrategy
         std::ofstream errorStream_;
         int skip_=1;
 
-        Matrix box={{{10,0,0},{0,10,0},{0,0,10}}};
+        Matrix box={{{10,0,0},{0,2,0},{0,0,2}}};
 };

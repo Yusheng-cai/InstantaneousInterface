@@ -139,10 +139,12 @@ void MeshCurvature::refine()
 
     // Start refining 
     err_ = 10000000;
-    iteration_=0;
+    iteration_=1;
 
     while (err_ >= tol_)
     {
+        auto start = std::chrono::high_resolution_clock::now();
+
         Real maxerr = -100000;
 
         // first let's calculate the curvatures 
@@ -229,5 +231,9 @@ void MeshCurvature::refine()
         {
             break;
         }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+        std::cout << "update = " << duration.count() << " us " << "\n";
     }
 }
