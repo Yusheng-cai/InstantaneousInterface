@@ -129,7 +129,7 @@ void Mesh2d::InputFileReader()
         constraintIndices_[i] = idx;
     }
 
-    // Now let's read seedsthe points
+    // Now let's read the seed points
     seeds_.resize(numSeed_);
     for (int i=0;i<numSeed_;i++)
     {
@@ -330,8 +330,8 @@ void Mesh2d::MakePeriodic()
         }
     }
 
-    ASSERT((BoundaryIndices_.size() == numInputPoints_), "The number of boundary points differs before and after \
-    CDT, before = " << BoundaryIndices_.size() << " after = " << numInputPoints_);
+    // ASSERT((BoundaryIndices_.size() == numInputPoints_), "The number of boundary points differs before and after \
+    // CDT, before = " << numInputPoints_ << " after = " << BoundaryIndices_.size());
 
     // we want to check the pair-wise distances between boundary points to see if they overlap
     for (int i=0;i<BoundaryIndices_.size();i++)
