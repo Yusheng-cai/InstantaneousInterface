@@ -165,7 +165,6 @@ class Mesh
         const std::vector<Real3>& getPerVertexDir2() const {return PerVertexdir2_;}
         const std::vector<Real3>& getFaceNormals() const {return facetNormals_;}
         const std::vector<std::vector<int>>& getMapVertexToFace() const {return MapVertexIndicesToFaceIndices_;}
-
         const std::vector<Real3>& getCornerAreas() const {return cornerArea_;}
 
         int getNumVertices() const {return vertices_.size();}
@@ -318,6 +317,6 @@ namespace MeshTools
     bool readPLY(std::string& filename, Mesh& mesh_);
     bool readPLYlibr(std::string& filename, Mesh& mesh_);
 
-    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces);
+    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, const std::vector<Real3>& normals);
 };

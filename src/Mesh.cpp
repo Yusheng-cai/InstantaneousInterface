@@ -99,7 +99,7 @@ void Mesh::printTranslatedMesh(std::string name)
         {
             tempFaces.push_back(t.triangleindices_);
         }
-        MeshTools::writePLY(name, tempVertices, tempFaces);
+        MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
     }
 }
 
@@ -1184,7 +1184,8 @@ void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertice
 }
 
 
-void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<index3>& faces)
+void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<index3>& faces, \
+Real factor)
 {
     std::ofstream ofs;
     ofs.open(filename);
@@ -1209,7 +1210,7 @@ void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertice
     {
         for (int j=0;j<3;j++)
         {
-            ofs << vertices[i][j] << " ";
+            ofs << vertices[i][j] * factor << " ";
         }
 
         ofs << "\n";
