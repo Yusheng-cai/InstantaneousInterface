@@ -4,6 +4,7 @@
 #include "tools/CommonTypes.h"
 #include "tools/GenericFactory.h"
 #include "tools/OutputFunction.h"
+#include "tools/OutputFunction.h"
 
 #include <vector>
 #include <array>
@@ -33,6 +34,7 @@ class MeshRefineStrategy
     protected:
         Mesh& mesh_;
         ParameterPack& pack_;
+        Output output_;
 };
 
 namespace MeshRefineStrategyFactory
