@@ -279,7 +279,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     }
     else
     {
-        inc_ = 1;
+        inc_ = 0;
         iinc_ = 0;
     }
 
@@ -450,10 +450,11 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
             {
                 triIndex[i] = MapFromVertexIndexToNewIndex[tri[i].index];
             }
+            std::sort(triIndex.begin(), triIndex.end());
             auto it = std::unique(triIndex.begin(), triIndex.end());
-            triIndex.resize(std::distance(triIndex.begin(), it));
+            bool isUnique = (it == triIndex.end());
 
-            if (triIndex.size() == 3)
+            if (isUnique)
             {
                 triangle t;
                 for (int i=0;i<3;i++)

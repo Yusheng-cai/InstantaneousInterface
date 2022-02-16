@@ -113,7 +113,7 @@ void Mesh::printNonPBCMesh(std::string name)
     std::vector<index3> tempFaces;
     ConvertToNonPBCMesh(tempVertices, tempFaces);
 
-    MeshTools::writePLY(name, tempVertices, tempFaces);
+    MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
 }
 
 void Mesh::ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<index3>& faces)
