@@ -6,6 +6,8 @@ void Output::registerOutputFunc(std::string name, outputFunc func)
 
     ASSERT((it == MapNameToOutputFunc_.end()), "The output with name " << name << " is already registered.");
 
+    OutputNames_.push_back(name);
+
     MapNameToOutputFunc_.insert(std::make_pair(name, func));
 }
 

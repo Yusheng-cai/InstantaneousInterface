@@ -23,7 +23,10 @@ class Output
         void registerPerIterOutputFunc(std::string name, perIteroutputFunc func);
         perIteroutputFunc& getPerIterOutputFuncByName(std::string name);
 
+        const std::vector<std::string>& getOutputNames() const { return OutputNames_;}
+
     private:
         std::map<std::string, outputFunc> MapNameToOutputFunc_;
         std::map<std::string, perIteroutputFunc> MapNameToPerIterOutputFunc_;
+        std::vector<std::string> OutputNames_;
 };
