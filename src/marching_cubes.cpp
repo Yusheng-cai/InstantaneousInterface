@@ -199,6 +199,7 @@ void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initi
         }
     }
 
+    // if we are performing with periodic boundary condition
     for (index3 off : offsets_)
     {
         index3 updated;
@@ -207,21 +208,43 @@ void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initi
             updated[m] = index[m] + off[m];
         }
 
-        int ind = ConvertCellGridIndex(updated);
-        index3 neighborInd = MapFromIndexToCellGridIndex_.find(ind)->second;
+        // check if updated is a valid point --> only change if non pbc
+        bool valid = true;
 
-        // ind = -1 happens when we are converting cell grid with no pbc but ended up outside of grid 
-        if (ind != -1)
+        // * * * *(end)
+        // for a system with 4 points, our grid cell only go to the 3rd one
+        if (! pbc_)
         {
-            for (auto& tri : triangles_[ind])
+            for (int m=0;m<3;m++)
             {
-                for (auto vert : tri)
+                if ((updated[m] + 1) >= (N_[m]-1))
                 {
-                    neighborV.push_back(vert);
+                    valid = false;
+                }
+            }
+        }
+
+
+        if (valid)
+        {
+            int ind = ConvertCellGridIndex(updated);
+            index3 neighborInd = MapFromIndexToCellGridIndex_.find(ind)->second;
+
+            // ind = -1 happens when we are converting cell grid with no pbc but ended up outside of grid 
+            if (ind != -1)
+            {
+                for (auto& tri : triangles_[ind])
+                {
+                    for (auto vert : tri)
+                    {
+                        neighborV.push_back(vert);
+                    }
                 }
             }
         }
     }
+
+    return; 
 }
 
 void MarchingCubes::initializeGridSearch()
@@ -276,11 +299,13 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     {
         inc_ = 0;
         iinc_ = 1;
+        inc2_=1;
     }
     else
     {
-        inc_ = 0;
+        inc_ = 1;
         iinc_ = 0;
+        inc2_=2;
     }
 
     // Perform the marching cubes 
@@ -359,70 +384,64 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
 
     // We go through this voxel by voxel
     std::vector<Real3> AllVertices;
-    for (int i=0;i+inc_<N_[0];i++)
+    for (auto& a : MapFromCellGridIndexToIndex_)
     {
-        for (int j=0;j+inc_<N_[1];j++)
+        index3 initialIndex=a.first;
+        std::vector<Point> NeighborV;
+        std::vector<Point> initialV;
+        VerticesForGridCell(initialIndex, initialV, NeighborV); 
+        
+        int selfnum = initialV.size();
+        int num = NeighborV.size();
+        for (int m=0;m<selfnum;m++)
         {
-            for (int k=0;k+inc_<N_[2];k++)
+            Real3 mpos = {{initialV[m].x, initialV[m].y, initialV[m].z}};
+            int GridIndex = initialV[m].index; 
+
+            std::vector<int> NeighborNumber;
+            std::vector<int> NeighborIndex;
+
+            for (int n=0;n<num;n++)
             {
-                index3 initialIndex={{i,j,k}};
-                std::vector<Point> NeighborV;
-                std::vector<Point> initialV;
-                VerticesForGridCell(initialIndex, initialV, NeighborV); 
-                
-                int selfnum = initialV.size();
-                int num = NeighborV.size();
-                for (int m=0;m<selfnum;m++)
+                int indexN = NeighborV[n].index;
+                if (indexN != GridIndex)
                 {
-                    Real3 mpos = {{initialV[m].x, initialV[m].y, initialV[m].z}};
-                    int GridIndex = initialV[m].index; 
+                    Real3 v2 = {{NeighborV[n].x, NeighborV[n].y, NeighborV[n].z}};
 
-                    std::vector<int> NeighborNumber;
-                    std::vector<int> NeighborIndex;
+                    Real3 pbcdist = getPBCDistance(mpos, v2);
 
-                    for (int n=0;n<num;n++)
+                    if (std::abs(pbcdist[0]) <= tol_[0] && std::abs(pbcdist[1]) <= tol_[1] && std::abs(pbcdist[2]) <= tol_[2])
                     {
-                        int indexN = NeighborV[n].index;
-                        if (indexN != GridIndex)
+                        NeighborIndex.push_back(indexN);
+                        int number = MapFromVertexIndexToNewIndex[indexN];
+                        if (number != INITIAL_)
                         {
-                            Real3 v2 = {{NeighborV[n].x, NeighborV[n].y, NeighborV[n].z}};
-
-                            Real3 pbcdist = getPBCDistance(mpos, v2);
-
-                            if (std::abs(pbcdist[0]) <= tol_[0] && std::abs(pbcdist[1]) <= tol_[1] && std::abs(pbcdist[2]) <= tol_[2])
-                            {
-                                NeighborIndex.push_back(indexN);
-                                int number = MapFromVertexIndexToNewIndex[indexN];
-                                if (number != INITIAL_)
-                                {
-                                    NeighborNumber.push_back(number);
-                                }
-                            }
+                            NeighborNumber.push_back(number);
                         }
-                    }
-
-                    // First case scenario, all neighbors have not been added to the list yet 
-                    if (NeighborNumber.size() == 0)
-                    {
-                        if (MapFromVertexIndexToNewIndex[GridIndex] == INITIAL_)
-                        {
-                            MapFromVertexIndexToNewIndex[GridIndex] = AllVertices.size();
-                            CorrectPBCposition(initialV[m]);
-
-                            Real3 mposCorrected = {{initialV[m].x * spaceX, initialV[m].y * spaceY , initialV[m].z * spaceZ}};
-                            AllVertices.push_back(mposCorrected);
-                        }
-                    }
-                    else
-                    {
-                        auto it = std::adjacent_find(NeighborNumber.begin(), NeighborNumber.end(), std::not_equal_to<>());
-                        ASSERT((it == NeighborNumber.end()), "The elements in the list are not all identical.");
-
-                        int IDX = NeighborNumber[0];
-
-                        MapFromVertexIndexToNewIndex[GridIndex] = IDX;
                     }
                 }
+            }
+
+            // First case scenario, all neighbors have not been added to the list yet 
+            if (NeighborNumber.size() == 0)
+            {
+                if (MapFromVertexIndexToNewIndex[GridIndex] == INITIAL_)
+                {
+                    MapFromVertexIndexToNewIndex[GridIndex] = AllVertices.size();
+                    CorrectPBCposition(initialV[m]);
+
+                    Real3 mposCorrected = {{initialV[m].x * spaceX, initialV[m].y * spaceY , initialV[m].z * spaceZ}};
+                    AllVertices.push_back(mposCorrected);
+                }
+            }
+            else
+            {
+                auto it = std::adjacent_find(NeighborNumber.begin(), NeighborNumber.end(), std::not_equal_to<>());
+                ASSERT((it == NeighborNumber.end()), "The elements in the list are not all identical.");
+
+                int IDX = NeighborNumber[0];
+
+                MapFromVertexIndexToNewIndex[GridIndex] = IDX;
             }
         }
     }

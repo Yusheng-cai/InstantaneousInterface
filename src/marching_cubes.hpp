@@ -426,6 +426,7 @@ class MarchingCubes
         index3 N_;
         Real3 tol_;
         int inc_=1;
+        int inc2_=2;
         int iinc_;
         int INITIAL_=-9999;
         bool pbc_;
