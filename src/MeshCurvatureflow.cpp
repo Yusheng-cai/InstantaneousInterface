@@ -342,10 +342,10 @@ void MeshCurvatureflow::refineImplicitStep()
     // obtain the normals of the surfaces 
     mesh_.CalcVertexNormals();
 
+    // Get sum of triangles  --> 
     auto& vertexIndicesToface = mesh_.getMapVertexToFace();
     const auto& triangleArea = mesh_.getTriangleArea();
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
-
     #pragma omp parallel for
     for (int i=0;i<vertexIndicesToface.size();i++)
     {
@@ -362,19 +362,22 @@ void MeshCurvatureflow::refineImplicitStep()
     std::vector<Eigen::VectorXf> rhs;
     std::vector<Eigen::VectorXf> xyz;
 
-    rhs.resize(3, Eigen::VectorXf::Zero(vertices.size()));
-    xyz.resize(3, Eigen::VectorXf::Zero(vertices.size()));
+    rhs.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
+    xyz.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
 
     #pragma omp parallel for
-    for(int i = 0; i < vertices.size(); ++i)
+    for(int i = 0; i < vertexPos_.size(); ++i)
     {
-        rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
-        rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
-        rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
+        // rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertexPos_[i][0];
+        // rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertexPos_[i][1];
+        // rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertexPos_[i][2];
+        rhs[0][i] = vertexPos_[i][0];
+        rhs[1][i] = vertexPos_[i][1];
+        rhs[2][i] = vertexPos_[i][2];
 
-        xyz[0][i] = vertices[i].position_[0];
-        xyz[1][i] = vertices[i].position_[1];
-        xyz[2][i] = vertices[i].position_[2];
+        xyz[0][i] = vertexPos_[i][0]; 
+        xyz[1][i] = vertexPos_[i][1];
+        xyz[2][i] = vertexPos_[i][2];
     }
 
     // solver 
@@ -414,9 +417,14 @@ void MeshCurvatureflow::refineImplicitStep()
 
 void MeshCurvatureflow::getImplicitMatrix()
 {
+    // What to do for periodic Meshes?
+    /*
+        We can make virtual vertices that updates every step.
+
+        For each vertex i, we can check its neighbors, find their distances. If the distance is larger
+        than box/2 as usually defined for PBC, we can then make a virtual vertex for vertex i. 
+    */
     const auto& vertices = mesh_.getvertices();
-    L_.setZero();
-    L_.resize(vertices.size(), vertices.size());
 
     Lfactors_.clear();
     Lfactors_.resize(vertices.size(), {{0,0,0}});
@@ -426,6 +434,56 @@ void MeshCurvatureflow::getImplicitMatrix()
 
     triplets_.clear();
     triplets_buffer_.set_master_object(triplets_);
+
+    // copy the positions of the vertices into a vector
+    vertexPos_.clear();
+    vertexPos_.resize(vertices.size());
+    for (int i=0;i<vertices.size();i++)
+    {
+        vertexPos_[i] = vertices[i].position_;
+    }
+
+    // let's first make all the virtual indices
+    std::vector<std::vector<int>> neighborIndices_corrected;
+    // do all the virtual site business if mesh is periodic 
+    if (mesh_.isPeriodic())
+    {
+        auto boxLength = mesh_.getBoxLength();
+        for (int i=0;i<vertices.size();i++)
+        {
+            std::vector<int> tempIndexArr;
+            for (auto ind : neighborIndices[i])
+            {
+                // first check if this is a periodic edge
+                Real3 newarr = {};
+                bool periodicE = MeshTools::isPeriodicEdge(vertexPos_[i], vertexPos_[ind], newarr , boxLength);
+
+                std::cout << "periodic E is " << periodicE << "\n";
+                std::cout << "original pos = " << vertexPos_[i][0] << " " << vertexPos_[i][1] << " " << vertexPos_[i][2] << "\n";
+                std::cout << "neighbor pos = " << vertexPos_[ind][0] << " " << vertexPos_[ind][1] << " " << vertexPos_[ind][2] << "\n";
+                std::cout << "new array = " << newarr[0] << " " << newarr[1] << " " << newarr[2] << "\n";
+
+                // if it is a periodic Edge, then let's push back on vertexPos vector 
+                if (periodicE)
+                {
+                    tempIndexArr.push_back(vertexPos_.size());
+                    vertexPos_.push_back(newarr);
+                }
+                else
+                {
+                    tempIndexArr.push_back(ind);
+                }
+            }
+
+            // push back the temporary index array 
+            neighborIndices_corrected.push_back(tempIndexArr);
+        }
+    }
+    else
+    {
+    // if Mesh is not periodic, then we will just copy the array of neighborIndices 
+        neighborIndices_corrected.insert(neighborIndices_corrected.end(), neighborIndices.begin(), neighborIndices.end());
+    }
 
     #pragma omp parallel
     {
@@ -458,7 +516,7 @@ void MeshCurvatureflow::getImplicitMatrix()
 
                     for (int j=0;j<numneighbors;j++)
                     {
-                        trip_omp.push_back(triplet(i, neighborId[j], factor * weights[j]));
+                        trip_omp.push_back(triplet(i, neighborIndices_corrected[i][j], factor * weights[j]));
                     }
 
                     for (int j=0;j<3;j++)
@@ -469,7 +527,18 @@ void MeshCurvatureflow::getImplicitMatrix()
 
                     trip_omp.push_back(triplet(i,i, -factor * w));
                 }
+
+                if (TotalArea_[i] < epsilon)
+                {
+                    std::cout << "Less than." << "\n";
+                }
             }
+        }
+
+        #pragma omp for 
+        for (int i=vertices.size();i<vertexPos_.size();i++)
+        {
+            trip_omp.push_back(triplet(i,i,1));
         }
     }
 
@@ -485,14 +554,17 @@ void MeshCurvatureflow::getImplicitMatrix()
         triplets_.insert(triplets_.end(), it -> begin(), it -> end());
     }
 
+    // set the L matrix 
+    L_.setZero();
+    L_.resize(vertexPos_.size(), vertexPos_.size());
     L_.setFromTriplets(triplets_.begin(), triplets_.end());
 
-    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
+    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertexPos_.size(), vertexPos_.size()).sparseView();
 
     L_ = I - lambdadt_*L_;
 
     // Solve for x, y, z
-    // solver_.analyzePattern(L_);
-    // solver_.factorize(L_);
+    solver_.analyzePattern(L_);
+    solver_.factorize(L_);
     solver_.compute(L_);
 }

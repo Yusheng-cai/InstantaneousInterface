@@ -64,4 +64,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // Lfactors 
         std::vector<Real3> Lfactors_;
+
+        // vertex positions --> includes virtual vertices
+        std::vector<Real3> vertexPos_;
 };
