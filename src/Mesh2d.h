@@ -46,8 +46,6 @@ class Mesh2d : public MeshGeneration
         // check the max distances between the edges 
         void checkMaxDistanceBetweenEdges();
 
-        void printPLY(std::string name);
-
         bool isPBC() {return isPBC_;}
 
         // find distance between 2 points taking into account the pbc based on what the class is provided with

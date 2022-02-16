@@ -15,9 +15,13 @@ Mesh2d::Mesh2d(ParameterPack& pack)
 
     InputFileReader();
 
-    output_.registerOutputFunc("ply", [this](std::string name) -> void {this -> printPLY(name);});
-}
+    auto& out = mesh_.accessOutput();
 
+    for (auto name : out.getOutputNames())
+    {
+        output_.registerOutputFunc(name, out.getOutputFuncByName(name));
+    }
+}
 
 void Mesh2d::InputFileReader()
 {
@@ -402,9 +406,4 @@ void Mesh2d::MakePeriodic()
 
     mesh_.update();
     mesh_.CalcVertexNormals();
-}
-
-void Mesh2d::printPLY(std::string name)
-{
-    mesh_.printPLY(name);
 }
