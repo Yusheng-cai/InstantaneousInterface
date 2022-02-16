@@ -3,19 +3,7 @@
 Mesh::Mesh(const ParameterPack* pack)
 : pack_(pack)
 {
-    // set up output 
-    outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
-    // print ply file by myself 
-    outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
-    // print ply file but using library
-    outputs_.registerOutputFunc("plylibr", [this](std::string name) -> void {this -> printPLYlibr(name);});
-    outputs_.registerOutputFunc("boundary", [this](std::string name) -> void {this -> printBoundaryVertices(name);});
-    outputs_.registerOutputFunc("area", [this](std::string name) -> void {this -> printArea(name);});
-    outputs_.registerOutputFunc("cutted", [this](std::string name) -> void {this -> printCuttedMesh(name);});
-    outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printNonPBCMesh(name);});
-    outputs_.registerOutputFunc("translate",[this](std::string name) -> void {this -> printTranslatedMesh(name);});
-    outputs_.registerOutputFunc("neighbor", [this](std::string name) -> void {this -> printNeighbors(name);});
-
+    registerFunc();
 
     if (pack != nullptr)
     {
@@ -34,6 +22,22 @@ Mesh::Mesh(const ParameterPack* pack)
         // if box length is read, then the mesh is periodic 
         isPeriodic_ = pack->ReadArrayNumber("BoxLength", ParameterPack::KeyType::Optional, boxLength_);
     }
+}
+
+void Mesh::registerFunc()
+{   
+    // set up output 
+    outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
+    // print ply file by myself 
+    outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
+    // print ply file but using library
+    outputs_.registerOutputFunc("plylibr", [this](std::string name) -> void {this -> printPLYlibr(name);});
+    outputs_.registerOutputFunc("boundary", [this](std::string name) -> void {this -> printBoundaryVertices(name);});
+    outputs_.registerOutputFunc("area", [this](std::string name) -> void {this -> printArea(name);});
+    outputs_.registerOutputFunc("cutted", [this](std::string name) -> void {this -> printCuttedMesh(name);});
+    outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printNonPBCMesh(name);});
+    outputs_.registerOutputFunc("translate",[this](std::string name) -> void {this -> printTranslatedMesh(name);});
+    outputs_.registerOutputFunc("neighbor", [this](std::string name) -> void {this -> printNeighbors(name);});
 }
 
 void Mesh::printNeighbors(std::string name)

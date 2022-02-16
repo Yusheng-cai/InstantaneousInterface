@@ -129,10 +129,12 @@ class Mesh
         using index3 = CommonTypes::index3;
 
         Mesh(const ParameterPack* pack);
-        Mesh() {};
+        Mesh() {registerFunc();};
         ~Mesh(){};
 
         void initializeRefineStrat();
+
+        void registerFunc();
 
         void printSTL(std::string name);
         void printPLY(std::string name);
@@ -248,6 +250,9 @@ class Mesh
         std::vector<index2>& getEdgeIndexForVertex(int i);
         std::vector<int>& getFaceIndicesForEdge(const edge& e);
         std::vector<int>& getFaceIndicesForEdgeIndex(const index2& e);
+
+        // get the output 
+        Output& accessOutput() { return outputs_;}
     
     private:
         std::vector<vertex> vertices_;
