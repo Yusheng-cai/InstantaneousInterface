@@ -195,7 +195,15 @@ void MeshCurvature::refine()
         }
 
         avgE = avgE / vertices.size();
-        err_ = maxerr / meanCurvature_;
+
+        if (meanCurvature_ == 0)
+        {
+            err_ = 0;
+        }
+        else
+        {
+            err_ = maxerr / meanCurvature_;
+        }
 
         std::cout << "Max error is " << err_ << std::endl;
         std::cout << "average error is " << avgE << "\n";
