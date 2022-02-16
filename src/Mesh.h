@@ -324,4 +324,10 @@ namespace MeshTools
 
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, const std::vector<Real3>& normals);
+
+    // calculate PBC distance
+    Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);
+
+    // find if an edge is periodic 
+    bool isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength);
 };

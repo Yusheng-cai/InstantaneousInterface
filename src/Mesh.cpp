@@ -1472,3 +1472,40 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
 
     return true;
 }
+
+MeshTools::Real3 MeshTools::calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength)
+{
+    Real3 diff;
+    for (int i=0;i<3;i++)
+    {
+        Real d = vec1[i] - vec2[i];
+
+        if (d > 0.5 * boxLength[i]) diff[i] = -boxLength[i];
+        if (d < - 0.5 * boxLength[i]) diff[i] = boxLength[i];
+        else diff[i] = 0.0;
+    }
+    
+    return diff;
+}
+
+bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength)
+{
+    Real3 diff = calculateShift(vec1, vec2, boxLength);
+
+    bool isPeriodic=false;
+
+    newarr = {};
+    for (int i=0;i<3;i++)
+    {
+        newarr[i] = vec1[i] + diff[i];
+    }
+
+    if (diff[0] == 0 && diff[1] ==0 && diff[2] == 0) 
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
+}
