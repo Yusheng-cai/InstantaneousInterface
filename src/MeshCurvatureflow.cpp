@@ -445,55 +445,53 @@ void MeshCurvatureflow::getImplicitMatrix()
 
     // let's first make all the virtual indices
     std::vector<std::map<int,int>> neighborIndices_corrected;
-    std::ofstream ofs1;
-    ofs1.open("neighbor.out");
     // do all the virtual site business if mesh is periodic 
-    // if (mesh_.isPeriodic())
-    // {
-    //     auto boxLength = mesh_.getBoxLength();
-    //     for (int i=0;i<vertices.size();i++)
-    //     {
-    //         std::map<int,int> tempMap;
-    //         std::cout << "vertex " << vertices[i].position_[0] << " " << vertices[i].position_[1] << " " << vertices[i].position_[2] << "\n";
-    //         ofs1 << i << " ";
-    //         for (auto ind : neighborIndices[i])
-    //         {
-    //             // first check if this is a periodic edge
-    //             Real3 newarr = {};
-    //             bool periodicE = MeshTools::isPeriodicEdge(vertexPos_[ind], vertexPos_[i], newarr , boxLength);
+    if (mesh_.isPeriodic())
+    {
+        auto boxLength = mesh_.getBoxLength();
+        for (int i=0;i<vertices.size();i++)
+        {
+            std::map<int,int> tempMap;
+            int m = 0;
+            for (auto ind : neighborIndices[i])
+            {
+                // first check if this is a periodic edge
+                Real3 newarr = {};
+                bool periodicE = MeshTools::isPeriodicEdge(vertexPos_[ind], vertexPos_[i], newarr , boxLength);
+ 
 
-    //             // if it is a periodic Edge, then let's push back on vertexPos vector 
-    //             if (periodicE)
-    //             {
-    //                 tempMap.insert(std::make_pair(ind, vertexPos_.size()));
-    //                 std::cout << "periodic neighbor " << vertexPos_.size() << " = " << newarr[0] << " " << newarr[1] << " " << newarr[2] << "\n";
-    //                 vertexPos_.push_back(newarr);
-    //                 ofs1 << vertexPos_.size() << " ";
-    //             }
-    //             else
-    //             {
-    //                 std::cout << "neighbor " << vertexPos_[ind][0] << " " << vertexPos_[ind][1] << " " << vertexPos_[ind][2] << "\n";
-    //                 tempMap.insert(std::make_pair(ind, ind));
-    //                 ofs1 << ind << " ";
-    //             }
-    //         }
-    //         ofs1 << "\n";
-
-    //         // push back the temporary index array 
-    //         neighborIndices_corrected.push_back(tempMap);
-    //     }
-    // }
-    // else
-    // {
-    // // if Mesh is not periodic, then we will just copy the array of neighborIndices 
-    //     // neighborIndices_corrected.insert(neighborIndices_corrected.end(), neighborIndices.begin(), neighborIndices.end());
-    // }
-
-    ofs1.close();
+                // if it is a periodic Edge, then let's push back on vertexPos vector 
+                if (periodicE)
+                {
+                    tempMap.insert(std::make_pair(ind, vertexPos_.size()));
+                    vertexPos_.push_back(newarr);
+                    m += 1;
+                }
+                else
+                {
+                    tempMap.insert(std::make_pair(ind, ind));
+                }
+            }
+            // push back the temporary index array 
+            neighborIndices_corrected.push_back(tempMap);
+        }
+    }
+    else
+    {
+    // if Mesh is not periodic, then we will just copy the array of neighborIndices 
+        // neighborIndices_corrected.insert(neighborIndices_corrected.end(), neighborIndices.begin(), neighborIndices.end());
+    }
     std::ofstream ofs;
     ofs.open("test.out");
     std::ofstream ofs2;
     ofs2.open("rhs.out");
+
+    for (int i=0;i<vertexPos_.size();i++)
+    {
+        ofs2 << vertexPos_[i][0] << " " << vertexPos_[i][1] << " " << vertexPos_[i][2] << "\n";
+    }
+    ofs2.close();
+
     ofs << vertexPos_.size() << "\n";
 
 
@@ -528,10 +526,10 @@ void MeshCurvatureflow::getImplicitMatrix()
 
                     for (int j=0;j<numneighbors;j++)
                     {
-                        // auto it = neighborIndices_corrected[i].find(neighborId[j]);
-                        // ASSERT((it != neighborIndices_corrected[i].end()), "Neighbor " << neighborId[j] << " is not found for vertex " << i);
-                        // std::cout << "Neighbor " << i << " and " << it -> second << "\n";
-                        trip_omp.push_back(triplet(i, neighborId[j], factor * weights[j]));
+                        auto it = neighborIndices_corrected[i].find(neighborId[j]);
+                        ASSERT((it != neighborIndices_corrected[i].end()), "Neighbor " << neighborId[j] << " is not found for vertex " << i);
+                        std::cout << "Neighbor " << i << " and " << it -> second << "\n";
+                        trip_omp.push_back(triplet(i, it -> second, factor * weights[j]));
 
                         ofs << i << " " << neighborId[j] << " " << factor * weights[j] << "\n";
                     }
