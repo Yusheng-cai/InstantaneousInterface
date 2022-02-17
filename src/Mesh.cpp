@@ -1500,12 +1500,16 @@ bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newa
         newarr[i] = vec1[i] + diff[i];
     }
 
-    if (diff[0] == 0 && diff[1] ==0 && diff[2] == 0) 
+    Real3 vecdiff = {};
+    for (int i=0;i<3;i++)
     {
-        return false;
+        vecdiff[i] = vec1[i] - vec2[i];
+
+        if (std::abs(vecdiff[i]) > (boxLength[i] * 0.5))
+        {
+            return true;
+        }
     }
-    else
-    {
-        return true;
-    }
+
+    return false;
 }
