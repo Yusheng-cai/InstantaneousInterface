@@ -327,13 +327,6 @@ void MeshCurvatureflow::refineImplicitStep()
     xyz.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
     const auto& vertices = mesh_.getvertices();
 
-    std::ofstream Lofs_;
-    Lofs_.open("L.out");
-    for (int i=0;i<triplets_.size();i++)
-    {
-        Lofs_ << triplets_[i].row() << " " << triplets_[i].col() << " " << triplets_[i].value() << "\n";
-    }
-    Lofs_.close();
     #pragma omp parallel for
     for(int i = 0; i < vertexPos_.size(); ++i)
     {
