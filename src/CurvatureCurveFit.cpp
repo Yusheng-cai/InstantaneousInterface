@@ -33,7 +33,15 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         auto& v = vertices[i];
         auto& neighbors = NeighborIndicesNVertex[i];
 
-        ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3.");
+        if (neighbors.size() < 3)
+        {
+            for (int j=0;j<neighbors.size();j++)
+            {
+                std::cout << "Neighbor if insufficient index " << i << " is " << neighbors[j] << "\n";
+            }
+        }
+        ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
+         index = " << i << " number of neighbors = " << neighbors.size());
 
         // How to rotate normal vector to be z vector
         Matrix rotationMat = LinAlg3x3::GetRotationMatrix(v.normals_, referenceDir); 
