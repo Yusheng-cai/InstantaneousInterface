@@ -305,24 +305,20 @@ void Mesh::printCuttedMesh(std::string name)
 
     int index=0;
     std::map<int,int> MapOldIndexToNew;
-    std::vector<vertex> newVertices;
+    std::vector<Real3> newVertices;
     for (auto& v : vertices_)
     {
         if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
         {
             int oldindex = v.index;
             int newindex = index;
-            newVertices.push_back(v);
+            newVertices.push_back(v.position_);
             MapOldIndexToNew.insert(std::make_pair(oldindex, newindex));
             index ++;
         }
     }
 
-    vertices_.clear();
-    vertices_.insert(vertices_.end(), newVertices.begin(), newVertices.end());
-
-    std::vector<triangle> newTriangles;
-
+    std::vector<index3> newTriangles;
     for (auto& t : triangles_)
     {
         bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
@@ -337,13 +333,10 @@ void Mesh::printCuttedMesh(std::string name)
                 int newIndex = it -> second;
                 t.triangleindices_[i] = newIndex;
             }
-            newTriangles.push_back(t);
+            newTriangles.push_back(t.triangleindices_);
         }
     }
-    triangles_.clear();
-    triangles_.insert(triangles_.end(), newTriangles.begin(), newTriangles.end());
-
-    printPLY(name);
+    MeshTools::writePLY(name, newVertices, newTriangles);
 }
 
 void Mesh::print()
@@ -1480,8 +1473,8 @@ MeshTools::Real3 MeshTools::calculateShift(const Real3& vec1, const Real3& vec2,
     {
         Real d = vec1[i] - vec2[i];
 
-        if (d > 0.5 * boxLength[i]) diff[i] = -boxLength[i];
-        if (d < - 0.5 * boxLength[i]) diff[i] = boxLength[i];
+        if (d > (0.5 * boxLength[i])) diff[i] = -boxLength[i];
+        else if (d < (- 0.5 * boxLength[i])) diff[i] = boxLength[i];
         else diff[i] = 0.0;
     }
     
