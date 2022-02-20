@@ -327,13 +327,14 @@ void Mesh::printCuttedMesh(std::string name)
 
         if (it1 && it2 && it3)
         {
+            index3 newt;
             for (int i=0;i<3;i++)
             {
                 auto it = MapOldIndexToNew.find(t.triangleindices_[i]);
                 int newIndex = it -> second;
-                t.triangleindices_[i] = newIndex;
+                newt[i] = newIndex;
             }
-            newTriangles.push_back(t.triangleindices_);
+            newTriangles.push_back(newt);
         }
     }
     MeshTools::writePLY(name, newVertices, newTriangles);
