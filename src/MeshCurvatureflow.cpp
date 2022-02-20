@@ -13,6 +13,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadString("solver", ParameterPack::KeyType::Optional, solverName_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.ReadNumber("k0", ParameterPack::KeyType::Optional, k0_);
+    input.pack.Readbool("virtualSite", ParameterPack::KeyType::Optional, virtualSite_);
 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
@@ -46,7 +47,7 @@ void MeshCurvatureflow::refine()
         std::cout << "Iteration " << i << std::endl;
         if (solverName_ == "explicit")
         {
-            refineStep();
+            refineExplicitStep();
         }
         else 
         {
@@ -57,7 +58,7 @@ void MeshCurvatureflow::refine()
     mesh_.updateNormals();
 }
 
-std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor)
+std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag)
 {
     // obtain the edges that corresponds to this particular vertex 
     auto& edgesIndices = mesh_.getEdgeIndexForVertex(i);
@@ -65,8 +66,12 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
     const auto& vertices = mesh_.getvertices();
     int edgesize = edgesIndices.size();
 
+    Real epsilon=1e-8;
+
     std::vector<Real> factors;
     Real factor_sum = 0.0;
+
+    flag = true;
 
     // iterate over the edges 
     for (int j=0;j<edgesize;j++)
@@ -127,68 +132,25 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 
             mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
             mesh_.getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
-
-            #ifdef MY_DEBUG
-            mesh_.getVertexDistance(vertices[index1], vertices[index2], vec3, vec3sq);
-            Real cos1 = LinAlg3x3::findSinangle(vec1,vec3);
-            Real cos2 = LinAlg3x3::findSinangle(vec2,vec3);
-            std::cout << "cos1 = " << std::sqrt(1 - cos1*cos1) << std::endl;
-            std::cout << "cos2 = " << std::sqrt(1 - cos2*cos2) << std::endl;
-            std::cout << "vec1 dist = " << LinAlg3x3::norm(vec1) << std::endl;
-            std::cout << "Vec2 dist = " << LinAlg3x3::norm(vec2) << std::endl;
-            std::cout << "Vec3 dist = " << LinAlg3x3::norm(vec3) << std::endl;
-            #endif
-
             Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
-            Real sintheta = LinAlg3x3::findSinangle(vec1, vec2);
+            Real sintheta = std::sqrt(1 - costheta*costheta);
 
-            #ifdef DEBUG
-            std::cout << "cosine = " << costheta << std::endl;
-            std::cout << "sinetheta = " << sintheta << std::endl;
-            std::cout << "Sum of cos2theta and sin2theta is " << costheta*costheta + sintheta*sintheta << std::endl;
-            #endif 
-
-            factor += costheta/sintheta;
-
-            #ifdef DEBUG
-            if (std::abs(costheta/sintheta) > 10)
+            if ((std::abs(sintheta) - 0) < epsilon)
             {
-                std::cout << "The three triangles are : " << "\n";
-                std::cout << index1 << ". " << vertices[index1].position_[0] << " " << vertices[index1].position_[1] << " " << vertices[index1].position_[2] << "\n";
-                std::cout << pidx << ". " << vertices[pidx].position_[0] << " " << vertices[pidx].position_[1] << " " << vertices[pidx].position_[2] << "\n";
-                std::cout << index2 << ". " << vertices[index2].position_[0] << " " << vertices[index2].position_[1] << " " << vertices[index2].position_[2] << "\n";
-                std::cout << "vec1 = " << vec1[0] << " " << vec1[1] << " " << vec1[2] << "\n";
-                std::cout << "vec2 = " << vec2[0] << " " << vec2[1] << " " << vec2[2] << "\n";
-                std::cout << "Costheta = " << costheta << "\n";
-                std::cout << "Sintheta = " << sintheta << "\n";
-                Real3 crossproduct = LinAlg3x3::CrossProduct(vec1, vec2);
-                Real area = LinAlg3x3::norm(crossproduct);
-                std::cout << "Area = " << area << "\n";
+                flag = false;
             }
-            #endif
+            factor += costheta/sintheta;
         }
 
         if (mesh_.isPeriodic())
         {
             auto boxLength = mesh_.getBoxLength();
 
+            Real3 shift = MeshTools::calculateShift(vertices[neighborId[j]].position_, vertices[i].position_, boxLength);
+
             for (int k=0;k<3;k++)
             {
-                Real diff = vertices[neighborId[j]].position_[k] - vertices[i].position_[k];
-                Real Lj = 0.0;
-
-                if (diff > boxLength[k] * 0.5)
-                {
-                    Lj = - boxLength[k];
-                }
-
-                if (diff < -boxLength[k] * 0.5)
-                {
-                    Lj = boxLength[k];
-                }
-
-
-                Lfactor[k] += factor * Lj;
+                Lfactor[k] += factor * shift[k];
             }
         }
 
@@ -198,7 +160,7 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
     return factors;
 }
 
-void MeshCurvatureflow::refineStep()
+void MeshCurvatureflow::refineExplicitStep()
 {
     // calculate vertex normals but unweighted
     mesh_.CalcVertexNormals();
@@ -330,11 +292,11 @@ void MeshCurvatureflow::refineStep()
         }
     }
 
+    // update the vertices 
     auto& vert = mesh_.accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
     mesh_.update();
-    std::cout << "Mesh updated." << std::endl;
 }
 
 void MeshCurvatureflow::refineImplicitStep()
@@ -342,7 +304,7 @@ void MeshCurvatureflow::refineImplicitStep()
     // obtain the normals of the surfaces 
     mesh_.CalcVertexNormals();
 
-    // Get sum of triangles  --> 
+    // Get sum of triangles for each of the vertices  
     auto& vertexIndicesToface = mesh_.getMapVertexToFace();
     const auto& triangleArea = mesh_.getTriangleArea();
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
@@ -355,35 +317,51 @@ void MeshCurvatureflow::refineImplicitStep()
         }
     }
 
+    // obtain the implicit matrices
     getImplicitMatrix();
-    const auto& vertices = mesh_.getvertices();
 
     // obtain the rhs of the equation to be solved 
     std::vector<Eigen::VectorXf> rhs;
     std::vector<Eigen::VectorXf> xyz;
-
     rhs.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
     xyz.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
+    const auto& vertices = mesh_.getvertices();
 
+    std::ofstream Lofs_;
+    Lofs_.open("L.out");
+    for (int i=0;i<triplets_.size();i++)
+    {
+        Lofs_ << triplets_[i].row() << " " << triplets_[i].col() << " " << triplets_[i].value() << "\n";
+    }
+    Lofs_.close();
     #pragma omp parallel for
     for(int i = 0; i < vertexPos_.size(); ++i)
     {
-        // rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertexPos_[i][0];
-        // rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertexPos_[i][1];
-        // rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertexPos_[i][2];
-        rhs[0][i] = vertexPos_[i][0];
-        rhs[1][i] = vertexPos_[i][1];
-        rhs[2][i] = vertexPos_[i][2];
-
-        xyz[0][i] = vertexPos_[i][0]; 
-        xyz[1][i] = vertexPos_[i][1];
-        xyz[2][i] = vertexPos_[i][2];
+        // if mesh is not periodic and we are not doing virtual site
+        // then we must scale the rhs by Lfactors_ as in (xj - xi + L)
+        if (mesh_.isPeriodic() && (! virtualSite_))
+        {
+            rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertexPos_[i][0];
+            rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertexPos_[i][1];
+            rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertexPos_[i][2];
+        }
+        else
+        {
+            rhs[0][i] = vertexPos_[i][0];
+            rhs[1][i] = vertexPos_[i][1];
+            rhs[2][i] = vertexPos_[i][2];
+        }
     }
+
+    Sparse_LU sparsesolver;
+    sparsesolver.compute(L_);
+    ASSERT((sparsesolver.info() == Eigen::Success), "Compute step failed.");
 
     // solver 
     for (int i=0;i<3;i++)
     {
-        xyz[i] = solver_.solveWithGuess(rhs[i],xyz[i]);
+        xyz[i] = sparsesolver.solve(rhs[i]);
+        ASSERT((sparsesolver.info() == Eigen::Success), "The solver failed.");
     }
 
     #pragma omp parallel for
@@ -446,26 +424,23 @@ void MeshCurvatureflow::getImplicitMatrix()
     // let's first make all the virtual indices
     std::vector<std::map<int,int>> neighborIndices_corrected;
     // do all the virtual site business if mesh is periodic 
-    if (mesh_.isPeriodic())
+    if (mesh_.isPeriodic() && virtualSite_)
     {
         auto boxLength = mesh_.getBoxLength();
         for (int i=0;i<vertices.size();i++)
         {
             std::map<int,int> tempMap;
-            int m = 0;
             for (auto ind : neighborIndices[i])
             {
                 // first check if this is a periodic edge
                 Real3 newarr = {};
                 bool periodicE = MeshTools::isPeriodicEdge(vertexPos_[ind], vertexPos_[i], newarr , boxLength);
- 
 
                 // if it is a periodic Edge, then let's push back on vertexPos vector 
                 if (periodicE)
                 {
                     tempMap.insert(std::make_pair(ind, vertexPos_.size()));
                     vertexPos_.push_back(newarr);
-                    m += 1;
                 }
                 else
                 {
@@ -478,21 +453,16 @@ void MeshCurvatureflow::getImplicitMatrix()
     }
     else
     {
-    // if Mesh is not periodic, then we will just copy the array of neighborIndices 
-        // neighborIndices_corrected.insert(neighborIndices_corrected.end(), neighborIndices.begin(), neighborIndices.end());
+        for (int i=0;i<vertices.size();i++)
+        {
+            std::map<int,int> tempMap;
+            for (auto ind : neighborIndices[i])
+            {
+                tempMap.insert(std::make_pair(ind, ind));
+            }
+            neighborIndices_corrected.push_back(tempMap);
+        }
     }
-    std::ofstream ofs;
-    ofs.open("test.out");
-    std::ofstream ofs2;
-    ofs2.open("rhs.out");
-
-    for (int i=0;i<vertexPos_.size();i++)
-    {
-        ofs2 << vertexPos_[i][0] << " " << vertexPos_[i][1] << " " << vertexPos_[i][2] << "\n";
-    }
-    ofs2.close();
-
-    ofs << vertexPos_.size() << "\n";
 
 
     #pragma omp parallel
@@ -510,12 +480,13 @@ void MeshCurvatureflow::getImplicitMatrix()
 
                 // get the weights of the neighbor indices 
                 Real3 Lfactor = {};
-                std::vector<Real> weights = calculateWeights(i, neighborId, Lfactor);
+                bool flag = true;
+                std::vector<Real> weights = calculateWeights(i, neighborId, Lfactor, flag);
                 ASSERT((weights.size() == numneighbors), "The number of weights provided for a vertex does not agree with the number of neighbors.");
                 Real w = 0.0;
 
                 // Skip the calculation is Total area is 0 --> less than some threshold --> 1e-5
-                if (TotalArea_[i] > epsilon)
+                if (TotalArea_[i] > epsilon && flag)
                 {
                     Real factor = 1.0/(4.0 * TotalArea_[i]);
 
@@ -528,27 +499,19 @@ void MeshCurvatureflow::getImplicitMatrix()
                     {
                         auto it = neighborIndices_corrected[i].find(neighborId[j]);
                         ASSERT((it != neighborIndices_corrected[i].end()), "Neighbor " << neighborId[j] << " is not found for vertex " << i);
-                        std::cout << "Neighbor " << i << " and " << it -> second << "\n";
                         trip_omp.push_back(triplet(i, it -> second, factor * weights[j]));
-
-                        ofs << i << " " << neighborId[j] << " " << factor * weights[j] << "\n";
                     }
 
                     for (int j=0;j<3;j++)
                     {
-                        Lfactor[j] = Lfactor[j] * factor;
+                        Lfactors_[i][j] = Lfactor[j] * factor;
                     }
-                    Lfactors_[i] = Lfactor;
 
                     trip_omp.push_back(triplet(i,i, -factor * w));
-                    ofs << i << " " << i << " " << -factor * w << "\n";
                 }
             }
         }
     }
-
-    ofs.close();
-    ofs2.close();
 
     int size = triplets_.size();
     for (auto it = triplets_buffer_.beginworker(); it < triplets_buffer_.endworker(); it++)
@@ -570,9 +533,4 @@ void MeshCurvatureflow::getImplicitMatrix()
     Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertexPos_.size(), vertexPos_.size()).sparseView();
 
     L_ = I - lambdadt_*L_;
-
-    // Solve for x, y, z
-    // solver_.analyzePattern(L_);
-    // solver_.factorize(L_);
-    solver_.compute(L_);
 }

@@ -10,30 +10,34 @@
 #include "Eigen/LU"
 #include "Eigen/SparseLU"
 #include "parallel/OpenMP_buffer.h"
+#include "Eigen/SparseCholesky"
 
 #include <vector>
 #include <array>
 #include <iterator>
 #include <string>
+#include <cmath>
+#include <math.h>
 
 class MeshCurvatureflow : public MeshRefineStrategy
 {
     public:
         using triplet = Eigen::Triplet<Real,int>;
         using Sparse_mat = Eigen::SparseMatrix<Real>;
-        using Sparse_Chol= Eigen::SimplicialLDLT<Sparse_mat>;
+        using Sparse_Chol= Eigen::SimplicialLLT<Sparse_mat>;
+        using Sparse_LU = Eigen::SparseLU<Sparse_mat>;
 
         MeshCurvatureflow(MeshRefineStrategyInput& input);
 
         virtual void refine() override;
 
-        void refineStep();
+        void refineExplicitStep();
         void refineImplicitStep();
 
         void getImplicitMatrix();
 
         // calculate weights of its 1-ring neighbors of vertex i
-        std::vector<Real> calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor);
+        std::vector<Real> calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag);
 
     private:
         int numIterations_;
@@ -67,4 +71,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // vertex positions --> includes virtual vertices
         std::vector<Real3> vertexPos_;
+
+        // whether or not we are using virtual sites on the boundary
+        bool virtualSite_=false;
 };
