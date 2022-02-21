@@ -101,6 +101,12 @@ class IndexFileParsing: public AtomGroupParsingStrategy
 
         int totalFrames_;
 
+        // correct for whether or not the indexing is 1 or 0 based --> assumes 1-based 
+        int reduce_ = 1;
+
+        // number to be skipped
+        int skip_ = 0;
+
         std::vector<int> Frames_;
 };
 

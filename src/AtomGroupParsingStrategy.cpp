@@ -267,10 +267,15 @@ void ResidueNameParsing::Parse(std::vector<int>& indices)
 IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
 :AtomGroupParsingStrategy(input)
 {
-    ASSERT(( selection_str_.size() == 2), "Only 1 file name can be provided at this point.");
+    ASSERT(( selection_str_.size() <= 3), "Index file input consists possibly of [ indexfile filename first_index skip ].");
 
     // obtain the filename
     fileName_ = selection_str_[1];
+
+    if (selection_str_.size() == 3)
+    {
+        reduce_ = StringTools::StringToType<int>(selection_str_[2]);
+    }
 
     ifs_.open(fileName_);
     ASSERT((isOpen()), "The file with name " << selection_str_[1] << " is not opened.");
@@ -287,11 +292,12 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
 
             // The first one is always the time index, so we always ignore it
             ss_ >> index;
-            Frames_.push_back(index-1);
+            Frames_.push_back(index);
 
             while (ss_ >> index)
             {
-                index_for_sentence.push_back(index);
+                index_for_sentence.push_back(index - reduce_);
+                std::cout << "Index = " << index-reduce_ << "\n";
             }
 
             SortAndCheckNoDuplicate(index_for_sentence);
