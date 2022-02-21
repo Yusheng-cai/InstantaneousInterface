@@ -14,7 +14,6 @@ class Mesh;
 
 struct MeshRefineStrategyInput
 {
-    Mesh& mesh;
     ParameterPack& pack;
 };
 
@@ -29,12 +28,16 @@ class MeshRefineStrategy
 
         virtual ~MeshRefineStrategy(){};
 
-        virtual void refine() = 0;
+        virtual void refine(Mesh& mesh) = 0;
+
+        virtual std::string getName() {return name_;}
 
     protected:
-        Mesh& mesh_;
+        Mesh* mesh_ = nullptr;
+
         ParameterPack& pack_;
         Output output_;
+        std::string name_ = "refine";
 };
 
 namespace MeshRefineStrategyFactory
@@ -42,7 +45,7 @@ namespace MeshRefineStrategyFactory
     using key = std::string;
     using base = MeshRefineStrategy;
 
-    using factory = GenericFactory<base, key, MeshRefineStrategyInput&>;
+    using Factory = GenericFactory<base, key, MeshRefineStrategyInput&>;
 
     template<typename D>
     using registry_ = RegisterInFactory<base, D, key, MeshRefineStrategyInput&>;
