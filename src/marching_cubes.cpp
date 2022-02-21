@@ -217,13 +217,12 @@ void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initi
         {
             for (int m=0;m<3;m++)
             {
-                if ((updated[m] + 1) >= (N_[m]-1))
+                if (updated[m] >= (N_[m]-1))
                 {
                     valid = false;
                 }
             }
         }
-
 
         if (valid)
         {
@@ -299,13 +298,11 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     {
         inc_ = 0;
         iinc_ = 1;
-        inc2_=1;
     }
     else
     {
         inc_ = 1;
         iinc_ = 0;
-        inc2_=2;
     }
 
     // Perform the marching cubes 
