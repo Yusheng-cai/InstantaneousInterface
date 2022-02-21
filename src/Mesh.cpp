@@ -7,14 +7,6 @@ Mesh::Mesh(const ParameterPack* pack)
 
     if (pack != nullptr)
     {
-        MeshRefineStrategyInput input = {*this, const_cast<ParameterPack&>(*pack)};
-        auto read = pack->ReadString("type", ParameterPack::KeyType::Optional, refineStrategy_);
-
-        if (read)
-        {
-            MeshRefine_ = refinePtr(MeshRefineStrategyFactory::factory::instance().create(refineStrategy_, input));
-        }
-
         pack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
         pack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
         pack->ReadNumber("factor", ParameterPack::KeyType::Optional, factor_);
@@ -477,15 +469,6 @@ void Mesh::CalcPerVertexDir()
         std::cout << "For vertex " << i << " the vertex dir 2 = " << PerVertexdir2_[i][0] << " " << PerVertexdir2_[i][1] << " " << PerVertexdir2_[i][2] << "\n";
         #endif
     } 
-}
-
-void Mesh::refine()
-{
-    if (MeshRefine_.get() != nullptr)
-    {
-        std::cout << "refining" << std::endl;
-        MeshRefine_ -> refine();
-    }
 }
 
 void Mesh::MapEdgeToFaces()

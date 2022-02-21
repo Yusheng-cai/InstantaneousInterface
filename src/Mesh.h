@@ -132,8 +132,6 @@ class Mesh
         Mesh() {registerFunc();};
         ~Mesh(){};
 
-        void initializeRefineStrat();
-
         void registerFunc();
 
         void printSTL(std::string name);
@@ -183,9 +181,6 @@ class Mesh
 
         // find all the boundary vertices
         void findBoundaryVertices();
-
-        // function called when trying to refine a mesh
-        void refine();
 
         // function that updates the normals of a mesh
         void updateNormals();
