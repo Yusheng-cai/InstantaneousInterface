@@ -24,6 +24,7 @@ class Driver
         using BBPtr  = std::unique_ptr<BoundingBox>;
         using Real3  = CommonTypes::Real3;
         using curveptr = std::unique_ptr<Curvature>;
+        using meshRefineptr = std::unique_ptr<MeshRefineStrategy>;
 
         Driver(const ParameterPack& pack, const CommandLineArguments& cmd);
 
@@ -40,6 +41,9 @@ class Driver
         void initializeDriver(const ParameterPack* driverPack);
 
         void initializeCurvature();
+
+        // we initialize the parameters packs for mesh refinement
+        void initializeMeshRefinement();
 
         // Read information from xdr
         void readFrameXdr(int FrameNum);

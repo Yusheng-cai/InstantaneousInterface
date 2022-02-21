@@ -103,6 +103,27 @@ void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
     }
 }
 
+void Driver::initializeMeshRefinement()
+{
+    auto refinePack = pack_.findParamPacks("refine", ParameterPack::KeyType::Optional);
+
+    for (int i=0;i<refinePack.size();i++)
+    {
+        std::string type;
+        std::string name;
+
+        auto& p = refinePack[i];
+
+        p -> ReadString("type", ParameterPack::KeyType::Required, type);
+
+        MeshRefineStrategyInput input = {const_cast<ParameterPack&>(*p)};
+        meshRefineptr ptr = meshRefineptr(MeshRefineStrategyFactory::Factory::instance().create(type, input));
+
+        reg_.registerMeshRefinement(ptr -> getName(), *ptr);
+    }
+
+}
+
 void Driver::initializeCurvature()
 {
     auto Cpack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
