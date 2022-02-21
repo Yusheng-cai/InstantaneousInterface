@@ -53,6 +53,9 @@ class DensityField
 
         void initializeCurvature();
 
+        // initialize mesh refinement protocals
+        void initializeRefinement();
+
         void initializeMesh();
 
         void findAtomsIndicesInBoundingBox();
@@ -135,6 +138,9 @@ class DensityField
 
         // curvature calculators 
         std::vector<Curvature*> curvatures_;
+
+        // mesh refinement 
+        std::vector<MeshRefineStrategy*> refinementstrat_;
 };
 
 namespace DensityFieldRegistry

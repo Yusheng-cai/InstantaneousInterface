@@ -56,6 +56,21 @@ DensityField::DensityField(const DensityFieldInput& input)
     // stores a vector of pointers to the curvature 
     // registry owns the curvature objects 
     initializeCurvature();
+
+    // initialize the refinement process
+    initializeRefinement();
+}
+
+void DensityField::initializeRefinement()
+{
+    std::vector<std::string> refinevec;
+    pack_.ReadVectorString("refinement", ParameterPack::KeyType::Optional, refinevec);
+
+    for (int i=0;i<refinevec.size();i++)
+    {
+        auto& r = reg_.getMeshRefineStrat(refinevec[i]);
+        refinementstrat_.push_back(&r);
+    }
 }
 
 void DensityField::initializeCurvature()
