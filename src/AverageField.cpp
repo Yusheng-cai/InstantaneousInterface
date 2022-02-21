@@ -38,8 +38,12 @@ void AverageField::finishCalculate()
     MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, pbc_);
 
     // refine the mesh 
-    mesh_ -> refine();
+    for (int i=0;i<refinementstrat_.size();i++)
+    {
+        refinementstrat_[i] -> refine(*mesh_);
+    }
 
+    // calculate the curvature
     for (int i=0;i<curvatures_.size();i++)
     {
         curvatures_[i]->calculate(*mesh_);
