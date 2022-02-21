@@ -29,7 +29,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         MeshCurvatureflow(MeshRefineStrategyInput& input);
 
-        virtual void refine() override;
+        virtual void refine(Mesh& mesh) override;
 
         void refineExplicitStep();
         void refineImplicitStep();

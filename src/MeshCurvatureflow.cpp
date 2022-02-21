@@ -20,25 +20,27 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
 }
 
-void MeshCurvatureflow::refine()
+void MeshCurvatureflow::refine(Mesh& mesh)
 {
+    mesh_ = &mesh;
+
     // find the boundary vertices
-    mesh_.findBoundaryVertices();
+    mesh_->findBoundaryVertices();
 
     // find map from vertex to the face indices 
-    mesh_.MapVertexToFaces();
+    mesh_->MapVertexToFaces();
 
     // calculate neighbors
-    mesh_.findVertexNeighbors();
+    mesh_->findVertexNeighbors();
 
     if (scale_)
     {
-        initialVolume_ = mesh_.calculateVolume();
+        initialVolume_ = mesh_->calculateVolume();
         std::cout << "Initial volume of the mesh is " << initialVolume_ <<std::endl;
     }
 
     // find number of vertices 
-    const auto& v = mesh_.getvertices();
+    const auto& v = mesh_->getvertices();
     newVertices_.insert(newVertices_.end(), v.begin(), v.end());
     TotalArea_.resize(v.size());
 
@@ -55,15 +57,15 @@ void MeshCurvatureflow::refine()
         }
     }
 
-    mesh_.updateNormals();
+    mesh_->updateNormals();
 }
 
 std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag)
 {
     // obtain the edges that corresponds to this particular vertex 
-    auto& edgesIndices = mesh_.getEdgeIndexForVertex(i);
-    const auto& triangles = mesh_.gettriangles();
-    const auto& vertices = mesh_.getvertices();
+    auto& edgesIndices = mesh_->getEdgeIndexForVertex(i);
+    const auto& triangles = mesh_->gettriangles();
+    const auto& vertices = mesh_->getvertices();
     int edgesize = edgesIndices.size();
 
     Real epsilon=1e-8;
@@ -102,7 +104,7 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
         std::vector<int> otherPoints;
 
         // obtain the face indices for this particular edge 
-        std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdgeIndex(e);
+        std::vector<int>& faceIndices = mesh_->getFaceIndicesForEdgeIndex(e);
 
         ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
 
@@ -130,8 +132,8 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
             Real3 vec1, vec2, vec3;
             Real vec1sq, vec2sq, vec3sq;
 
-            mesh_.getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
-            mesh_.getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
+            mesh_->getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
+            mesh_->getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
             Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
             Real sintheta = std::sqrt(1 - costheta*costheta);
 
@@ -142,9 +144,9 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
             factor += costheta/sintheta;
         }
 
-        if (mesh_.isPeriodic())
+        if (mesh_->isPeriodic())
         {
-            auto boxLength = mesh_.getBoxLength();
+            auto boxLength = mesh_->getBoxLength();
 
             Real3 shift = MeshTools::calculateShift(vertices[neighborId[j]].position_, vertices[i].position_, boxLength);
 
@@ -163,12 +165,12 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 void MeshCurvatureflow::refineExplicitStep()
 {
     // calculate vertex normals but unweighted
-    mesh_.CalcVertexNormals();
+    mesh_->CalcVertexNormals();
 
-    const auto& vertexIndicesToface = mesh_.getMapVertexToFace();
-    const auto& triangleArea = mesh_.getTriangleArea();
-    const auto& vertices = mesh_.getvertices();
-    const auto& triangles= mesh_.gettriangles();
+    const auto& vertexIndicesToface = mesh_->getMapVertexToFace();
+    const auto& triangleArea = mesh_->getTriangleArea();
+    const auto& vertices = mesh_->getvertices();
+    const auto& triangles= mesh_->gettriangles();
 
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
 
@@ -185,10 +187,10 @@ void MeshCurvatureflow::refineExplicitStep()
     for (int i=0;i<vertices.size();i++)
     {
         // check if the point is on the boundary 
-        if (! mesh_.isBoundary(i))
+        if (! mesh_->isBoundary(i))
         {
             // obtain the edges that corresponds to this particular vertex 
-            auto& edgeIndices = mesh_.getEdgeIndexForVertex(i);
+            auto& edgeIndices = mesh_->getEdgeIndexForVertex(i);
             int edgesize = edgeIndices.size();
 
             // initialize the step 
@@ -212,7 +214,7 @@ void MeshCurvatureflow::refineExplicitStep()
                 #endif
 
                 // obtain the face indices for this particular edge 
-                std::vector<int>& faceIndices = mesh_.getFaceIndicesForEdgeIndex(vIndices);
+                std::vector<int>& faceIndices = mesh_->getFaceIndicesForEdgeIndex(vIndices);
 
                 ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
 
@@ -240,8 +242,8 @@ void MeshCurvatureflow::refineExplicitStep()
                     Real3 vec1, vec2;
                     Real vec1sq, vec2sq;
 
-                    mesh_.getVertexDistance(vertices[idx1], vertices[pidx], vec1, vec1sq);
-                    mesh_.getVertexDistance(vertices[idx2], vertices[pidx], vec2, vec2sq);
+                    mesh_->getVertexDistance(vertices[idx1], vertices[pidx], vec1, vec1sq);
+                    mesh_->getVertexDistance(vertices[idx2], vertices[pidx], vec2, vec2sq);
                     
 
                     Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
@@ -293,20 +295,20 @@ void MeshCurvatureflow::refineExplicitStep()
     }
 
     // update the vertices 
-    auto& vert = mesh_.accessvertices();
+    auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_.update();
+    mesh_->update();
 }
 
 void MeshCurvatureflow::refineImplicitStep()
 {
     // obtain the normals of the surfaces 
-    mesh_.CalcVertexNormals();
+    mesh_->CalcVertexNormals();
 
     // Get sum of triangles for each of the vertices  
-    auto& vertexIndicesToface = mesh_.getMapVertexToFace();
-    const auto& triangleArea = mesh_.getTriangleArea();
+    auto& vertexIndicesToface = mesh_->getMapVertexToFace();
+    const auto& triangleArea = mesh_->getTriangleArea();
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
     #pragma omp parallel for
     for (int i=0;i<vertexIndicesToface.size();i++)
@@ -325,14 +327,14 @@ void MeshCurvatureflow::refineImplicitStep()
     std::vector<Eigen::VectorXf> xyz;
     rhs.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
     xyz.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
-    const auto& vertices = mesh_.getvertices();
+    const auto& vertices = mesh_->getvertices();
 
     #pragma omp parallel for
     for(int i = 0; i < vertexPos_.size(); ++i)
     {
         // if mesh is not periodic and we are not doing virtual site
         // then we must scale the rhs by Lfactors_ as in (xj - xi + L)
-        if (mesh_.isPeriodic() && (! virtualSite_))
+        if (mesh_->isPeriodic() && (! virtualSite_))
         {
             rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertexPos_[i][0];
             rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertexPos_[i][1];
@@ -366,23 +368,23 @@ void MeshCurvatureflow::refineImplicitStep()
         }
     }
 
-    auto& vert = mesh_.accessvertices();
+    auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
 
     // calculate the volume if needed 
     if (scale_)
     {
-        Real vol = mesh_.calculateVolume();
+        Real vol = mesh_->calculateVolume();
         std::cout << "Volume = " << vol << std::endl;
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
 
         // this already performs update 
-        mesh_.scaleVertices(scale);
+        mesh_->scaleVertices(scale);
     }
     else
     {
-        mesh_.update();
+        mesh_->update();
     }
 }
 
@@ -395,12 +397,12 @@ void MeshCurvatureflow::getImplicitMatrix()
         For each vertex i, we can check its neighbors, find their distances. If the distance is larger
         than box/2 as usually defined for PBC, we can then make a virtual vertex for vertex i. 
     */
-    const auto& vertices = mesh_.getvertices();
+    const auto& vertices = mesh_->getvertices();
 
     Lfactors_.clear();
     Lfactors_.resize(vertices.size(), {{0,0,0}});
 
-    const auto& neighborIndices = mesh_.getNeighborIndices();
+    const auto& neighborIndices = mesh_->getNeighborIndices();
     Real epsilon=1e-5;
 
     triplets_.clear();
@@ -417,9 +419,9 @@ void MeshCurvatureflow::getImplicitMatrix()
     // let's first make all the virtual indices
     std::vector<std::map<int,int>> neighborIndices_corrected;
     // do all the virtual site business if mesh is periodic 
-    if (mesh_.isPeriodic() && virtualSite_)
+    if (mesh_->isPeriodic() && virtualSite_)
     {
-        auto boxLength = mesh_.getBoxLength();
+        auto boxLength = mesh_->getBoxLength();
         for (int i=0;i<vertices.size();i++)
         {
             std::map<int,int> tempMap;
@@ -466,7 +468,7 @@ void MeshCurvatureflow::getImplicitMatrix()
         #pragma omp for
         for (int i=0;i<vertices.size();i++)
         {
-            if (! mesh_.isBoundary(i))
+            if (! mesh_->isBoundary(i))
             {
                 int numneighbors = neighborIndices[i].size();
                 std::vector<int> neighborId;

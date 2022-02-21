@@ -15,7 +15,7 @@ class MeshLoopRefine : public MeshRefineStrategy
         using index2 = CommonTypes::index2;
         MeshLoopRefine(MeshRefineStrategyInput& input);
 
-        virtual void refine();
+        virtual void refine(Mesh& mesh);
 
         void calculateEvenPoints();
         void calculateOddPoints();
@@ -27,6 +27,9 @@ class MeshLoopRefine : public MeshRefineStrategy
     private:
         // the new vertices in the system 
         std::vector<vertex> Points_;
+
+        // nullptr for mesh obj
+        Mesh* mesh_ = nullptr;
 
         // the triangles in the system
         std::vector<triangle> triangles_;

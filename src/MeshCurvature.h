@@ -25,7 +25,7 @@ class MeshCurvature : public MeshRefineStrategy
 
         MeshCurvature(MeshRefineStrategyInput& input);
 
-        virtual void refine() override;
+        virtual void refine(Mesh& mesh) override;
 
         void findVertices();
 
@@ -57,7 +57,6 @@ class MeshCurvature : public MeshRefineStrategy
         int xtcstep_=1;
         int xtcskip_=100;
         int maxStep = 1e6;
-        bool ignoreOppositeSign_=false;
         bool fixBoundary_=true;
 
         // whether or not we want to print the error 

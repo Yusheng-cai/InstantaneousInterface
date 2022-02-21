@@ -19,7 +19,6 @@ MeshCurvature::MeshCurvature(MeshRefineStrategyInput& input)
     pack_.ReadNumber("tolerance", ParameterPack::KeyType::Optional, tol_);
     pack_.ReadNumber("k0", ParameterPack::KeyType::Required, meanCurvature_);
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
-    pack_.Readbool("IgnoreOppositeSignCurvature", ParameterPack::KeyType::Optional,ignoreOppositeSign_);
     pack_.Readbool("FixBoundary", ParameterPack::KeyType::Optional,fixBoundary_);
     pack_.ReadString("errorfile", ParameterPack::KeyType::Optional, errorFile_);
     pack_.ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
@@ -71,17 +70,17 @@ void MeshCurvature::findVertices()
     bool yrangeRead = pack_.ReadArrayNumber("yrange", ParameterPack::KeyType::Optional, yrange);
     bool zrangeRead = pack_.ReadArrayNumber("zrange", ParameterPack::KeyType::Optional, zrange);
 
-    const auto& vertices = mesh_.getvertices();
+    const auto& vertices = mesh_->getvertices();
 
     // If none of these are provided, then we keep the boundary vertices constant
     if (fixBoundary_)
     {
-        mesh_.MapEdgeToFaces();
-        mesh_.findBoundaryVertices();
+        mesh_->MapEdgeToFaces();
+        mesh_->findBoundaryVertices();
 
         for (int i=0;i<vertices.size();i++)
         {
-            if (! mesh_.isBoundary(i))
+            if (! mesh_->isBoundary(i))
             {
                 OutsideIndices_.push_back(i);
             }
@@ -90,7 +89,7 @@ void MeshCurvature::findVertices()
 
     if (xrangeRead || yrangeRead || zrangeRead)
     {
-        const auto& vertices = mesh_.getvertices();
+        const auto& vertices = mesh_->getvertices();
 
         for (int i=0;i<vertices.size();i++)
         {
@@ -107,24 +106,6 @@ void MeshCurvature::findVertices()
         }
     }
 
-    if (ignoreOppositeSign_)
-    {
-        // calculate one round of curvature 
-        curvatureCalc_ -> calculate(mesh_);
-        const auto& avgCurvature = curvatureCalc_->getAvgCurvaturePerVertex();
-
-        std::vector<int> temp;
-        for (auto ind: OutsideIndices_)
-        {
-            if (std::signbit(avgCurvature[ind]) == std::signbit(meanCurvature_))
-            {
-                temp.push_back(ind);
-            }
-        }
-
-        OutsideIndices_.insert(OutsideIndices_.end(), temp.begin(), temp.end());
-    }
-
     // Find the unique indices 
     auto ip = std::unique(OutsideIndices_.begin(), OutsideIndices_.end());
     OutsideIndices_.resize(std::distance(OutsideIndices_.begin(), ip));
@@ -132,8 +113,10 @@ void MeshCurvature::findVertices()
     ASSERT((OutsideIndices_.size() <= vertices.size()), "The outside indices size = " << OutsideIndices_.size() << " while vertices size = " << vertices.size());
 }
 
-void MeshCurvature::refine()
+void MeshCurvature::refine(Mesh& mesh)
 {
+    mesh_ = &mesh;
+
     // find the vertices to be updated
     findVertices();
 
@@ -148,13 +131,13 @@ void MeshCurvature::refine()
         Real maxerr = -100000;
 
         // first let's calculate the curvatures 
-        curvatureCalc_ -> calculate(mesh_);
+        curvatureCalc_ -> calculate(*mesh_);
 
         // then let's obtain the curvatures for each vertices 
         const auto& curvatures = curvatureCalc_ -> getAvgCurvaturePerVertex();
 
         // get vertics 
-        auto& vertices = mesh_.accessvertices();
+        auto& vertices = mesh_->accessvertices();
 
         // update the vertices 
         std::cout << "Iteration " << iteration_ << std::endl;
@@ -209,7 +192,7 @@ void MeshCurvature::refine()
         std::cout << "average error is " << avgE << "\n";
 
         // update the normals as well 
-        mesh_.CalcVertexNormals();
+        mesh_->CalcVertexNormals();
 
         // update the iterations
         iteration_ ++;

@@ -10,8 +10,10 @@ MeshLoopRefine::MeshLoopRefine(MeshRefineStrategyInput& input)
 {
 }
 
-void MeshLoopRefine::refine()
+void MeshLoopRefine::refine(Mesh& mesh)
 {
+    mesh_ = &mesh;
+
     // calculate the even points of the loop refinement 
     calculateEvenPoints();
 
@@ -27,8 +29,8 @@ void MeshLoopRefine::refine()
 
 void MeshLoopRefine::updateMesh()
 {
-    auto& vertices = mesh_.accessvertices();
-    auto& triangles = mesh_.accesstriangles();
+    auto& vertices = mesh_->accessvertices();
+    auto& triangles = mesh_->accesstriangles();
     vertices.clear();
     triangles.clear();
 
@@ -37,13 +39,13 @@ void MeshLoopRefine::updateMesh()
     triangles.insert(triangles.end(), triangles_.begin(), triangles_.end());
 
     // calculate triangles faces
-    mesh_.CalcTriangleAreaAndFacetNormals();
+    mesh_->CalcTriangleAreaAndFacetNormals();
 }
 
 void MeshLoopRefine::calculateTriangles()
 {
     // each face is split into 4 smaller triangles 
-    const auto& oldTriangles = mesh_.gettriangles();
+    const auto& oldTriangles = mesh_->gettriangles();
 
     for (int i=0;i<oldTriangles.size();i++)
     {
@@ -169,10 +171,10 @@ void MeshLoopRefine::calculateTriangles()
 void MeshLoopRefine::calculateOddPoints()
 {
     // calculate the map that maps edges to Faces
-    mesh_.MapEdgeToFaces();
-    const auto& map = mesh_.getMapEdgeToFace();
-    const auto& triangles = mesh_.gettriangles();
-    const auto& vertices = mesh_.getvertices();
+    mesh_->MapEdgeToFaces();
+    const auto& map = mesh_->getMapEdgeToFace();
+    const auto& triangles = mesh_->gettriangles();
+    const auto& vertices = mesh_->getvertices();
     
     // first calculate the odd points
     for (int i=0;i<map.size(); i++)
@@ -285,13 +287,13 @@ void MeshLoopRefine::calculateOddPoints()
 void MeshLoopRefine::calculateEvenPoints()
 {
     // first we find the neighbors of the vertex
-    mesh_.findVertexNeighbors();
+    mesh_->findVertexNeighbors();
 
     // find the boundary points
-    mesh_.findBoundaryVertices();
+    mesh_->findBoundaryVertices();
 
-    const auto& neighbors = mesh_.getNeighborIndices();
-    const auto& vertices  = mesh_.getvertices();
+    const auto& neighbors = mesh_->getNeighborIndices();
+    const auto& vertices  = mesh_->getvertices();
 
     // resize the evenpoints
     int numPoints = neighbors.size();
@@ -307,7 +309,7 @@ void MeshLoopRefine::calculateEvenPoints()
         vertex v;
 
         // if the point is not a boundary vertices 
-        if (mesh_.isBoundary(i))
+        if (mesh_->isBoundary(i))
         {
             for (int j=0;j<lenNeighbors;j++)
             {
@@ -326,7 +328,7 @@ void MeshLoopRefine::calculateEvenPoints()
         else
         {
             // if the point is a boundary vertex 
-            std::vector<index2> edges = mesh_.getEdgeIndexForVertex(i);
+            std::vector<index2> edges = mesh_->getEdgeIndexForVertex(i);
 
             // assert that there must be 2 edges
             ASSERT((edges.size() == 2), "The number of edges for a boundary point must be 2 while it is " << edges.size());
