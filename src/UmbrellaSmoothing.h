@@ -36,7 +36,7 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         UmbrellaSmoothing(MeshRefineStrategyInput& input);
 
-        virtual void refine() override;
+        virtual void refine(Mesh& mesh) override;
 
         void refineStepExplicit();
         void refineStepImplicit();

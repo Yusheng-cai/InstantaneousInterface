@@ -16,11 +16,13 @@ UmbrellaSmoothing::UmbrellaSmoothing(MeshRefineStrategyInput& input)
     ASSERT((solverName_ == "explicit" || solverName_ == "implicit"), "The iterative type must either be explicit or implicit");
 }
 
-void UmbrellaSmoothing::refine()
+void UmbrellaSmoothing::refine(Mesh& mesh)
 {
-    mesh_.findVertexNeighbors();
-    mesh_.findBoundaryVertices();
-    const auto& vertices = mesh_.getvertices();
+    mesh_ = &mesh;
+
+    mesh_->findVertexNeighbors();
+    mesh_->findBoundaryVertices();
+    const auto& vertices = mesh_->getvertices();
 
     // fill the old vertices with the original vertices
     oldVertices_.insert(oldVertices_.end(), vertices.begin(), vertices.end());
@@ -31,7 +33,7 @@ void UmbrellaSmoothing::refine()
     // find volume if needed 
     if ( scale_)
     {
-        initialVolume_ = mesh_.calculateVolume();
+        initialVolume_ = mesh_->calculateVolume();
         std::cout << "Initial volume = " << initialVolume_ << std::endl;
     }
 
@@ -53,19 +55,19 @@ void UmbrellaSmoothing::refine()
         }
     }
 
-    auto& vert = mesh_.accessvertices();
+    auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_.updateNormals();
+    mesh_->updateNormals();
 }
 
 void UmbrellaSmoothing::refineStepExplicit()
 {
     // get the vertices 
-    const auto& vertices = mesh_.getvertices();
+    const auto& vertices = mesh_->getvertices();
 
     // get neighbors indices 
-    const auto& neighborIndices = mesh_.getNeighborIndices();
+    const auto& neighborIndices = mesh_->getNeighborIndices();
 
     // clear new vertices 
     newVertices_.clear();
@@ -74,7 +76,7 @@ void UmbrellaSmoothing::refineStepExplicit()
     #pragma omp parallel for
     for (int i=0;i<vertices.size();i++)
     {
-        if (! mesh_.isBoundary(i))
+        if (! mesh_->isBoundary(i))
         {
             int numNeighbors = neighborIndices[i].size();
 
@@ -111,9 +113,7 @@ void UmbrellaSmoothing::refineStepExplicit()
 
 void UmbrellaSmoothing::refineStepImplicit()
 {
-    const auto& vertices = mesh_.getvertices();
-    // newVertices_.clear();
-    // newVertices_.resize(vertices.size());
+    const auto& vertices = mesh_->getvertices();
 
     // obtain the rhs of the equation to be solved 
     std::vector<Eigen::VectorXf> rhs;
@@ -142,29 +142,29 @@ void UmbrellaSmoothing::refineStepImplicit()
         }
     }
 
-    auto& vert = mesh_.accessvertices();
+    auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
 
     if (scale_)
     {
-        Real vol = mesh_.calculateVolume();
+        Real vol = mesh_->calculateVolume();
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
-        mesh_.scaleVertices(scale);
+        mesh_->scaleVertices(scale);
     }
     else
     {
-        mesh_.update();
+        mesh_->update();
     }
 }
 
 
 void UmbrellaSmoothing::prepareImplicitMatrix()
 {
-    const auto& vertices = mesh_.getvertices();
+    const auto& vertices = mesh_->getvertices();
     L_.resize(vertices.size(), vertices.size());
 
-    const auto& neighborIndices = mesh_.getNeighborIndices();
+    const auto& neighborIndices = mesh_->getNeighborIndices();
 
     triplets_.clear();
     // 10 is a guess here 
@@ -172,7 +172,7 @@ void UmbrellaSmoothing::prepareImplicitMatrix()
 
     for (int i=0;i<vertices.size();i++)
     {
-        if (! mesh_.isBoundary(i))
+        if (! mesh_->isBoundary(i))
         {
             int numneighbors = neighborIndices[i].size();
             Real factor = 1.0/numneighbors;
@@ -190,14 +190,6 @@ void UmbrellaSmoothing::prepareImplicitMatrix()
     Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
 
     L_ = I - lambdadt_*L_;
-    for (int k=0; k<L_.outerSize(); ++k)
-    {
-        for (Eigen::SparseMatrix<Real>::InnerIterator it(L_,k); it; ++it)
-        {
-            if (mesh_.isBoundary(it.row()))
-                std::cout << "Value = " << it.value()<< "At row = " << it.row() << ", col = " << it.col() << std::endl;
-        }
-    }
 
     // Solve for x, y, z
     // solver_.analyzePattern(L_);
