@@ -5,6 +5,8 @@
 #include "tools/CommonTypes.h"
 #include "src/MarchingCubesWrapper.h"
 #include "src/marching_cubes.hpp"
+#include "src/Registry.h"
+#include "src/MeshRefineStrategy.h"
 
 #include <string>
 #include <vector>
@@ -13,6 +15,7 @@
 int main(int argc, char** argv)
 {
     using curveptr = std::unique_ptr<Curvature>;
+    using refineptr= std::unique_ptr<MeshRefineStrategy>;
     using Meshptr  = std::unique_ptr<Mesh>;
     using fieldptr = std::unique_ptr<Field>;
     using Real3    = CommonTypes::Real3;
@@ -22,12 +25,16 @@ int main(int argc, char** argv)
 
     InputParser ip;
     std::vector<curveptr> curves_;
+    std::vector<refineptr> refines_;
 
     ParameterPack pack;
     ip.ParseFile(fname, pack);
 
+    Registry reg_;
+
     auto plyPack    = pack.findParamPack("plyfile", ParameterPack::KeyType::Optional);
     auto curvaturePack = pack.findParamPacks("curvature", ParameterPack::KeyType::Optional);
+    auto refinePack = pack.findParamPacks("refine", ParameterPack::KeyType::Optional);
 
     // initialize the curvatures 
     for (int i=0;i<curvaturePack.size();i++)
@@ -40,6 +47,22 @@ int main(int argc, char** argv)
         curveptr curve = curveptr(CurvatureRegistry::Factory::instance().create(curvaturetype, input));
 
         curves_.push_back(std::move(curve));
+
+        reg_.registerCurvature(curves_[i]->getName(), *curves_[i]);
+    }
+
+    // initialize refinements
+    for (int i=0;i<refinePack.size();i++)
+    {
+        auto& refinep = refinePack[i];
+        MeshRefineStrategyInput input = {const_cast<ParameterPack&>(*refinep)};
+        std::string refineType;
+
+        refinep -> ReadString("type", ParameterPack::KeyType::Required, refineType);
+        refineptr r = refineptr(MeshRefineStrategyFactory::Factory::instance().create(refineType, input));
+
+        refines_.push_back(std::move(r));
+        reg_.registerMeshRefinement(refines_[i]->getName(), *refines_[i]);
     }
 
     if (plyPack == nullptr)
@@ -48,8 +71,6 @@ int main(int argc, char** argv)
     }
     else
     {
-        std::string vertexFileName;
-        std::string triangleFileName;
         std::string plyFileName;
         plyPack->ReadString("name", ParameterPack::KeyType::Required,plyFileName);
 
@@ -62,7 +83,11 @@ int main(int argc, char** argv)
         
             MeshTools::readPLYlibr(plyFileName, *mesh_);
 
-            mesh_ -> refine();
+            for (int i=0;i<refines_.size();i++)
+            {
+                refines_[i] -> refine(*mesh_);
+            }
+
             mesh_ -> CalcTriangleAreaAndFacetNormals();
             mesh_ -> print();
 
@@ -82,10 +107,18 @@ int main(int argc, char** argv)
         {
             std::cout << "Doing mesh " << i << std::endl;
             Meshptr mesh_ = Meshptr(new Mesh(meshPacks[i]));    
-        
+            std::vector<std::string> refinementNames;
+            meshPacks[i] -> ReadVectorString("refinement", ParameterPack::KeyType::Optional, refinementNames);
             MeshTools::readPLYlibr(plyFileName, *mesh_);
 
-            mesh_ -> refine();
+            for (int i=0;i<refinementNames.size();i++)
+            {
+                std::string n = refinementNames[i];
+                auto& refineMent = reg_.getMeshRefineStrat(n);
+
+                refineMent.refine(*mesh_);
+            }
+
             mesh_ -> CalcTriangleAreaAndFacetNormals();
             mesh_ -> print();
 
@@ -135,12 +168,23 @@ int main(int argc, char** argv)
 
         auto mpack = fpack -> findParamPack("Mesh", ParameterPack::KeyType::Required);
         Meshptr mesh_ = Meshptr(new Mesh(mpack));
+        std::vector<std::string> refinements;
+        if (mpack != nullptr)
+        {
+            mpack -> ReadVectorString("refinement", ParameterPack::KeyType::Optional, refinements);
+        }
 
         // calculate the marching cubes
         mwrapper_.triangulate_field(*f, *mesh_, val, pbc);
         auto cpack = fpack -> findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
-        mesh_ -> refine();
+        for (int i=0;i<refinements.size();i++)
+        {
+            std::string name = refinements[i];
+            auto& r = reg_.getMeshRefineStrat(name);
+            r.refine(*mesh_);
+        }
+
         mesh_ -> print();
 
         for (int j=0;j<cpack.size();j++)
