@@ -37,7 +37,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         {
             for (int j=0;j<neighbors.size();j++)
             {
-                std::cout << "Neighbor if insufficient index " << i << " is " << neighbors[j] << "\n";
+                std::cout << "Neighbor of insufficient index " << i << " is " << neighbors[j] << "\n";
             }
         }
         ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
