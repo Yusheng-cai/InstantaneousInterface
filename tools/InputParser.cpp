@@ -186,20 +186,26 @@ bool ParameterPack::Readbool(const std::string& key, const KeyType keytype, bool
     std::string temp_str;
 
     bool read = ReadString(key, keytype, temp_str);
-    // StringTools::to_lower(temp_str);
+    StringTools::to_lower(temp_str);
+
+    std::vector<std::string> TrueTokens = {"true", "yes"};
+    std::vector<std::string> FalseTokens = {"false", "no"};
+
 
     if (read == true)
     {
-        ASSERT((temp_str.compare("true") == 0 || temp_str.compare("false") == 0), \
+        bool inTrue = std::find(TrueTokens.begin(), TrueTokens.end(), temp_str) != TrueTokens.end();
+        bool inFalse= std::find(FalseTokens.begin(), FalseTokens.end(), temp_str) != FalseTokens.end();
+        ASSERT((inTrue || inFalse), \
         "Failed to read a boolean as the input value is " << temp_str << " for key " << key);
 
-        if (temp_str.compare("true") == 0)
+        if (inTrue)
         {
             boolean  = true;
             return true;
         }
 
-        if (temp_str.compare("false") == 0)
+        if (inFalse)
         {
             boolean = false;
             return true;
