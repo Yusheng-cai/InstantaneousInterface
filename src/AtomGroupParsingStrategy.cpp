@@ -297,7 +297,6 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
             while (ss_ >> index)
             {
                 index_for_sentence.push_back(index - reduce_);
-                std::cout << "Index = " << index-reduce_ << "\n";
             }
 
             SortAndCheckNoDuplicate(index_for_sentence);
