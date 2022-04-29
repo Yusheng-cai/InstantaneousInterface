@@ -66,11 +66,6 @@ void Mesh::printArea(std::string name)
     ofs.close();
 }
 
-void Mesh::clearDegenerateTriangles()
-{
-
-}
-
 void Mesh::printTranslatedMesh(std::string name)
 {
     Real3 translate;
@@ -575,7 +570,6 @@ void Mesh::MapVertexToFaces()
             MapVertexIndicesToFaceIndices_[t[j]].push_back(i);
         }
     }
-
 }
 
 std::vector<int>& Mesh::getFaceIndicesForEdge(const edge& e)
@@ -1026,6 +1020,8 @@ void Mesh::CalcVertexNormals()
     // First calculate triangle faces normals 
     CalcTriangleAreaAndFacetNormals();
 
+    // MeshTools::CalculateTriangleAreasAndFaceNormals(*this, triangleArea_, facetNormals_);
+
     // calculate vertex normals
     vertexNormals_.resize(vertices_.size());
     Real3 zeroArr = {{0,0,0}};
@@ -1109,6 +1105,10 @@ void Mesh::CalcVertexNormalsAreaWeighted()
         vertices_[i].normals_ = vertexNormals_[i];
     }
 }
+
+                                    /**************************************
+                                     ************   MeshTools *************
+                                     *************************************/       
 
 void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<index3>& faces, const std::vector<Real3>& normals)
 {
@@ -1489,4 +1489,194 @@ bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newa
     }
 
     return false;
+}
+
+void MeshTools::MapVerticesToFaces(Mesh& mesh, std::vector<std::vector<int>>& map)
+{
+    auto& vertices = mesh.getvertices();
+    auto& triangles= mesh.gettriangles();
+
+    map.clear();
+    map.resize(vertices.size());
+
+    for (int i=0;i<triangles.size();i++)
+    {
+        auto t = triangles[i].triangleindices_;
+
+        for (int j=0;j<3;j++)
+        {
+            map[t[j]].push_back(i);
+        }
+    }
+}
+
+void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Real>& Areas, std::vector<Real3>& Normals)
+{
+    auto& triangles = mesh.accesstriangles();
+    auto& vertices  = mesh.accessvertices();
+
+    Areas.clear();
+    Areas.resize(triangles.size());
+
+    Normals.clear();
+    Normals.resize(triangles.size());
+
+    // calculate the area of the triangles as well as the normals of the faces of triangles
+    for (int i=0;i<triangles.size();i++)
+    {
+        auto& t = triangles[i];
+
+        int index1 = t.triangleindices_[0];
+        int index2 = t.triangleindices_[1];
+        int index3 = t.triangleindices_[2];
+
+        Real3 diff1 = {};
+        Real3 diff2 = {};
+        Real3 diff3 = {};
+        Real norm1, norm2, norm3;
+
+        mesh.getVertexDistance(vertices[index1], vertices[index2], diff1, norm1);
+        mesh.getVertexDistance(vertices[index3], vertices[index2], diff2, norm2);
+        mesh.getVertexDistance(vertices[index3], vertices[index1], diff3, norm3);
+
+        Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
+        Real norm = LinAlg3x3::norm(crossProduct);
+        Real a    = norm*0.5;
+
+        Real3 n;
+        for (int j=0;j<3;j++)
+        {
+            n[j] = crossProduct[j]/norm;
+        }
+
+        Normals[i] = n;
+        Areas[i]   = a;
+    }
+}
+
+void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int>>& neighborIndices)
+{
+    auto& vertices = mesh.getvertices();
+    auto& triangles= mesh.gettriangles();
+
+    neighborIndices.clear();
+    neighborIndices.resize(vertices.size());
+
+    for (int i=0;i<triangles.size();i++)
+    {
+        auto& t = triangles[i];
+
+        for (int j=0;j<3;j++)
+        {
+            int index1 = t.triangleindices_[j];
+            for (int k=0;k<3;k++)
+            {
+                if (j != k)
+                {
+                    int index2 = t.triangleindices_[k];
+
+                    auto it = std::find(neighborIndices[index1].begin(), neighborIndices[index1].end(), index2);
+
+                    if (it == neighborIndices[index1].end())
+                    {
+                        neighborIndices[index1].push_back(index2);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, \
+std::map<int, std::vector<INT2>>& mapVertexToEdge)
+{
+    auto& triangles = mesh.gettriangles();
+    auto& vertices  = mesh.getvertices();
+
+    // iterate over all the triangles
+    for (int i=0;i<triangles.size();i++)
+    {
+        // find the triangles indices
+        auto& t = triangles[i];
+
+        for (int j=0;j<3;j++)
+        {
+            int idx1 = t.triangleindices_[j];
+            int idx2 = t.triangleindices_[(j+1)%3];
+            int minIndex = std::min(idx1, idx2);
+            int maxIndex = std::max(idx1, idx2);
+            INT2 arr = {{minIndex, maxIndex}};
+
+            auto it = mapEdgeToFace.find(arr);
+
+            if (it == mapEdgeToFace.end())
+            {
+                std::vector<int> faceIndices;
+                faceIndices.push_back(i);
+
+                mapEdgeToFace.insert(std::make_pair(arr,faceIndices));
+            }
+            else
+            {
+                it -> second.push_back(i);
+            }
+        }
+
+        // map vertex to edges 
+        for (int j=0;j<3;j++)
+        {
+            int idx1 = t.triangleindices_[j];
+            int idx2 = t.triangleindices_[(j+1)%3];
+            int minIdx = std::min(idx1, idx2);
+            int maxIdx = std::max(idx1, idx2);
+
+            INT2 indices = {{minIdx, maxIdx}};
+
+            for (int k=0;k<2;k++)
+            {
+                auto it = mapVertexToEdge.find(indices[k]); 
+
+                if (it == mapVertexToEdge.end())
+                {
+                    std::vector<INT2> temp;
+                    temp.push_back(indices);
+                    mapVertexToEdge.insert(std::make_pair(indices[k], temp));
+                }
+                else
+                {
+                    // find if the edge is already in the vector
+                    auto f = std::find(it ->second.begin(), it ->second.end(), indices);
+
+                    if (f == it -> second.end())
+                    {
+                        it -> second.push_back(indices);
+                    }
+                }
+            }
+        }
+    }
+
+    // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
+    int id = 0;
+    for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++)
+    {
+        if (it -> second.size() > 2)
+        {
+            std::cout << "This is for edge " << id << " consisting of vertex " << it ->first[0] <<" " << it->first[1] <<"\n";
+            for (auto s : it -> second)
+            {
+                std::cout << "Face it corresponds to : " << s <<"\n";
+            }
+        }
+        ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
+        , however the calculated result shows " << it -> second.size());
+        id ++;
+    }
+
+    return;
+}
+
+void MeshTools::CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace)
+{
+
 }

@@ -30,18 +30,6 @@ struct vertex
     // The average curvature of this particular vertex 
     Real Acurvature_=0.0;
     int index;
-
-    bool operator==(const vertex& v1) const
-    {
-        if (v1.index == index)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
 };
 
 struct edge
@@ -52,59 +40,7 @@ struct edge
     // two vertices make up an edge
     vertex vertex1_;
     vertex vertex2_;
-
-    bool operator==(const edge& e1) const
-    {
-        // either vertex 1 == vertex 1 && vertex2 == vertex2
-        if (e1.vertex1_ == vertex1_ && e1.vertex2_ == vertex2_)
-        {
-            return true;
-        }
-        // or vertex1 == vertex2 && vertex2 == vertex1
-        if (e1.vertex1_ == vertex2_ && e1.vertex2_ == vertex1_)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
 };
-
-namespace std {
-
-  template <>
-  struct hash<vertex>
-  {
-      std::size_t operator()(const vertex& v) const 
-      {
-          std::size_t indexHash = std::hash<int>()(v.index);
-
-          return indexHash;
-      }
-  };
-
-  template <>
-  struct hash<edge>
-  {
-    std::size_t operator()(const edge& e) const
-    {
-      using std::size_t;
-      using std::hash;
-      using std::string;
-
-      // Compute individual hash values for first,
-      // second and third and combine them using XOR
-      // and bit shifting:
-
-      std::size_t v1_hash = std::hash<vertex>()(e.vertex1_);
-      std::size_t v2_hash = std::hash<vertex>()(e.vertex2_);
-
-      return v1_hash ^ v2_hash;
-    };
-  };
-}
 
 struct triangle
 {
@@ -210,9 +146,6 @@ class Mesh
         // function that calculates the normals of each of the vertex --> not weighted by anything and updates the normals in each vertices
         void CalcVertexNormals();
 
-        // function that clear degenerate triangles
-        void clearDegenerateTriangles();
-
         // Find the vertex direction 
         void CalcPerVertexDir();
 
@@ -313,6 +246,7 @@ namespace MeshTools
     using Real3 = CommonTypes::Real3;
     using Real  = CommonTypes::Real;
     using index3= CommonTypes::index3;
+    using INT2  = CommonTypes::index2;
 
     bool readPLY(std::string& filename, Mesh& mesh_);
     bool readPLYlibr(std::string& filename, Mesh& mesh_);
@@ -325,4 +259,19 @@ namespace MeshTools
 
     // find if an edge is periodic 
     bool isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength);
+
+    // map vertices to faces
+    void MapVerticesToFaces(Mesh& mesh, std::vector<std::vector<int>>& map);
+
+    // calculate triangle areas and Face normals 
+    void CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Real>& Areas, std::vector<Real3>& Normals);
+
+    // find vertex neighbors 
+    void CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
+
+    // map Edge to faces
+    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::map<int,std::vector<INT2>>& MapVertexToEdge);
+
+    // find boundary vertices 
+    void CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace);
 };
