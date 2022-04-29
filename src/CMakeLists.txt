@@ -9,7 +9,6 @@ target_sources(IIsrc PRIVATE
     "Field.cpp"
     "SimulationBox.cpp"
     "SimulationState.cpp"
-    "MarchingCubesWrapper.cpp"
     "AverageField.cpp"
     "LinAlgTools.cpp"
     "Mesh.cpp"
@@ -19,13 +18,11 @@ target_sources(IIsrc PRIVATE
     "Graph.cpp"
     "CurvatureCurveFit.cpp"
     "MeshRefineStrategy.cpp"
-    "MeshLoopRefine.cpp"
     "CurvatureJetFit.cpp"
     "UmbrellaSmoothing.cpp"
     "MeshCurvatureflow.cpp"
     "MeshCurvature.cpp"
     "Registry.cpp"
-    "KDTree.cpp"
     "marching_cubes.cpp"
     "MeshGeneration.cpp"
     "Mesh2d.cpp"
@@ -41,7 +38,6 @@ set(IIsrc_HEADER
     "SimulationBox.h"
     "SimulationState.h"
     "GaussianCoarseGrainFunction.h"
-    "MarchingCubesWrapper.h"
     "LinAlgTools.h"
     "AverageField.h"
     "Mesh.h"
@@ -51,13 +47,11 @@ set(IIsrc_HEADER
     "Graph.h"
     "CurvatureCurveFit.h"
     "MeshRefineStrategy.h"
-    "MeshLoopRefine.h"
     "CurvatureJetFit.h"
     "UmbrellaSmoothing.h"
     "MeshCurvatureflow.h"
     "MeshCurvature.h"
     "Registry.h"
-    "KDTree.h"
     "marching_cubes.hpp"
     "MeshGeneration.h"
     "Mesh2d.h"
@@ -77,7 +71,7 @@ target_include_directories(IIsrc
 if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
-target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel MarchingCubes CGAL::CGAL)
+target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel CGAL::CGAL)
 #message("Boost include dir = ${Boost_INCLUDE_DIRS}")
 #message("Boost library dir = ${Boost_LIBRARIES}")
 

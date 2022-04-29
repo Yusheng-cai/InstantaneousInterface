@@ -1,4 +1,5 @@
 #pragma once
+
 #include "tools/CommonTypes.h"
 #include "tools/Assert.h"
 
@@ -7,6 +8,7 @@
 #include <iostream>
 #include <fstream>
 
+// concentration field 
 class Field
 {
     public:
@@ -18,9 +20,9 @@ class Field
 
         Field(){};
         Field(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
-
         void resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
         void clearField();
+
         void pushback(Real val);
 
         Real& operator()(int i, int j, int k);
