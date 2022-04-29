@@ -1,5 +1,5 @@
 meshgen = {
-	 type = Mesh2d
+	 type = MeshGen2d
 	 file = boundary_input.dat
 	 size_bound = 0.303
 	 aspect_bound = 0.000
