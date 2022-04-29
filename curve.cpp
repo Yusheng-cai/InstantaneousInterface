@@ -3,7 +3,6 @@
 #include "tools/InputParser.h"
 #include "src/Field.h"
 #include "tools/CommonTypes.h"
-#include "src/MarchingCubesWrapper.h"
 #include "src/marching_cubes.hpp"
 #include "src/Registry.h"
 #include "src/MeshRefineStrategy.h"

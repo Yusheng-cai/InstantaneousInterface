@@ -8,7 +8,6 @@
 #include "parallel/OpenMP_buffer.h"
 #include "GaussianCoarseGrainFunction.h"
 #include "tools/GenericFactory.h"
-#include "MarchingCubesWrapper.h"
 #include "marching_cubes.hpp"
 #include "tools/OutputFunction.h"
 #include "Curvature.h"
