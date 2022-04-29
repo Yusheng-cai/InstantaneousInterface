@@ -47,7 +47,6 @@ add_subdirectory(src)
 add_subdirectory(tools)
 add_subdirectory(parallel)
 add_subdirectory(xdr)
-add_subdirectory(MarchingCubes)
 add_subdirectory(test)
 
 add_executable(InstantaneousInterface main.cpp)
@@ -58,9 +57,9 @@ target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_gen PUBLIC ${CMAKE_SOURCE_DIR})
 
-target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel MarchingCubes)
-target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel MarchingCubes)
-target_link_libraries(mesh_gen PUBLIC IIxdr IIsrc IItools IIparallel MarchingCubes)
+target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
+target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel)
+target_link_libraries(mesh_gen PUBLIC IIxdr IIsrc IItools IIparallel)
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
