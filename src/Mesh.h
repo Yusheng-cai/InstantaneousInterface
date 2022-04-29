@@ -44,9 +44,9 @@ struct edge
 
 struct triangle
 {
-    using index3 = CommonTypes::index3;
+    using  INT3 = CommonTypes::index3;
 
-    index3 triangleindices_;
+    INT3 triangleindices_;
     
     // each triangle has 3 edges
     std::array<edge,3> edges_;
@@ -61,14 +61,18 @@ class Mesh
         using Real3 = CommonTypes::Real3;
         using Real  = CommonTypes::Real;
         using refinePtr = std::unique_ptr<MeshRefineStrategy>;
-        using index2 = CommonTypes::index2;
-        using index3 = CommonTypes::index3;
+        using INT2  = CommonTypes::index2;
+        using INT3  = CommonTypes::index3;
 
         Mesh(const ParameterPack* pack);
         Mesh() {registerFunc();};
         ~Mesh(){};
 
         void registerFunc();
+
+                                        /*******************************************
+                                         ********** Printing Function **************
+                                         ******************************************/
 
         void printSTL(std::string name);
         void printPLY(std::string name);
@@ -81,42 +85,37 @@ class Mesh
         void printTranslatedMesh(std::string name);
         void printNeighbors(std::string name);
 
-        // setters
+                                        /*******************************************
+                                         * ******** setting Function **************
+                                         * ****************************************/
         void setBoxLength(Real3 box) { boxLength_ = box; isPeriodic_=true;}
 
+                                        /********************************************
+                                         * ******** accessing Function **************
+                                         * *****************************************/
         std::vector<vertex>& accessvertices() {return vertices_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
-        std::vector<int>& accessNumNeighbors() {return NumNeighbors_;}
-        std::vector<std::vector<int>>& accessNeighborIndices() {return neighborIndices_;}
         std::vector<Real>& accessTriangleArea() {return triangleArea_;}
         std::vector<Real3>& accessPerVertexDir1() {return PerVertexdir1_;}
         std::vector<Real3>& accessPerVertexDir2() {return PerVertexdir2_;}
+        Output& accessOutput() {return outputs_;}
 
+        // getters
         const std::vector<vertex>& getvertices() const {return vertices_;}
         const std::vector<triangle>& gettriangles() const {return triangles_;}
-        const std::vector<int>& getNumNeighbors() const {return NumNeighbors_;}
-        const std::vector<std::vector<int>>& getNeighborIndices() const {return neighborIndices_;}
         const std::vector<Real>& getTriangleArea() const {return triangleArea_;}
         const std::vector<Real3>& getPerVertexDir1() const {return PerVertexdir1_;}
         const std::vector<Real3>& getPerVertexDir2() const {return PerVertexdir2_;}
         const std::vector<Real3>& getFaceNormals() const {return facetNormals_;}
         const std::vector<std::vector<int>>& getMapVertexToFace() const {return MapVertexIndicesToFaceIndices_;}
         const std::vector<Real3>& getCornerAreas() const {return cornerArea_;}
-
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
-        bool isBoundary(int i);
         Real3 getBoxLength() {return boxLength_;}
-        const std::map<index2, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
-
-        // Find neighbors indices for a vertex
-        void findVertexNeighbors();
+        const std::map<INT2, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
 
         // Scale all the vertices by a single number 
         void scaleVertices(Real num);
-
-        // find all the boundary vertices
-        void findBoundaryVertices();
 
         // function that updates the normals of a mesh
         void updateNormals();
@@ -129,13 +128,10 @@ class Mesh
 
         // convert pbc mesh to non pbs mesh  --> usually for visualization purpose, so let's not print the normals 
         // we don't actually change the vertices in the mesh obj
-        void ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<index3>& faces);
+        void ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<INT3>& faces);
 
         // calculate volume
         Real calculateVolume();
-
-        // function that finds the triangle indices that a vertex belongs to 
-        void findTriangleIndices();
 
         // function that finds the area of all the triangules on the surface --> Now takes into account PBC
         void CalcTriangleAreaAndFacetNormals();
@@ -149,12 +145,6 @@ class Mesh
         // Find the vertex direction 
         void CalcPerVertexDir();
 
-        // calculate the faces each edge corresponds to
-        void MapEdgeToFaces();
-
-        // map vertex to faces
-        void MapVertexToFaces();
-
         // update the triangles/vertex/edges if they were to be changed
         void update();
 
@@ -164,6 +154,7 @@ class Mesh
         // find PBC distance between 2 vertices 
         void getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist);
         void getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist);
+        void CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec);
 
         // move a vertex into pbc box
         void MoveVertexIntoBox(const Real3& OldVertPos, Real3& NewVertexPos);
@@ -173,22 +164,10 @@ class Mesh
 
         // find the shit that takes a position into the box 
         Real3 getShiftIntoBox(const Real3& v1);
-
-        // get the edges corresponds to the particular vertex
-        std::vector<index2>& getEdgeIndexForVertex(int i);
-        std::vector<int>& getFaceIndicesForEdge(const edge& e);
-        std::vector<int>& getFaceIndicesForEdgeIndex(const index2& e);
-
-        // get the output 
-        Output& accessOutput() { return outputs_;}
     
     private:
         std::vector<vertex> vertices_;
         std::vector<triangle> triangles_;
-
-        // finds the neighbors of a vertex as well as count its number of neighbors
-        std::vector<std::vector<int>> neighborIndices_;
-        std::vector<int> NumNeighbors_;
 
         std::vector<std::vector<int>> VertexTriangleIndices_;
 
@@ -201,12 +180,8 @@ class Mesh
         std::vector<Real3> PerVertexdir1_;
         std::vector<Real3> PerVertexdir2_;
 
-        std::map<index2, std::vector<int>> MapEdgeToFace_;
-
-        std::string refineStrategy_;
-
-        // ptr to the refine object
-        refinePtr MeshRefine_;
+        // map the edge to face 
+        std::map<INT2, std::vector<int>> MapEdgeToFace_;
 
         // a map from vertex indices to the face indices  
         std::vector<std::vector<int>> MapVertexIndicesToFaceIndices_;
@@ -224,7 +199,7 @@ class Mesh
         std::vector<bool> MapBoundaryVertexIndicesToTrue_;
 
         // map vertex to edges 
-        std::unordered_map<int, std::vector<index2>> MapVertexIndexToEdges_;
+        std::vector<std::vector<INT2>> MapVertexToEdges_;
 
         // norms of all the edges in the mesh
         std::vector<Real3> EdgeNorms_;
@@ -245,14 +220,14 @@ namespace MeshTools
 {
     using Real3 = CommonTypes::Real3;
     using Real  = CommonTypes::Real;
-    using index3= CommonTypes::index3;
+    using INT3  = CommonTypes::index3;
     using INT2  = CommonTypes::index2;
 
     bool readPLY(std::string& filename, Mesh& mesh_);
     bool readPLYlibr(std::string& filename, Mesh& mesh_);
 
-    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, Real factor=1.0);
-    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<index3>& faces, const std::vector<Real3>& normals);
+    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
+    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
 
     // calculate PBC distance
     Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);
@@ -270,8 +245,11 @@ namespace MeshTools
     void CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
 
     // map Edge to faces
-    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::map<int,std::vector<INT2>>& MapVertexToEdge);
+    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge);
 
     // find boundary vertices 
-    void CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace);
+    void CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator);
+
+    // check if point is on boundary
+    bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);
 };
