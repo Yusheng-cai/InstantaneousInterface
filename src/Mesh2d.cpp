@@ -115,7 +115,7 @@ void Mesh2d::InputFileReader()
         ss.str(sentence);
 
         std::vector<int> tempI;
-        index2 idx;
+        INT2 idx;
         int ind;
 
         while (ss >> ind)
@@ -288,7 +288,7 @@ void Mesh2d::generate()
     {
         if (fit -> is_in_domain())
         {
-            index3 idx;
+            INT3 idx;
             idx[0] = MapFromVertexToIndex_[fit -> vertex(0)];
             idx[1] = MapFromVertexToIndex_[fit -> vertex(2)];
             idx[2] = MapFromVertexToIndex_[fit -> vertex(1)];
@@ -312,7 +312,9 @@ void Mesh2d::MakePeriodic()
     Real tol=1e-8;
 
     // first let's find all the boundary vertices 
-    mesh_.findBoundaryVertices();
+    MeshTools::MapEdgeToFace(mesh_, MapEdgeToFace_, MapVertexToEdge_);
+    MeshTools::CalculateBoundaryVertices(mesh_, MapEdgeToFace_, boundaryIndicator_);
+
     const auto& vertices = mesh_.getvertices();
     std::vector<int> BoundaryIndices_;
 
@@ -322,7 +324,7 @@ void Mesh2d::MakePeriodic()
     int indexTot=0;
     for (int i=0;i<vertices.size();i++)
     {
-        if (mesh_.isBoundary(i))
+        if (MeshTools::IsBoundary(i, boundaryIndicator_))
         {
             BoundaryIndices_.push_back(i);
         }

@@ -65,7 +65,7 @@ class Mesh2d : public MeshGeneration
         int numSeed_;
 
         std::vector<Real2> points_;
-        std::vector<index2> constraintIndices_;
+        std::vector<INT2> constraintIndices_;
         std::vector<Real2> seeds_;
         Real MaxDistanceBetweenEdges_;
 
@@ -85,7 +85,7 @@ class Mesh2d : public MeshGeneration
         int numOutputFaces_;
         int numInputPoints_;
         std::vector<Real3> OutputVertices_;
-        std::vector<index3> OutputFaces_;
+        std::vector<INT3> OutputFaces_;
 
         // boolean that signifies whether or not the calculation is for pbc
         bool isPBC_=false;
