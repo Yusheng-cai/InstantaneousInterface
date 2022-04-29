@@ -20,41 +20,8 @@ MeshCurvature::MeshCurvature(MeshRefineStrategyInput& input)
     pack_.ReadNumber("k0", ParameterPack::KeyType::Required, meanCurvature_);
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
     pack_.Readbool("FixBoundary", ParameterPack::KeyType::Optional,fixBoundary_);
-    pack_.ReadString("errorfile", ParameterPack::KeyType::Optional, errorFile_);
-    pack_.ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
-
-    // initialize the file to output the error
-    initializeErrorFile();
-
-    // read in xtc info
-    xtcWrite_ = pack_.ReadString("xtcfile", ParameterPack::KeyType::Optional, xtcName);
-
-    if (xtcWrite_)
-    {
-        pack_.ReadNumber("xtcskip", ParameterPack::KeyType::Optional, xtcskip_);
-        xtcFile_ = xtcptr(new XtcFile(xtcName, "write"));
-        xtcFile_->open();
-    }
 }
 
-void MeshCurvature::initializeErrorFile()
-{
-    if (! errorFile_.empty())
-    {
-        errorStream_.open(errorFile_);
-    }
-}
-
-void MeshCurvature::printToErrorFile()
-{
-    if (! errorFile_.empty())
-    {
-        if ((iteration_ % skip_) == 0 )
-        {
-            errorStream_ << iteration_ << " " << err_ << "\n";
-        }
-    }
-}
 
 void MeshCurvature::findVertices()
 {
@@ -196,26 +163,6 @@ void MeshCurvature::refine(Mesh& mesh)
 
         // update the iterations
         iteration_ ++;
-
-        // whether or not to write the xtc file
-        if (xtcWrite_)
-        {
-            std::vector<Real3> vertPos(vertices.size());
-            for (int j=0;j<vertices.size();j++)
-            {
-                vertPos[j] = vertices[j].position_;
-            }
-
-            if (iteration_ % xtcskip_ == 0)
-            {
-                xtcFile_->writeFrame(vertPos, xtcstep_, iteration_,box);
-
-                xtcstep_ ++;
-            }
-        }
-
-        // see if we need to record the error --> Max error
-        printToErrorFile();
 
         // break the calculation if iteration is already maxed out
         if (iteration_ > maxStep)

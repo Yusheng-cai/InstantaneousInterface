@@ -29,10 +29,6 @@ class MeshCurvature : public MeshRefineStrategy
 
         void findVertices();
 
-        void initializeErrorFile();
-
-        void printToErrorFile();
-
     private:
         std::string curvaturetype_;
         curveptr curvatureCalc_;
@@ -50,20 +46,11 @@ class MeshCurvature : public MeshRefineStrategy
 
         // keep track of number of iteration
         int iteration_=0;
-
-        std::string xtcName="test.xtc";
-        bool xtcWrite_=false;
-        xtcptr xtcFile_;
-        int xtcstep_=1;
-        int xtcskip_=100;
         int maxStep = 1e6;
         bool fixBoundary_=true;
 
         // whether or not we want to print the error 
-        std::string errorFile_;
-        std::vector<Real> error_;
         Real err_;
-        std::ofstream errorStream_;
         int skip_=1;
 
         Matrix box={{{10,0,0},{0,2,0},{0,0,2}}};
