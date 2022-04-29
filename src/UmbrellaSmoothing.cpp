@@ -10,10 +10,7 @@ UmbrellaSmoothing::UmbrellaSmoothing(MeshRefineStrategyInput& input)
 {
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
-    input.pack.ReadString("solver", ParameterPack::KeyType::Optional,solverName_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
-
-    ASSERT((solverName_ == "explicit" || solverName_ == "implicit"), "The iterative type must either be explicit or implicit");
 }
 
 void UmbrellaSmoothing::refine(Mesh& mesh)
@@ -37,78 +34,18 @@ void UmbrellaSmoothing::refine(Mesh& mesh)
         std::cout << "Initial volume = " << initialVolume_ << std::endl;
     }
 
-    if (solverName_ == "implicit")
-    {
-        prepareImplicitMatrix();
-    }
+    prepareImplicitMatrix();
 
     for (int i=0;i<numIterations_;i++)
     {
         std::cout << "Step " << i << std::endl;
-        if (solverName_ == "explicit")
-        {
-            refineStepExplicit();
-        }
-        else
-        {
-            refineStepImplicit();
-        }
+        refineStepImplicit();
     }
 
     auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
     mesh_->updateNormals();
-}
-
-void UmbrellaSmoothing::refineStepExplicit()
-{
-    // get the vertices 
-    const auto& vertices = mesh_->getvertices();
-
-    // get neighbors indices 
-    const auto& neighborIndices = mesh_->getNeighborIndices();
-
-    // clear new vertices 
-    newVertices_.clear();
-    newVertices_.insert(newVertices_.end(),oldVertices_.begin(), oldVertices_.end());
-
-    #pragma omp parallel for
-    for (int i=0;i<vertices.size();i++)
-    {
-        if (! mesh_->isBoundary(i))
-        {
-            int numNeighbors = neighborIndices[i].size();
-
-            // the new vertex 
-            Real3 newV;
-            newV.fill(0);
-
-            Real factor = lambdadt_/numNeighbors;
-            Real3 diff;
-            diff.fill(0);
-
-            // perform 1/m \sum_{neighbors} xj - xi
-            for (int j=0;j<numNeighbors;j++)
-            {
-                int id = neighborIndices[i][j];
-                for (int k=0;k<3;k++)
-                {
-                    diff[k] += factor * (oldVertices_[id].position_[k] - oldVertices_[i].position_[k]);
-                }
-            }
-
-            for (int j=0;j<3;j++)
-            {
-                newV[j] += diff[j] + oldVertices_[i].position_[j];
-            }
-
-            newVertices_[i].position_ = newV;
-        }
-    }
-
-    oldVertices_.clear();
-    oldVertices_.insert(oldVertices_.end(), newVertices_.begin(), newVertices_.end());
 }
 
 void UmbrellaSmoothing::refineStepImplicit()
