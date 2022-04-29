@@ -42,9 +42,9 @@ void CurvatureJetFit::calculate(Mesh& mesh)
 {
     initialize(mesh);
 
-    mesh.findVertexNeighbors();
+    std::vector<std::vector<int>> VertexNeighbors;
+    MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
 
-    const auto& VertexNeighbors_ = mesh.getNeighborIndices();
     const auto& vertices = mesh.getvertices();
 
     CurvaturePerVertex_.resize(vertices.size());
@@ -57,12 +57,12 @@ void CurvatureJetFit::calculate(Mesh& mesh)
     if (foundnumneighrs_)
     {
         std::cout << "Using number of vertices." << std::endl;
-        Graph::getNearbyIndicesNVertexAway(VertexNeighbors_,numneighbors_,NeighborIndicesNVertex_);
+        Graph::getNearbyIndicesNVertexAway(VertexNeighbors,numneighbors_,NeighborIndicesNVertex_);
     }
     else
     {
         std::cout << "Using number of neighbors." << std::endl;
-        Graph::getNNearbyIndices(VertexNeighbors_,numpoints_-1,NeighborIndicesNVertex_);
+        Graph::getNNearbyIndices(VertexNeighbors,numpoints_-1,NeighborIndicesNVertex_);
     }
 
     coefficientsPerVertex_.resize(vertices.size());

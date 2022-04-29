@@ -16,13 +16,13 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     // initialize the mesh 
     initialize(mesh);
 
-    mesh.findVertexNeighbors();
-
-    const auto& VertexNeighbors_ = mesh.getNeighborIndices();
     const auto& vertices = mesh.getvertices();
 
+    std::vector<std::vector<int>> VertexNeighbors;
+    MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
+
     std::vector<std::vector<int>> NeighborIndicesNVertex;
-    Graph::getNearbyIndicesNVertexAway(VertexNeighbors_, NumNeighbors_,NeighborIndicesNVertex);
+    Graph::getNearbyIndicesNVertexAway(VertexNeighbors, NumNeighbors_,NeighborIndicesNVertex);
 
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,-1}};
@@ -40,6 +40,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
                 std::cout << "Neighbor of insufficient index " << i << " is " << neighbors[j] << "\n";
             }
         }
+
         ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
          index = " << i << " number of neighbors = " << neighbors.size());
 

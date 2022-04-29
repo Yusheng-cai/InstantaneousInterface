@@ -16,7 +16,7 @@ void CurvatureFDM::calculate(Mesh& mesh)
 {
     initialize(mesh);
 
-    mesh.findVertexNeighbors();
+    MeshTools::CalculateVertexNeighbors(mesh, neighbor_indices_);
 
     if (MeanMethod_ == "arithmetic")
     {
@@ -53,23 +53,22 @@ void CurvatureFDM::calculateArithmeticMean(Mesh& mesh)
 {   
     curvature_.clear();
     curvature_.resize(mesh.getNumVertices());
+
     std::fill(curvature_.begin(), curvature_.end(),0.0);
 
-    const auto& vertices_ = mesh.getvertices();
-    const auto& neighbor_indices_ = mesh.getNeighborIndices();
-    const auto& numNeighbors = mesh.getNumNeighbors();
+    const auto& vertices = mesh.getvertices();
 
     // Now we calculate the curvature
-    for (int i=0;i<vertices_.size();i++)
+    for (int i=0;i<vertices.size();i++)
     {
-        auto& v1 = vertices_[i];
+        auto& v1 = vertices[i];
         auto& neighbors = neighbor_indices_[i];
 
         Real neighborAreaTot = 0.0;;
 
         for (int j=0;j<neighbors.size();j++)
         { 
-            auto& v2 = vertices_[neighbors[j]];
+            auto& v2 = vertices[neighbors[j]];
 
             Real3 diff;
             Real3 diffn;
@@ -102,11 +101,11 @@ void CurvatureFDM::calculateArithmeticMean(Mesh& mesh)
         }
     }
 
-    ASSERT((numNeighbors.size() == curvature_.size()), "The size for number of neighors is wrong.");
+    ASSERT((neighbor_indices_.size() == curvature_.size()), "The size for number of neighors is wrong.");
 
     for (int i=0;i<curvature_.size();i++)
     { 
-        curvature_[i] = curvature_[i]/numNeighbors[i];
+        curvature_[i] = curvature_[i]/neighbor_indices_[i].size();
     } 
 
 }
@@ -117,21 +116,19 @@ void CurvatureFDM::calculateGeometricMean(Mesh& mesh)
     curvature_.resize(mesh.getNumVertices());
     std::fill(curvature_.begin(), curvature_.end(),1.0);
 
-    const auto& vertices_ = mesh.getvertices();
-    const auto& neighbor_indices_ = mesh.getNeighborIndices();
-    const auto& numNeighbors = mesh.getNumNeighbors();
+    const auto& vertices = mesh.getvertices();
 
     // Now we calculate the curvature
-    for (int i=0;i<vertices_.size();i++)
+    for (int i=0;i<vertices.size();i++)
     {
-        auto& v1 = vertices_[i];
+        auto& v1 = vertices[i];
         auto& neighbors = neighbor_indices_[i];
 
         Real neighborAreaTot = 0.0;;
 
         for (int j=0;j<neighbors.size();j++)
         { 
-            auto& v2 = vertices_[neighbors[j]];
+            auto& v2 = vertices[neighbors[j]];
 
             Real3 diff;
             Real3 diffn;
@@ -164,10 +161,10 @@ void CurvatureFDM::calculateGeometricMean(Mesh& mesh)
         }
     }
 
-    ASSERT((numNeighbors.size() == curvature_.size()), "The size for number of neighors is wrong.");
+    ASSERT((neighbor_indices_.size() == curvature_.size()), "The size for number of neighors is wrong.");
 
     for (int i=0;i<curvature_.size();i++)
     { 
-        curvature_[i] = std::pow(curvature_[i], 1.0/numNeighbors[i]);
+        curvature_[i] = std::pow(curvature_[i], 1.0/neighbor_indices_[i].size());
     } 
 }

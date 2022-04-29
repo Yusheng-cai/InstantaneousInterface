@@ -42,34 +42,12 @@ void CurvatureTensor::calculate(Mesh& mesh)
         mesh.getVertexDistance(vertices[t[0]], vertices[t[2]], edges[1], edge1sq);
         mesh.getVertexDistance(vertices[t[1]], vertices[t[0]], edges[2], edge2sq);
 
-        #ifdef MY_DEBUG
-        Real3 length;
-        for (int j=0;j<3;j++)
-        {
-            length[j] = std::sqrt(LinAlg3x3::DotProduct(edges[j], edges[j]));
-            std::cout << "Length of triangle " << i << ", edges " << j << " is " << length[j] << std::endl;
-        }
-        #endif 
-
         Real3 U = edges[0];
         LinAlg3x3::normalize(U);
         Real3 N = LinAlg3x3::CrossProduct(edges[0], edges[1]);
         LinAlg3x3::normalize(N);
         Real3 V = LinAlg3x3::CrossProduct(N,U);
         LinAlg3x3::normalize(V); 
-
-        #ifdef MY_DEBUG
-        std::cout << "For triangle " << i << std::endl; 
-        std::cout << "U = " << U[0] << " " << U[1] << " " << U[2] << std::endl;
-        std::cout << "V = " << V[0] << " " << V[1] << " " << V[2] << std::endl;
-        std::cout << "N = " << N[0] << " " << N[1] << " " << N[2] << std::endl;
-        std::cout << "Point 1 = " << vertices[t[0]].position_[0] << " " << vertices[t[0]].position_[1] << " " << vertices[t[0]].position_[2] << std::endl;
-        std::cout << "Point 2 = " << vertices[t[1]].position_[0] << " " << vertices[t[1]].position_[1] << " " << vertices[t[1]].position_[2] << std::endl;
-        std::cout << "Point 3 = " << vertices[t[2]].position_[0] << " " << vertices[t[2]].position_[1] << " " << vertices[t[2]].position_[2] << std::endl;
-        std::cout << "Normal 1 = " << vertices[t[0]].normals_[0] << " " << vertices[t[0]].normals_[1] << " " << vertices[t[0]].normals_[2] << std::endl;
-        std::cout << "Normal 2 = " << vertices[t[1]].normals_[0] << " " << vertices[t[1]].normals_[1] << " " << vertices[t[1]].normals_[2] << std::endl;
-        std::cout << "Normal 3 = " << vertices[t[2]].normals_[0] << " " << vertices[t[2]].normals_[1] << " " << vertices[t[2]].normals_[2] << std::endl;
-        #endif 
 
         // initialize A and B matrix to be solved
         Eigen::Matrix3d A;
@@ -156,26 +134,6 @@ void CurvatureTensor::calculate(Mesh& mesh)
 
         Eigen::Vector2d eig = eigensolver.eigenvalues().real();
 
-        // check how the least squares is doing 
-        #ifdef MY_DEBUG
-        Real error = 0.0;
-        std::cout << "soln = " << ans[0] << " " << ans[1] << " " << ans[2] << std::endl;
-        Real nn1, nn2;
-        for (int j=0;j<3;j++)
-        {
-            nn1 = ans[0]*eJVec[j][0] + ans[1]*eJVec[j][1];
-            nn2 = ans[1]*eJVec[j][0] + ans[2]*eJVec[j][1];
-
-            error += std::pow((nn1 - nJVec[j][0]),2.0);
-            error += std::pow((nn2 - nJVec[j][1]),2.0);
-        }
-        std::cout << "Error = " << error << std::endl;
-        #endif
-        
-        #ifdef MY_DEBUG
-        std::cout << "Curvature of triangle " << i << " = " << eig << std::endl;
-        #endif 
-
         curvatureTensorPerTriangle_[i] = ans;
         
         for (int j=0;j<3;j++)
@@ -183,16 +141,7 @@ void CurvatureTensor::calculate(Mesh& mesh)
             int id_ = t[j];
             Real3 u = pervertexdir1[id_];
             Real3 v = pervertexdir2[id_];
-
-            #ifdef MY_DEBUG
-            std::cout << "The curvature tensor before = " << ans[0] << " " << ans[1] << " " << ans[2] << std::endl;
-            #endif
-
             Real3 newcurv = projectCurvature(u,v, U, V,ans);
-
-            #ifdef MY_DEBUG
-            std::cout << "The curvature tensor after = " <<newcurv[0] << " " << newcurv[1] << " " << newcurv[2] << std::endl;
-            #endif 
 
             Eigen::Matrix2d tempMat;
             Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
