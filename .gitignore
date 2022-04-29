@@ -37,3 +37,9 @@ RELEASE/
 DEBUG/
 
 .DS_Store
+
+.ipynb_checkpoints/
+
+*.swp
+
+.vscode/
