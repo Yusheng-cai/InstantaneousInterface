@@ -37,7 +37,6 @@ set(IIsrc_HEADER
     "Field.h"
     "SimulationBox.h"
     "SimulationState.h"
-    "GaussianCoarseGrainFunction.h"
     "LinAlgTools.h"
     "AverageField.h"
     "Mesh.h"
