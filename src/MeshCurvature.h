@@ -10,6 +10,8 @@
 #include <array>
 #include <memory>
 #include <chrono>
+#include <algorithm>
+#include <numeric>
 
 // We are trying to solve the general equation of 
 // dxi/dt = (k0 - kmean) * ni

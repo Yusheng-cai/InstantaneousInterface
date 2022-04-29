@@ -25,59 +25,33 @@ MeshCurvature::MeshCurvature(MeshRefineStrategyInput& input)
 
 void MeshCurvature::findVertices()
 {
-    // first let's see if user has provided with information about bounding boxes 
-    Real2 xrange, yrange, zrange;
-    Real INF = std::numeric_limits<Real>::infinity();
-
-    xrange = {{-INF, INF}};
-    yrange = {{-INF, INF}};
-    zrange = {{-INF, INF}};
-
-    bool xrangeRead = pack_.ReadArrayNumber("xrange", ParameterPack::KeyType::Optional, xrange);
-    bool yrangeRead = pack_.ReadArrayNumber("yrange", ParameterPack::KeyType::Optional, yrange);
-    bool zrangeRead = pack_.ReadArrayNumber("zrange", ParameterPack::KeyType::Optional, zrange);
-
     const auto& vertices = mesh_->getvertices();
 
-    // If none of these are provided, then we keep the boundary vertices constant
     if (fixBoundary_)
     {
-        mesh_->MapEdgeToFaces();
-        mesh_->findBoundaryVertices();
+        MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+        MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
         for (int i=0;i<vertices.size();i++)
         {
-            if (! mesh_->isBoundary(i))
+            if (! MeshTools::IsBoundary(i, boundaryIndicator_))
             {
                 OutsideIndices_.push_back(i);
             }
         }
-    }
 
-    if (xrangeRead || yrangeRead || zrangeRead)
+        // Find the unique indices 
+        auto ip = std::unique(OutsideIndices_.begin(), OutsideIndices_.end());
+        OutsideIndices_.resize(std::distance(OutsideIndices_.begin(), ip));
+
+        ASSERT((OutsideIndices_.size() <= vertices.size()), "The outside indices size = " << OutsideIndices_.size() << " while vertices size = " << vertices.size());
+    }
+    else
     {
-        const auto& vertices = mesh_->getvertices();
-
-        for (int i=0;i<vertices.size();i++)
-        {
-            auto v = vertices[i];
-            bool inX = (v.position_[0] > xrange[0]) && (v.position_[0] < xrange[1]);
-            bool inY = (v.position_[1] > yrange[0]) && (v.position_[1] < yrange[1]);
-            bool inZ = (v.position_[2] > zrange[0]) && (v.position_[2] < zrange[1]);
-
-            // if not all of them are inside the thing
-            if (! (inX && inY && inZ))
-            {
-                OutsideIndices_.push_back(i);
-            }
-        }
+        OutsideIndices_.clear();
+        OutsideIndices_.resize(vertices.size());
+        std::iota(OutsideIndices_.begin(), OutsideIndices_.end(),0);
     }
-
-    // Find the unique indices 
-    auto ip = std::unique(OutsideIndices_.begin(), OutsideIndices_.end());
-    OutsideIndices_.resize(std::distance(OutsideIndices_.begin(), ip));
-
-    ASSERT((OutsideIndices_.size() <= vertices.size()), "The outside indices size = " << OutsideIndices_.size() << " while vertices size = " << vertices.size());
 }
 
 void MeshCurvature::refine(Mesh& mesh)
