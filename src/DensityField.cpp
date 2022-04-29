@@ -12,6 +12,9 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // Read in the sigma value for the gaussian smoothing function
     input.pack_.ReadNumber("sigma", ParameterPack::KeyType::Required, sigma_);
+    sigmasq_ = sigma_ * sigma_;
+    prefactor_ = std::pow(2*Constants::PI*sigmasq_, -1.5);
+
 
     // Read in the cut off value (n*sigma_)
     input.pack_.ReadNumber("cutoff", ParameterPack::KeyType::Optional, n_);
@@ -100,6 +103,18 @@ void DensityField::printFinalOutput()
     mesh_ -> print();
 }
 
+inline DensityField::Real DensityField::GaussianCoarseGrainFunction(const Real3& dx)
+{
+    Real dotproduct = 0.0;
+
+    for(int i=0;i<3;i++)
+    {
+        dotproduct += dx[i] * dx[i];
+    }
+
+    return prefactor_*std::exp(-dotproduct/(2*sigmasq_));
+}
+
 void DensityField::CalcOffsetIndex()
 {
     offsetIndex_.clear();
@@ -124,13 +139,6 @@ void DensityField::CalcOffsetIndex()
             }
         }
     }
-    #ifdef MY_DEBUG
-    std::cout << "Printing offset indices with cutoff = " << cutoff_ << " Nxoffset = " << Nx_offset << " , Nyoffset = " << Ny_offset << " Nzoffset = " << Nz_offset << std::endl;
-    for (int i=0;i<offsetIndex_.size();i++)
-    {
-        std::cout << offsetIndex_[i][0] << " " << offsetIndex_[i][1] << " " << offsetIndex_[i][2] << std::endl;
-    }
-    #endif 
 }
 
 void DensityField::addAtomGroup(std::string& name)
@@ -228,10 +236,6 @@ void DensityField::CalculateInstantaneousInterface()
 
     findAtomsIndicesInBoundingBox(); 
 
-    #ifdef MY_DEBUG
-    std::cout << "Number of Atoms inside the observation vol is " << AtomIndicesInside_.size() << std::endl;
-    #endif 
-
     auto atomgroup = getAtomGroup(atomGroupName_);
     auto& atoms = atomgroup.getAtoms();
 
@@ -263,7 +267,7 @@ void DensityField::CalculateInstantaneousInterface()
                 bound_box_->calculateDistance(latticepos, correctedPos, distance);
 
 
-                Real val = GaussianCoarseGrain::GaussianCoarseGrainFunction(distance, sigma_);
+                Real val = GaussianCoarseGrainFunction(distance);
                 fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
             }
         }    

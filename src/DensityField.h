@@ -6,13 +6,12 @@
 #include "BoundingBox.h"
 #include "Field.h"
 #include "parallel/OpenMP_buffer.h"
-#include "GaussianCoarseGrainFunction.h"
 #include "tools/GenericFactory.h"
 #include "marching_cubes.hpp"
 #include "tools/OutputFunction.h"
 #include "Curvature.h"
 #include "Registry.h"
-
+#include "tools/Constants.h"
 
 #include <vector>
 #include <map>
@@ -59,8 +58,6 @@ class DensityField
 
         void findAtomsIndicesInBoundingBox();
 
-        bool isOpen();
-
         void CalcOffsetIndex();
         void CalculateInstantaneousInterface();
 
@@ -71,6 +68,8 @@ class DensityField
         const AtomGroup& getAtomGroup(std::string& name);
         AtomGroup& accessAtomGroup(std::string& name);
         Mesh& accessMesh() {return *mesh_;}
+        
+        inline Real GaussianCoarseGrainFunction(const Real3& dx);
 
     protected:
         // the atomgroups
@@ -92,6 +91,8 @@ class DensityField
 
         // sigma used for gaussian smoothing 
         Real sigma_;
+        Real sigmasq_;
+        Real prefactor_;
 
         // we cut off n sigmas away
         Real n_ = 2.5;
