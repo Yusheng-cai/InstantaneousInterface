@@ -68,4 +68,8 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // whether or not we are using virtual sites on the boundary
         bool virtualSite_=false;
+
+        // triangle areas 
+        std::vector<Real> TriangleAreas_;
+        std::vector<std::vector<int>> MapVertexToFace_;
 };

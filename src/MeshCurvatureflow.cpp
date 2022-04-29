@@ -22,14 +22,10 @@ void MeshCurvatureflow::refine(Mesh& mesh)
 {
     mesh_ = &mesh;
 
-    // find the boundary vertices
-    mesh_->findBoundaryVertices();
-
-    // find map from vertex to the face indices 
-    mesh_->MapVertexToFaces();
-
-    // calculate neighbors
-    mesh_->findVertexNeighbors();
+    MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+    MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+    MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
+    MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
 
     if (scale_)
     {
@@ -53,12 +49,16 @@ void MeshCurvatureflow::refine(Mesh& mesh)
 
 std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag)
 {
-    // obtain the edges that corresponds to this particular vertex 
-    auto& edgesIndices = mesh_->getEdgeIndexForVertex(i);
+    // obtain triangles and vertices from mesh
     const auto& triangles = mesh_->gettriangles();
-    const auto& vertices = mesh_->getvertices();
-    int edgesize = edgesIndices.size();
+    const auto& vertices  = mesh_->getvertices();
 
+    // obtain the edges that corresponds to this particular vertex 
+    auto edgesIndices     = MapVertexToEdge_[i];
+    int edgesize = edgesIndices.size();
+    ASSERT((edgesize > 0), "Vertex " << i << " corresponds to 0 edges.");
+
+    // factor at which we detect INF
     Real epsilon=1e-8;
 
     std::vector<Real> factors;
@@ -89,8 +89,9 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
         std::vector<int> otherPoints;
 
         // obtain the face indices for this particular edge 
-        std::vector<int>& faceIndices = mesh_->getFaceIndicesForEdgeIndex(e);
-
+        auto it = MapEdgeToFace_.find(e);
+        ASSERT((it != MapEdgeToFace_.end()), "The edge " << e[0] << " " << e[1] << " is not found.");
+        std::vector<int> faceIndices  = it -> second;
         ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
 
         for (int k=0;k<faceIndices.size();k++)
@@ -132,13 +133,12 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
 
         if (mesh_->isPeriodic())
         {
-            auto boxLength = mesh_->getBoxLength();
-
-            Real3 shift = MeshTools::calculateShift(vertices[neighborId[j]].position_, vertices[i].position_, boxLength);
+            Real3 ShiftVec;
+            mesh_ -> CalculateShift(vertices[neighborId[j]].position_, vertices[i].position_,ShiftVec);
 
             for (int k=0;k<3;k++)
             {
-                Lfactor[k] += factor * shift[k];
+                Lfactor[k] += factor * ShiftVec[k];
             }
         }
 
@@ -154,15 +154,16 @@ void MeshCurvatureflow::refineImplicitStep()
     mesh_->CalcVertexNormals();
 
     // Get sum of triangles for each of the vertices  
-    auto& vertexIndicesToface = mesh_->getMapVertexToFace();
-    const auto& triangleArea = mesh_->getTriangleArea();
+    std::vector<Real3> normals;
+    MeshTools::CalculateTriangleAreasAndFaceNormals(*mesh_, TriangleAreas_, normals);
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
+
     #pragma omp parallel for
-    for (int i=0;i<vertexIndicesToface.size();i++)
+    for (int i=0;i<MapVertexToFace_.size();i++)
     {
-        for (int j=0;j<vertexIndicesToface[i].size();j++)
+        for (int j=0;j<MapVertexToFace_[i].size();j++)
         {
-            TotalArea_[i] += triangleArea[vertexIndicesToface[i][j]];
+            TotalArea_[i] += TriangleAreas_[MapVertexToFace_[i][j]];
         }
     }
 
@@ -248,7 +249,6 @@ void MeshCurvatureflow::getImplicitMatrix()
     Lfactors_.clear();
     Lfactors_.resize(vertices.size(), {{0,0,0}});
 
-    const auto& neighborIndices = mesh_->getNeighborIndices();
     Real epsilon=1e-5;
 
     triplets_.clear();
@@ -272,7 +272,7 @@ void MeshCurvatureflow::getImplicitMatrix()
         for (int i=0;i<vertices.size();i++)
         {
             std::map<int,int> tempMap;
-            for (auto ind : neighborIndices[i])
+            for (auto ind : neighborIndices_[i])
             {
                 // first check if this is a periodic edge
                 Real3 newarr = {};
@@ -298,7 +298,7 @@ void MeshCurvatureflow::getImplicitMatrix()
         for (int i=0;i<vertices.size();i++)
         {
             std::map<int,int> tempMap;
-            for (auto ind : neighborIndices[i])
+            for (auto ind : neighborIndices_[i])
             {
                 tempMap.insert(std::make_pair(ind, ind));
             }
@@ -315,9 +315,9 @@ void MeshCurvatureflow::getImplicitMatrix()
         #pragma omp for
         for (int i=0;i<vertices.size();i++)
         {
-            if (! mesh_->isBoundary(i))
+            if (! MeshTools::IsBoundary(i, boundaryIndicator_))
             {
-                int numneighbors = neighborIndices[i].size();
+                int numneighbors = neighborIndices_[i].size();
                 std::vector<int> neighborId;
 
                 // get the weights of the neighbor indices 
@@ -366,11 +366,6 @@ void MeshCurvatureflow::getImplicitMatrix()
     {
         triplets_.insert(triplets_.end(), it -> begin(), it -> end());
     }
-
-    // for (auto t : triplets_)
-    // {
-    //     std::cout << t.row() << " " << t.col() << " " << t.value() << "\n";
-    // }
 
     // set the L matrix 
     L_.setZero();

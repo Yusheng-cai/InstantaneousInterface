@@ -8,8 +8,10 @@
 
 #include <vector>
 #include <array>
+#include <map>
 
 
+// forward declare Mesh
 class Mesh;
 
 struct MeshRefineStrategyInput
@@ -23,6 +25,7 @@ class MeshRefineStrategy
     public:
         using Real = CommonTypes::Real;
         using Real3 = CommonTypes::Real3;
+        using INT2 = CommonTypes::index2;
 
         MeshRefineStrategy(MeshRefineStrategyInput& input);
 
@@ -38,6 +41,12 @@ class MeshRefineStrategy
         ParameterPack& pack_;
         Output output_;
         std::string name_ = "refine";
+
+        // neighbor Indices
+        std::vector<std::vector<int>> neighborIndices_;
+        std::map<INT2, std::vector<int>> MapEdgeToFace_;
+        std::vector<std::vector<INT2>> MapVertexToEdge_;
+        std::vector<bool> boundaryIndicator_;
 };
 
 namespace MeshRefineStrategyFactory

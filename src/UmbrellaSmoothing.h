@@ -33,6 +33,7 @@ class UmbrellaSmoothing : public MeshRefineStrategy
     public:
         using triplet = Eigen::Triplet<Real,int>;
         using Sparse_mat = Eigen::SparseMatrix<Real>;
+        using INT2    = CommonTypes::index2;
 
         UmbrellaSmoothing(MeshRefineStrategyInput& input);
 
@@ -48,11 +49,11 @@ class UmbrellaSmoothing : public MeshRefineStrategy
 
         std::vector<vertex> newVertices_;
         std::vector<vertex> oldVertices_;
-        std::string solverName_="explicit";
 
         // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
         std::vector<triplet> triplets_;
         Eigen::SparseMatrix<Real> L_;
+        std::vector<Real3> Lfactors_;
 
         // initialize the solver
         Eigen::BiCGSTAB<Sparse_mat> solver_;
