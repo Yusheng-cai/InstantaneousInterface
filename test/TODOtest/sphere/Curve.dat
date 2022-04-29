@@ -3,6 +3,7 @@ plyfile = {
 }
 
 curvature = {
+    name = jfit
     type = jetfit
     outputs = [ curvature ] 
     outputNames = [ jetfit.out ]
@@ -12,6 +13,7 @@ curvature = {
 }
 
 curvature = {
+    name = cfit
     type = curvefit
     outputs = [ curvature ] 
     outputNames = [ curvefit.out ]
@@ -19,6 +21,7 @@ curvature = {
 }
 
 curvature = {
+    name = t
     type = tensor
     outputs = [ curvature ] 
     outputNames = [ tensor.out ]
