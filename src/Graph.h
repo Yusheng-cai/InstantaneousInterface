@@ -13,9 +13,6 @@ namespace Graph
     using index3 = CommonTypes::index3;
     using Real   = CommonTypes::Real;
     using Real3  = CommonTypes::Real3;
-    // This assumes that the vector is shaped accordingly
-    // template<typename T>
-    // void FloryWarshallAlgo(const PairDistanceMatrix<T>& distance, PairDistanceMatrix<T>& graph);
 
     // Need the input of nearby Indices of the vertex connected to it 
     void getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NerabyIndicesNVertex);
