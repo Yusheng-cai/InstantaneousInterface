@@ -14,11 +14,12 @@
 class MeshGeneration
 {
     public:
-        using Real = CommonTypes::Real;
+        using Real  = CommonTypes::Real;
         using Real3 = CommonTypes::Real3;
-        using Real2= CommonTypes::Real2;
-        using index2 = CommonTypes::index2;
-        using index3 = CommonTypes::index3;
+        using Real2 = CommonTypes::Real2;
+        using INT2  = CommonTypes::index2;
+        using INT3  = CommonTypes::index3;
+
         MeshGeneration(ParameterPack& pack);
         virtual void generate() = 0;
         virtual void printOutputs();
@@ -29,6 +30,12 @@ class MeshGeneration
 
         std::vector<std::string> OutputNames_;
         std::vector<std::string> OutputFileNames_;
+
+        // neighbor Indices
+        std::vector<std::vector<int>> neighborIndices_;
+        std::map<INT2, std::vector<int>> MapEdgeToFace_;
+        std::vector<std::vector<INT2>> MapVertexToEdge_;
+        std::vector<bool> boundaryIndicator_;
 };
 
 
