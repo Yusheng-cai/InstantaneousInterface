@@ -10,9 +10,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
 {
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
-    input.pack.ReadString("solver", ParameterPack::KeyType::Optional, solverName_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
-    input.pack.ReadNumber("k0", ParameterPack::KeyType::Optional, k0_);
     input.pack.Readbool("virtualSite", ParameterPack::KeyType::Optional, virtualSite_);
 
     Eigen::initParallel();
@@ -47,14 +45,7 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     for (int i=0;i<numIterations_;i++)
     {
         std::cout << "Iteration " << i << std::endl;
-        if (solverName_ == "explicit")
-        {
-            refineExplicitStep();
-        }
-        else 
-        {
-            refineImplicitStep();
-        }
+        refineImplicitStep();
     }
 
     mesh_->updateNormals();
@@ -82,12 +73,6 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
         auto& e = edgesIndices[j];
         int index1 = e[0];
         int index2 = e[1];
-
-        #ifdef MY_DEBUG
-        std::cout << "edge " << j << " index1 = " << index1 << std::endl;
-        std::cout << "edge " << j << " index2 = " << index2 << std::endl;
-        std::cout << "neighbor edge = " << neighbors[i][j] << std::endl;
-        #endif
 
         if (index1 != i)
         {
@@ -135,12 +120,13 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
             mesh_->getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
             mesh_->getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
             Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
-            Real sintheta = std::sqrt(1 - costheta*costheta);
-
-            if ((std::abs(sintheta) - 0) < epsilon)
+            Real num = 1 - costheta*costheta;
+            if (num < epsilon)
             {
                 flag = false;
             }
+            Real sintheta = std::sqrt(1 - costheta*costheta);
+            
             factor += costheta/sintheta;
         }
 
@@ -160,145 +146,6 @@ std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, 
     }
 
     return factors;
-}
-
-void MeshCurvatureflow::refineExplicitStep()
-{
-    // calculate vertex normals but unweighted
-    mesh_->CalcVertexNormals();
-
-    const auto& vertexIndicesToface = mesh_->getMapVertexToFace();
-    const auto& triangleArea = mesh_->getTriangleArea();
-    const auto& vertices = mesh_->getvertices();
-    const auto& triangles= mesh_->gettriangles();
-
-    std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
-
-    #pragma omp parallel for
-    for (int i=0;i<vertexIndicesToface.size();i++)
-    {
-        for (int j=0;j<vertexIndicesToface[i].size();j++)
-        {
-            TotalArea_[i] += triangleArea[vertexIndicesToface[i][j]];
-        }
-    }
-
-    #pragma omp parallel for
-    for (int i=0;i<vertices.size();i++)
-    {
-        // check if the point is on the boundary 
-        if (! mesh_->isBoundary(i))
-        {
-            // obtain the edges that corresponds to this particular vertex 
-            auto& edgeIndices = mesh_->getEdgeIndexForVertex(i);
-            int edgesize = edgeIndices.size();
-
-            // initialize the step 
-            Real3 step;
-            step.fill(0);
-
-            Real factor_sum = 0.0;
-
-            // iterate over the edges 
-            for (int j=0;j<edgesize;j++)
-            {
-                // obtain the edge 
-                auto& vIndices = edgeIndices[j];
-                int idx1 = vIndices[0];
-                int idx2 = vIndices[1];
-                std::vector<int> otherPoints;
-
-                #ifdef MY_DEBUG
-                std::cout << "edge " << j << " index1 = " << vIndices[0] << std::endl;
-                std::cout << "edge " << j << " index2 = " << vIndices[1] << std::endl;
-                #endif
-
-                // obtain the face indices for this particular edge 
-                std::vector<int>& faceIndices = mesh_->getFaceIndicesForEdgeIndex(vIndices);
-
-                ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
-
-                for (int k=0;k<faceIndices.size();k++)
-                {
-                    auto& faceidx = triangles[faceIndices[k]].triangleindices_;
-                    for (int m=0;m<3;m++)
-                    {
-                        auto found = (std::find(vIndices.begin(), vIndices.end(), faceidx[m])) != vIndices.end();
-
-                        if (! found)
-                        {
-                            otherPoints.push_back(faceidx[m]);
-                        }
-                    }
-                }
-
-                ASSERT((otherPoints.size() == 2), "There must be 2 other points that forms a pair triangle along with the edge while it is " << otherPoints.size());
-
-                Real factor = 0.0;
-
-                for (int k=0;k<otherPoints.size();k++)
-                {
-                    int pidx = otherPoints[k];
-                    Real3 vec1, vec2;
-                    Real vec1sq, vec2sq;
-
-                    mesh_->getVertexDistance(vertices[idx1], vertices[pidx], vec1, vec1sq);
-                    mesh_->getVertexDistance(vertices[idx2], vertices[pidx], vec2, vec2sq);
-                    
-
-                    Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
-                    Real sintheta = LinAlg3x3::findSinangle(vec1, vec2);
-
-                    factor += costheta/sintheta;
-                }
-
-                // find the difference of the edge vector
-                Real3 diff;
-                diff.fill(0);
-                for (int k=0;k<3;k++)
-                {
-                    diff[k] = vertices[idx1].position_[k] - vertices[idx2].position_[k]; 
-                }
-
-                if (idx1 == i)
-                {
-                    for (int k=0;k<3;k++)
-                    {
-                        diff[k] = -diff[k];
-                    }
-                }
-
-                for (int k=0;k<3;k++)
-                {
-                    step[k] += factor * diff[k];
-                }
-
-                factor_sum += factor;
-            }
-            
-            #ifdef MY_DEBUG
-            std::cout << "Step " << i << " : ";
-
-            for (int j=0;j<3;j++)
-            {
-                std::cout << step[j] << " ";
-            }
-            std::cout << "\n";
-            #endif
-
-            // multiply step by the factors 
-            for (int j=0;j<3;j++)
-            {
-                newVertices_[i].position_[j] = vertices[i].position_[j] + lambdadt_ * k0_ * vertices[i].normals_[j] + 1.0/(factor_sum) * lambdadt_ * step[j];
-            }
-        }
-    }
-
-    // update the vertices 
-    auto& vert = mesh_->accessvertices();
-    vert.clear();
-    vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_->update();
 }
 
 void MeshCurvatureflow::refineImplicitStep()
@@ -376,7 +223,6 @@ void MeshCurvatureflow::refineImplicitStep()
     if (scale_)
     {
         Real vol = mesh_->calculateVolume();
-        std::cout << "Volume = " << vol << std::endl;
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
 
         // this already performs update 
@@ -418,6 +264,7 @@ void MeshCurvatureflow::getImplicitMatrix()
 
     // let's first make all the virtual indices
     std::vector<std::map<int,int>> neighborIndices_corrected;
+
     // do all the virtual site business if mesh is periodic 
     if (mesh_->isPeriodic() && virtualSite_)
     {
@@ -519,6 +366,11 @@ void MeshCurvatureflow::getImplicitMatrix()
     {
         triplets_.insert(triplets_.end(), it -> begin(), it -> end());
     }
+
+    // for (auto t : triplets_)
+    // {
+    //     std::cout << t.row() << " " << t.col() << " " << t.value() << "\n";
+    // }
 
     // set the L matrix 
     L_.setZero();

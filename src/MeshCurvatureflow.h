@@ -31,7 +31,6 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         virtual void refine(Mesh& mesh) override;
 
-        void refineExplicitStep();
         void refineImplicitStep();
 
         void getImplicitMatrix();
@@ -45,8 +44,6 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         std::vector<vertex> newVertices_;
         std::vector<Real> TotalArea_;
-
-        std::string solverName_="explicit";
 
         // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
         std::vector<triplet> triplets_;
@@ -62,9 +59,6 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // whether or not we scale the object by volume every step
         bool scale_=false;
-
-        // The curvature we are setting the surface to be 
-        Real k0_ = 0;
 
         // Lfactors 
         std::vector<Real3> Lfactors_;
