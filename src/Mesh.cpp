@@ -808,10 +808,7 @@ void Mesh::update()
 
 void Mesh::CalcVertexNormals()
 {
-    // First calculate triangle faces normals 
-    CalcTriangleAreaAndFacetNormals();
-
-    // MeshTools::CalculateTriangleAreasAndFaceNormals(*this, triangleArea_, facetNormals_);
+    MeshTools::CalculateTriangleAreasAndFaceNormals(*this, triangleArea_, facetNormals_);
 
     // calculate vertex normals
     vertexNormals_.resize(vertices_.size());

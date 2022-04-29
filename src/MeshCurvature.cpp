@@ -19,7 +19,6 @@ MeshCurvature::MeshCurvature(MeshRefineStrategyInput& input)
     pack_.ReadNumber("tolerance", ParameterPack::KeyType::Optional, tol_);
     pack_.ReadNumber("k0", ParameterPack::KeyType::Required, meanCurvature_);
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
-    pack_.Readbool("FixBoundary", ParameterPack::KeyType::Optional,fixBoundary_);
 }
 
 
@@ -27,30 +26,15 @@ void MeshCurvature::findVertices()
 {
     const auto& vertices = mesh_->getvertices();
 
-    if (fixBoundary_)
-    {
-        MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
-        MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+    MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+    MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
-        for (int i=0;i<vertices.size();i++)
+    for (int i=0;i<vertices.size();i++)
+    {
+        if (! MeshTools::IsBoundary(i, boundaryIndicator_))
         {
-            if (! MeshTools::IsBoundary(i, boundaryIndicator_))
-            {
-                OutsideIndices_.push_back(i);
-            }
+            VertexIndices_.push_back(i);
         }
-
-        // Find the unique indices 
-        auto ip = std::unique(OutsideIndices_.begin(), OutsideIndices_.end());
-        OutsideIndices_.resize(std::distance(OutsideIndices_.begin(), ip));
-
-        ASSERT((OutsideIndices_.size() <= vertices.size()), "The outside indices size = " << OutsideIndices_.size() << " while vertices size = " << vertices.size());
-    }
-    else
-    {
-        OutsideIndices_.clear();
-        OutsideIndices_.resize(vertices.size());
-        std::iota(OutsideIndices_.begin(), OutsideIndices_.end(),0);
     }
 }
 
@@ -67,9 +51,8 @@ void MeshCurvature::refine(Mesh& mesh)
 
     while (err_ >= tol_)
     {
-        auto start = std::chrono::high_resolution_clock::now();
-
-        Real maxerr = -100000;
+        // set max error to be some random negative number for now 
+        Real maxerr = -1;
 
         // first let's calculate the curvatures 
         curvatureCalc_ -> calculate(*mesh_);
@@ -88,11 +71,14 @@ void MeshCurvature::refine(Mesh& mesh)
             Real e=maxerr;
             Real avgElocal = 0.0;
             #pragma omp for
-            for (int j=0;j<OutsideIndices_.size();j++)
+            for (int j=0;j<VertexIndices_.size();j++)
             {
-                int index = OutsideIndices_[j];
+                int index = VertexIndices_[j];
+
+                // find the difference in curvature 
                 Real diffkappa = meanCurvature_ - curvatures[index];
- 
+
+                // add to local average error
                 avgElocal += std::abs(diffkappa);
 
                 if (std::abs(diffkappa) > e)
@@ -141,11 +127,8 @@ void MeshCurvature::refine(Mesh& mesh)
         // break the calculation if iteration is already maxed out
         if (iteration_ > maxStep)
         {
+            std::cout << "Evolution finished premature at iteration " << iteration_ << "\n";
             break;
         }
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-        std::cout << "update = " << duration.count() << " us " << "\n";
     }
 }

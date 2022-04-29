@@ -25,7 +25,7 @@ target_sources(IIsrc PRIVATE
     "Registry.cpp"
     "marching_cubes.cpp"
     "MeshGeneration.cpp"
-    "Mesh2d.cpp"
+    "MeshGen2d.cpp"
 )
 
 set(IIsrc_HEADER
@@ -53,7 +53,7 @@ set(IIsrc_HEADER
     "Registry.h"
     "marching_cubes.hpp"
     "MeshGeneration.h"
-    "Mesh2d.h"
+    "MeshGen2d.h"
 )
 
 target_include_directories(IIsrc

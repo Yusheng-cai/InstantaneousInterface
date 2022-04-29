@@ -35,11 +35,8 @@ class MeshCurvature : public MeshRefineStrategy
         std::string curvaturetype_;
         curveptr curvatureCalc_;
 
-        // The indices for the vertices to be kept constant 
-        std::vector<int> VertexIndices_;
-
         // The indices for the outside vertices to not be kept constant 
-        std::vector<int> OutsideIndices_;
+        std::vector<int> VertexIndices_;
 
         Real StepSize_;
         Real meanCurvature_;
@@ -49,11 +46,8 @@ class MeshCurvature : public MeshRefineStrategy
         // keep track of number of iteration
         int iteration_=0;
         int maxStep = 1e6;
-        bool fixBoundary_=true;
 
         // whether or not we want to print the error 
         Real err_;
         int skip_=1;
-
-        Matrix box={{{10,0,0},{0,2,0},{0,0,2}}};
 };
