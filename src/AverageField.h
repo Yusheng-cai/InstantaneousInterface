@@ -20,11 +20,8 @@ class AverageField:public DensityField
         virtual void calculate() override;
         virtual void update() override{};
         virtual void finishCalculate() override;
-        virtual void printOutputIfOnStep() override; 
+        virtual void printOutputIfOnStep() override {};
 
         void printField(std::string name);
-        void printTriangleIndices(std::string name);
-        void printVertices(std::string name);
-        void printNormals(std::string name);
     private:
 };
