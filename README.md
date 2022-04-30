@@ -11,6 +11,12 @@ Using this code, you can also smooth very rugged surfaces. Especially surfaces s
 
 
 ## Surface evolution based on defined curvature
+Using this code, we can start with some predefined surface and boundary condition and evolve to whatever curvature user defines
+| k=0  | k=0.12 nm-1 |
+| ----------  | -------- |
+| ![flat](test/Images/flat.png) |  ![evolved](test/Images/evolved.png) |
+
+
 
 # References
 1. Willard, Adam P., and David Chandler. "Instantaneous liquid interfaces." The Journal of Physical Chemistry B 114.5 (2010): 1954-1958.
