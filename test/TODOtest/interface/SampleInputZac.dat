@@ -23,6 +23,7 @@ densityfield = {
     Mesh = {
 	outputs  = [ ply ]
 	outputNames = [ zacII.ply ] 
+	factor   = 10
     }
 
     isosurfacevalue  = 16
