@@ -6,10 +6,11 @@ Using the method of obtaining instantaneous liquid interface from ref[1] to obta
 ## Surface smoothing
 Using this code, you can also smooth very rugged surfaces. Especially surfaces straight from marching cubes
 
-### Unsmoothed
-![unsmooth](test/Images/unsmoothed.png)
-### Smoothed
-![smooth](test/Images/smoothed.png)
+### Surface smoothing
+Unsmoothed 			Smoothed
+:-------------------------:|:-------------------------:
+![unsmooth](test/Images/unsmoothed.png) |  ![smooth](test/Images/smoothed.png)
+
 
 ## Surface evolution based on defined curvature
 
