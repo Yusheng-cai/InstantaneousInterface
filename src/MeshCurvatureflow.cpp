@@ -43,8 +43,6 @@ void MeshCurvatureflow::refine(Mesh& mesh)
         std::cout << "Iteration " << i << std::endl;
         refineImplicitStep();
     }
-
-    mesh_->updateNormals();
 }
 
 std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag)
