@@ -13,7 +13,7 @@ AverageField::AverageField(const DensityFieldInput& input)
 
 void AverageField::calculate()
 {
-    CalculateInstantaneousInterface();
+    CalculateInstantaneousField();
 }
 
 void AverageField::finishCalculate()
@@ -29,7 +29,7 @@ void AverageField::finishCalculate()
     }
 
     // first triangulate the field 
-    MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, pbc_);
+    MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, MCpbc_);
 
     // refine the mesh 
     for (int i=0;i<refinementstrat_.size();i++)
