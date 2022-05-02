@@ -64,11 +64,6 @@ void CurvatureTensor::calculate(Mesh& mesh)
             Real ejV = LinAlg3x3::DotProduct(edges[j], V); 
             eJVec.push_back({{ejU, ejV}});
 
-            #ifdef MY_DEBUG
-            std::cout << "For triangle " << i << "edge " << j << " = " << edges[j][0] << " " << edges[j][1] << " " << edges[j][2] << std::endl;
-            std::cout << "For triangle " << i << " edge " << j << "ejU = " << ejU << ", eJV = " << ejV << std::endl;
-            #endif
-
             A(0,0) += ejU*ejU;
             A(0,1) += ejU*ejV;
             A(2,2) += ejV*ejV;
