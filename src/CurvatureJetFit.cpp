@@ -106,12 +106,8 @@ void CurvatureJetFit::calculate(Mesh& mesh)
 
             DVector norm(-thisNormal[0], -thisNormal[1], -thisNormal[2]);
 
+            // fix normal
             mform.comply_wrt_given_normal(norm);
-            #ifdef MY_DEBUG
-            std::cout << "Origin = " << mform.origin() << std::endl;
-            std::cout << "Position1 = " << vec_[0] << std::endl;
-            std::cout << "vertex position = " << vertices[i].position_[0] << " " << vertices[i].position_[1] << " " << vertices[i].position_[2] << std::endl;
-            #endif 
 
             std::vector<Real> coeff;
             for (int i=0;i<mform.coefficients().size();i++)
