@@ -1,6 +1,6 @@
 include(TestSetup)
 
-set(_core_libs llsrc llparallel lltools llxdr llMarchingCubes)
+set(_core_libs IIsrc IIparallel IItools IIxdr)
 
 set(TESTS_NAMES "")
 
