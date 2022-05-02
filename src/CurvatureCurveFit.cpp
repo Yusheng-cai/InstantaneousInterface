@@ -47,7 +47,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         // How to rotate normal vector to be z vector
         Matrix rotationMat = LinAlg3x3::GetRotationMatrix(v.normals_, referenceDir); 
         Matrix revrotMat   = LinAlg3x3::GetRotationMatrix(referenceDir, v.normals_);
-        Real3 vector = LinAlg3x3::MatrixDotVector(rotationMat, v.normals_);
+        Real3 vector       = LinAlg3x3::MatrixDotVector(rotationMat, v.normals_);
 
         // initialize the 
         Eigen::Matrix3d mat = Eigen::Matrix3d::Zero();
@@ -94,10 +94,6 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         SecondFundamentalMat(1,0) = ans[2];
         SecondFundamentalMat(1,1) = 2*ans[1];
         eigensolver.compute(SecondFundamentalMat);
-
-        #ifdef MY_DEBUG
-        std::cout << "2FF matrix of triangle " << SecondFundamentalMat << std::endl;
-        #endif 
 
         // Compute the eigenvalues 
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
