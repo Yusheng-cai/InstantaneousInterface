@@ -437,10 +437,6 @@ void Mesh::CalcPerVertexDir()
         int index1 = t.triangleindices_[1];
         int index2 = t.triangleindices_[2];
 
-        #ifdef MY_DEBUG
-        std::cout << "Face " << i << " = " << index0 << " " << index1 << " " << index2 << std::endl;
-        #endif
-
         Real3 diff0, diff1, diff2;
         Real diffsq0, diffsq1, diffsq2;
 
@@ -455,9 +451,6 @@ void Mesh::CalcPerVertexDir()
 
     for (int i=0;i<PerVertexdir1_.size();i++)
     {
-        #ifdef MY_DEBUG
-        std::cout << "The pervetex dir 1 before anything = " << PerVertexdir1_[i][0] << " " << PerVertexdir1_[i][1] << " " << PerVertexdir1_[i][2] << std::endl;
-        #endif 
         PerVertexdir1_[i] = LinAlg3x3::CrossProduct(PerVertexdir1_[i], vertices_[i].normals_);
         LinAlg3x3::normalize(PerVertexdir1_[i]);
 
@@ -542,24 +535,7 @@ void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, R
 
 void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist)
 {
-    for (int i=0;i<3;i++)
-        {
-            Real diff = v1.position_[i] - v2.position_[i];
-            distVec[i] = diff;
-    }
-
-    dist = LinAlg3x3::norm(distVec);
-
-    if (isPeriodic())
-    {
-        for (int i=0;i<3;i++)
-        {
-            if (distVec[i] > boxLength_[i] * 0.5) distVec[i] -= boxLength_[i];
-            if (distVec[i] < -boxLength_[i] * 0.5) distVec[i] += boxLength_[i];
-        }
-
-        dist = LinAlg3x3::norm(distVec);
-    }
+    getVertexDistance(v1.position_, v2.position_, distVec, dist);
 }
 
 void Mesh::CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec)
@@ -572,91 +548,6 @@ void Mesh::CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec)
         else if (d < (- 0.5 * boxLength_[i])) shiftVec[i] = boxLength_[i];
         else shiftVec[i] = 0.0;
     }
-}
-
-void Mesh::CalcTriangleAreaAndFacetNormals()
-{
-    triangleArea_.clear();
-    triangleArea_.resize(triangles_.size());
-
-    facetNormals_.clear();
-    facetNormals_.resize(triangles_.size());
-
-    EdgeNorms_.clear();
-    EdgeNorms_.resize(triangles_.size());
-
-    // calculate the area of the triangles as well as the normals of the faces of triangles
-    for (int i=0;i<triangles_.size();i++)
-    {
-        auto& t = triangles_[i];
-        int index1 = t.triangleindices_[0];
-        int index2 = t.triangleindices_[1];
-        int index3 = t.triangleindices_[2];
-
-        Real3 diff1 = {};
-        Real3 diff2 = {};
-        Real3 diff3 = {};
-        Real norm1, norm2, norm3;
-
-        getVertexDistance(vertices_[index1], vertices_[index2], diff1, norm1);
-        getVertexDistance(vertices_[index3], vertices_[index2], diff2, norm2);
-        getVertexDistance(vertices_[index3], vertices_[index1], diff3, norm3);
-
-        // update the edge norms of a triangle
-        EdgeNorms_[i][0] = norm1;
-        EdgeNorms_[i][1] = norm2;
-        EdgeNorms_[i][2] = norm3;
-
-        Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
-        Real norm = LinAlg3x3::norm(crossProduct);
-        Real Area = norm*0.5;
-
-        Real3 normal_;
-        for (int j=0;j<3;j++)
-        {
-            normal_[j] = crossProduct[j]/norm;
-        }
-
-        facetNormals_[i] = normal_;
-        triangleArea_[i] = Area;
-    }
-}
-
-void Mesh::updateNormals()
-{
-    CalcTriangleAreaAndFacetNormals();
-
-    // clear the normals in the vertices 
-    for (int i=0;i<vertices_.size();i++)
-    {
-        vertices_[i].normals_.fill(0);
-    }
-
-    for (int i=0;i<triangles_.size();i++)
-    {
-        auto& t = triangles_[i].triangleindices_;
-        Real factor1 = 1.0/(EdgeNorms_[i][0] * EdgeNorms_[i][2]);
-        Real factor2 = 1.0/(EdgeNorms_[i][0] * EdgeNorms_[i][1]);
-        Real factor3 = 1.0/(EdgeNorms_[i][1] * EdgeNorms_[i][2]);
-
-        int index1 = t[0];
-        int index2 = t[1];
-        int index3 = t[2];
-
-        for (int j=0;j<3;j++)
-        {
-            vertices_[index1].normals_[j] += factor1 * facetNormals_[i][j];
-            vertices_[index2].normals_[j] += factor2 * facetNormals_[i][j];
-            vertices_[index3].normals_[j] += factor3 * facetNormals_[i][j];
-        }
-    }
-
-    for (int i=0;i<vertices_.size();i++)
-    {
-        LinAlg3x3::normalize(vertices_[i].normals_);
-    }
-
-    update();
 }
 
 Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2)
@@ -771,11 +662,6 @@ void Mesh::CalculateCornerArea()
             }
 		}
 
-        #ifdef MY_DEBUG
-        std::cout << "corner Area " << i << " 0 = "  << cornerArea_[i][0] << std::endl;
-        std::cout << "corner Area " << i << " 1 = " << cornerArea_[i][1] << std::endl;
-        std::cout << "corner Area " << i << " 2 = " << cornerArea_[i][2] << std::endl;
-        #endif
 		triangleArea_[t.triangleindices_[0]] += cornerArea_[i][0];
 		triangleArea_[t.triangleindices_[1]] += cornerArea_[i][1];
 		triangleArea_[t.triangleindices_[2]] += cornerArea_[i][2];
@@ -832,7 +718,6 @@ void Mesh::CalcVertexNormals()
             }
         }
     }
-
 
     for (int i=0;i<vertexNormals_.size();i++)
     {
@@ -1078,9 +963,6 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
         t.edges_[2].vertex1_ = t.vertices_[2];
         t.edges_[2].vertex2_ = t.vertices_[0];
     }
-
-    // calculate triangle areas and facet normals 
-    mesh_.CalcTriangleAreaAndFacetNormals();
 
     if ( ! hasnormals)
     {

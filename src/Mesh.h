@@ -25,10 +25,6 @@ struct vertex
 
     Real3 position_;
     Real3 normals_;
-    // The gaussian curvature of this particular vertex
-    Real Gcurvature_=0.0;
-    // The average curvature of this particular vertex 
-    Real Acurvature_=0.0;
     int index;
 };
 
@@ -77,7 +73,6 @@ class Mesh
         void printSTL(std::string name);
         void printPLY(std::string name);
         void printPLYlibr(std::string name);
-        void printPLYlibrCurvature(std::string name);
         void printBoundaryVertices(std::string name);
         void printArea(std::string name);
         void printCuttedMesh(std::string name);
@@ -100,7 +95,9 @@ class Mesh
         std::vector<Real3>& accessPerVertexDir2() {return PerVertexdir2_;}
         Output& accessOutput() {return outputs_;}
 
-        // getters
+                                        /********************************************
+                                         * **********  getter Function **************
+                                         * *****************************************/
         const std::vector<vertex>& getvertices() const {return vertices_;}
         const std::vector<triangle>& gettriangles() const {return triangles_;}
         const std::vector<Real>& getTriangleArea() const {return triangleArea_;}
@@ -117,9 +114,6 @@ class Mesh
         // Scale all the vertices by a single number 
         void scaleVertices(Real num);
 
-        // function that updates the normals of a mesh
-        void updateNormals();
-
         // Calculate the corner area according to trimesh code C++
         void CalculateCornerArea();
 
@@ -132,9 +126,6 @@ class Mesh
 
         // calculate volume
         Real calculateVolume();
-
-        // function that finds the area of all the triangules on the surface --> Now takes into account PBC
-        void CalcTriangleAreaAndFacetNormals();
 
         // function that calculates the normals of each of the vertex --> weighted by area 
         void CalcVertexNormalsAreaWeighted();
