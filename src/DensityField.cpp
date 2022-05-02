@@ -23,7 +23,7 @@ DensityField::DensityField(const DensityFieldInput& input)
     input.pack_.ReadNumber("isosurfacevalue", ParameterPack::KeyType::Required, isoSurfaceVal_);
 
     // Read in the pbc 
-    input.pack_.Readbool("pbc", ParameterPack::KeyType::Optional, pbc_);
+    input.pack_.Readbool("pbc", ParameterPack::KeyType::Optional, MCpbc_);
 
     // Read in the bounding box
     input.pack_.ReadString("boundingbox", ParameterPack::KeyType::Required,boundingboxName_);
@@ -222,13 +222,14 @@ void DensityField::findAtomsIndicesInBoundingBox()
     }
 }
 
-void DensityField::CalculateInstantaneousInterface()
+void DensityField::CalculateInstantaneousField()
 {
     // the master object will not be zero'd
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
     {
         it -> zero();
     } 
+
     // set up the omp buffers
     FieldBuffer_.set_master_object(field_);
 

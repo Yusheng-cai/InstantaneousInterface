@@ -49,17 +49,19 @@ class DensityField
         virtual void printOutputIfOnStep() {};
         virtual void printFinalOutput();
 
+        // initialize curvature calculations 
         void initializeCurvature();
 
         // initialize mesh refinement protocals
         void initializeRefinement();
 
+        // initialize the mesh object
         void initializeMesh();
 
         void findAtomsIndicesInBoundingBox();
 
         void CalcOffsetIndex();
-        void CalculateInstantaneousInterface();
+        void CalculateInstantaneousField();
 
         void addAtomGroup(std::string& name);
         void registerAtomGroupID(std::string& name, int index);
@@ -99,8 +101,7 @@ class DensityField
         Real cutoff_;
 
         // whether we do pbc or not for marching cubes 
-        bool pbc_=false;
-
+        bool MCpbc_=false;
 
         // Name of the bounding box
         std::string boundingboxName_;
