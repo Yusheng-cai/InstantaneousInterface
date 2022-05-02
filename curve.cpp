@@ -87,7 +87,6 @@ int main(int argc, char** argv)
                 refines_[i] -> refine(*mesh_);
             }
 
-            mesh_ -> CalcTriangleAreaAndFacetNormals();
             mesh_ -> print();
 
             auto& vertices = mesh_->accessvertices();
@@ -118,7 +117,6 @@ int main(int argc, char** argv)
                 refineMent.refine(*mesh_);
             }
 
-            mesh_ -> CalcTriangleAreaAndFacetNormals();
             mesh_ -> print();
 
             auto& vertices = mesh_->accessvertices();
