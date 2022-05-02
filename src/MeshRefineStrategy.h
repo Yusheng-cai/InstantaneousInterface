@@ -4,7 +4,6 @@
 #include "tools/CommonTypes.h"
 #include "tools/GenericFactory.h"
 #include "tools/OutputFunction.h"
-#include "tools/OutputFunction.h"
 
 #include <vector>
 #include <array>
