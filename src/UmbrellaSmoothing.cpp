@@ -50,7 +50,6 @@ void UmbrellaSmoothing::refine(Mesh& mesh)
     auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
-    mesh_->updateNormals();
 }
 
 void UmbrellaSmoothing::refineStepImplicit()
