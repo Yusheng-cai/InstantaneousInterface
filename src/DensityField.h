@@ -35,7 +35,7 @@ class DensityField
         using CurvaturePtr = std::unique_ptr<Curvature>;
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;
-        using index3=std::array<int,3>;
+        using INT3 =std::array<int,3>;
         using Range= CommonTypes::Real2;
         using Meshptr = std::unique_ptr<Mesh>;
         using outputfunc = std::function<void(std::string)>;
@@ -114,7 +114,7 @@ class DensityField
         Range z_range_;
 
         // offset indices 
-        std::vector<index3> offsetIndex_;
+        std::vector<INT3> offsetIndex_;
         OpenMP::OpenMP_buffer<Field> FieldBuffer_;
 
         // The isosurface value, usually in units of atom/nm3

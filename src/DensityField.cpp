@@ -34,8 +34,6 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // read in the output names 
     input.pack_.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
-
-    // read in the output file names 
     input.pack_.ReadVectorString("outputFiles", ParameterPack::KeyType::Optional, OutputFileNames_);
     ASSERT(( OutputFileNames_.size() == OutputNames_.size()), "The number of outputs does not agree with number of \
     outputs files.");
@@ -134,7 +132,7 @@ void DensityField::CalcOffsetIndex()
         {
             for (int k=-Nz_offset; k<=Nz_offset;k++)
             {
-                index3 id = {{ i,j,k}};
+                INT3 id = {{i,j,k}};
                 offsetIndex_.push_back(id);
             }
         }
@@ -246,16 +244,16 @@ void DensityField::CalculateInstantaneousInterface()
         #pragma omp for 
         for (int i=0;i<AtomIndicesInside_.size();i++)
         {
-            int indices = AtomIndicesInside_[i];;
+            int indices        = AtomIndicesInside_[i];;
             Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
-            index3 Index       = fieldbuf.getClosestGridIndex(correctedPos);
+            INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
 
             // Fix the index 
             fieldbuf.fixIndex(Index);
 
             for(int j=0;j<offsetIndex_.size();j++)
             {
-                index3 RealIndex;
+                INT3 RealIndex;
                 for (int k=0;k<3;k++)
                 {
                     RealIndex[k] = Index[k] + offsetIndex_[j][k];
@@ -265,7 +263,6 @@ void DensityField::CalculateInstantaneousInterface()
 
                 Real3 distance;
                 bound_box_->calculateDistance(latticepos, correctedPos, distance);
-
 
                 Real val = GaussianCoarseGrainFunction(distance);
                 fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
