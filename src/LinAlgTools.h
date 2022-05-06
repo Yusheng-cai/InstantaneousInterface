@@ -24,10 +24,6 @@ namespace LinAlg3x3
     // Rotate basis set
     void RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const Real3& oldv1, Real3& u1, Real3& v1);
 
-    // calculations from the trimesh code
-    bool ldltdc(Matrix& A, Real3& vec);
-    void ldltsl(const Matrix& A, const Real3& rdiag, const Real3& b, Real3& x);
-
     // find cos(angle) between 2 vectors 
     Real findCosangle(Real3& vec1, Real3& vec2);
 
