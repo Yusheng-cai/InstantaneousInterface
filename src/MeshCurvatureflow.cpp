@@ -11,8 +11,8 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
-    input.pack.Readbool("virtualSite", ParameterPack::KeyType::Optional, virtualSite_);
 
+    // set Eigen to be using the correct number of threads 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
     std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
@@ -22,10 +22,21 @@ void MeshCurvatureflow::refine(Mesh& mesh)
 {
     mesh_ = &mesh;
 
+    // obtain map from edge index {minIndex, maxIndex} to the face index 
+    // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+
+    // Calculate the boundary vertices --> vertices which that has an edge shared by only 1 face
     MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+
+    // Calculate the vertex neighbors
     MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
+
+    // Map from vertex indices to face indices 
     MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
+
+    // Map from edges to their opposing vertex indices 
+    MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
 
     if (scale_)
     {
@@ -39,6 +50,10 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     newVertices_.resize(numVerts_);
     TotalArea_.resize(numVerts_);
 
+    // obtain the rhs of the equation to be solved 
+    rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+    xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+
     // start refining 
     for (int i=0;i<numIterations_;i++)
     {
@@ -47,105 +62,82 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     }
 }
 
-std::vector<MeshCurvatureflow::Real> MeshCurvatureflow::calculateWeights(int i, std::vector<int>& neighborId, Real3& Lfactor, bool& flag)
+bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::vector<Real>& cotFactors)
 {
+    // clear the input 
+    cotFactors.clear();
+    Lfactor.fill(0);
+
+    // get the neighbor indices 
+    std::vector<int> neighbors = neighborIndices_[i];
+    int neighborSize = neighbors.size();
+
     // obtain triangles and vertices from mesh
     const auto& triangles = mesh_->gettriangles();
     const auto& vertices  = mesh_->getvertices();
 
-    // obtain the edges that corresponds to this particular vertex 
-    auto edgesIndices     = MapVertexToEdge_[i];
-    int edgesize = edgesIndices.size();
-    ASSERT((edgesize > 0), "Vertex " << i << " corresponds to 0 edges.");
-
-    // factor at which we detect INF
-    Real epsilon=1e-8;
-
-    std::vector<Real> factors;
-    Real factor_sum = 0.0;
-
-    flag = true;
-
-    // iterate over the edges 
-    for (int j=0;j<edgesize;j++)
+    // iterate over the neighbor indices
+    for (int j=0;j<neighborSize;j++)
     {
-        // obtain the edge 
-        auto& e = edgesIndices[j];
-        int index1 = e[0];
-        int index2 = e[1];
+        // make an edge between this vertex and its neighbor
+        INT2 edge = MeshTools::makeEdge(i,neighbors[j]);
 
-        if (index1 != i)
+        // map this edge to the faces that it corresponds to 
+        auto it = MapEdgeToFace_.find(edge);
+        ASSERT((it != MapEdgeToFace_.end()), "The edge " << edge[0] << " " << edge[1] << " is not found.");
+        std::vector<int> faces  = it -> second;
+
+        // map this edge to the opposing vertices indices 
+        auto it2 = MapEdgeToOpposingVerts_.find(edge);
+        ASSERT((it2 != MapEdgeToOpposingVerts_.end()), "The edge " << edge[0] << " " << edge[1] << " is not found.");
+        std::vector<int> OpposingVerts  = it2 -> second;
+
+        // factor here is cot(\alpha) + cot(\beta) --> where \alpha and \beta are the opposing angles shared by an edge 
+        Real cotOpposingAnglesSum = 0.0;
+        int index1 = edge[0];
+        int index2 = edge[1];
+
+        // calculate the cosine theta with respect to opposing points 
+        for (int OpposingIdx : OpposingVerts)
         {
-            neighborId.push_back(index1);
-        }
-        else
-        {
-            neighborId.push_back(index2);
-        }
+            Real3 vec1, vec2;
+            Real vec1sq, vec2sq;
 
-        std::array<int,2> vIndices = {{index1, index2}};
+            // calculate the vertex distance and vector 
+            mesh_->getVertexDistance(vertices[index1], vertices[OpposingIdx], vec1, vec1sq);
+            mesh_->getVertexDistance(vertices[index2], vertices[OpposingIdx], vec2, vec2sq);
 
-        // the other 2 points out of the 4 points that forms 2 adjacent triangles
-        std::vector<int> otherPoints;
+            // find the costine angle between
+            Real costheta  = LinAlg3x3::findCosangle(vec1, vec2);
+            Real sin2theta = 1 - costheta*costheta;
 
-        // obtain the face indices for this particular edge 
-        auto it = MapEdgeToFace_.find(e);
-        ASSERT((it != MapEdgeToFace_.end()), "The edge " << e[0] << " " << e[1] << " is not found.");
-        std::vector<int> faceIndices  = it -> second;
-        ASSERT((faceIndices.size() == 2), "We are only smoothing the nonboundary points so number of faces per vertex must be 2 while it is " << faceIndices.size());
-
-        for (int k=0;k<faceIndices.size();k++)
-        {
-            auto& faceidx = triangles[faceIndices[k]].triangleindices_;
-            for (int m=0;m<3;m++)
+            // if sin2theta is too close to 0 then we just return 
+            if (sin2theta < epsilon_)
             {
-                auto found = (std::find(vIndices.begin(), vIndices.end(), faceidx[m])) != vIndices.end();
-
-                if (! found)
-                {
-                    otherPoints.push_back(faceidx[m]);
-                }
+                return false;
             }
-        }
 
-        ASSERT((otherPoints.size() == 2), "There must be 2 other points that forms a pair triangle along with the edge while it is " << otherPoints.size());
-        ASSERT((otherPoints[0] != otherPoints[1]), "The 2 triangle indices must be unique.");
-
-        Real factor = 0.0;
-        for (int k=0;k<otherPoints.size();k++)
-        {
-            int pidx = otherPoints[k];
-            Real3 vec1, vec2, vec3;
-            Real vec1sq, vec2sq, vec3sq;
-
-            mesh_->getVertexDistance(vertices[index1], vertices[pidx], vec1, vec1sq);
-            mesh_->getVertexDistance(vertices[index2], vertices[pidx], vec2, vec2sq);
-            Real costheta = LinAlg3x3::findCosangle(vec1, vec2);
-            Real num = 1 - costheta*costheta;
-            if (num < epsilon)
-            {
-                flag = false;
-            }
-            Real sintheta = std::sqrt(1 - costheta*costheta);
-            
-            factor += costheta/sintheta;
+            Real sintheta = std::sqrt(sin2theta);
+            cotOpposingAnglesSum += costheta/sintheta;
         }
 
         if (mesh_->isPeriodic())
         {
             Real3 ShiftVec;
-            mesh_ -> CalculateShift(vertices[neighborId[j]].position_, vertices[i].position_,ShiftVec);
+
+            // xj - xi 
+            mesh_ -> CalculateShift(vertices[neighbors[j]].position_, vertices[i].position_,ShiftVec);
 
             for (int k=0;k<3;k++)
             {
-                Lfactor[k] += factor * ShiftVec[k];
+                Lfactor[k] += cotOpposingAnglesSum * ShiftVec[k];
             }
         }
 
-        factors.push_back(factor);
+        cotFactors.push_back(cotOpposingAnglesSum);
     }
 
-    return factors;
+    return true;
 }
 
 void MeshCurvatureflow::refineImplicitStep()
@@ -168,13 +160,8 @@ void MeshCurvatureflow::refineImplicitStep()
     }
 
     // obtain the implicit matrices
-    getImplicitMatrix();
+    L_  = CalculateImplicitMatrix();
 
-    // obtain the rhs of the equation to be solved 
-    std::vector<Eigen::VectorXf> rhs;
-    std::vector<Eigen::VectorXf> xyz;
-    rhs.resize(3, Eigen::VectorXf::Zero(numVerts_));
-    xyz.resize(3, Eigen::VectorXf::Zero(numVerts_));
 
     // populate the solved matrices 
     const auto& vertices = mesh_->getvertices();
@@ -183,9 +170,9 @@ void MeshCurvatureflow::refineImplicitStep()
     {
         // if mesh is not periodic and we are not doing virtual site
         // then we must scale the rhs by Lfactors_ as in (xj - xi + L)
-        rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
-        rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
-        rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
+        rhs_[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
+        rhs_[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
+        rhs_[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
     }
 
     // solve the sparse system of equations
@@ -194,7 +181,7 @@ void MeshCurvatureflow::refineImplicitStep()
     ASSERT((sparsesolver.info() == Eigen::Success), "Compute step failed.");
     for (int i=0;i<3;i++)
     {
-        xyz[i] = sparsesolver.solve(rhs[i]);
+        xyz_[i] = sparsesolver.solve(rhs_[i]);
         ASSERT((sparsesolver.info() == Eigen::Success), "The solver failed.");
     }
 
@@ -204,7 +191,7 @@ void MeshCurvatureflow::refineImplicitStep()
     {
         for (int j=0;j<3;j++)
         {
-            newVertices_[i].position_[j] = xyz[j][i];
+            newVertices_[i].position_[j] = xyz_[j][i];
         }
     }
 
@@ -222,21 +209,10 @@ void MeshCurvatureflow::refineImplicitStep()
         // this already performs update 
         mesh_->scaleVertices(scale);
     }
-    else
-    {
-        mesh_->update();
-    }
 }
 
-void MeshCurvatureflow::getImplicitMatrix()
+Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplicitMatrix()
 {
-    // What to do for periodic Meshes?
-    /*
-        We can make virtual vertices that updates every step.
-
-        For each vertex i, we can check its neighbors, find their distances. If the distance is larger
-        than box/2 as usually defined for PBC, we can then make a virtual vertex for vertex i. 
-    */
     const auto& vertices = mesh_->getvertices();
 
     Lfactors_.clear();
@@ -253,28 +229,28 @@ void MeshCurvatureflow::getImplicitMatrix()
             if (! MeshTools::IsBoundary(i, boundaryIndicator_))
             {
                 int numneighbors = neighborIndices_[i].size();
-                std::vector<int> neighborId;
 
                 // get the weights of the neighbor indices 
                 Real3 Lfactor = {};
-                bool flag = true;
-                std::vector<Real> weights = calculateWeights(i, neighborId, Lfactor, flag);
-                ASSERT((weights.size() == numneighbors), "The number of weights provided for a vertex does not agree with the number of neighbors.");
+                std::vector<Real> CotWeights;
+
+                // success is if there is not NAN values 
+                bool SUCCESS = CalculateCotangentWeights(i, Lfactor, CotWeights);
                 Real w = 0.0;
 
                 // Skip the calculation is Total area is 0 --> less than some threshold --> 1e-5
-                if (flag)
+                if (SUCCESS)
                 {
                     Real factor = 1.0/(4.0 * TotalArea_[i]);
 
                     for (int j=0;j<numneighbors;j++)
                     {
-                        w += weights[j];
+                        w += CotWeights[j];
                     }
 
                     for (int j=0;j<numneighbors;j++)
                     {
-                        triplet_local.push_back(triplet(i, neighborId[j], factor * weights[j]));
+                        triplet_local.push_back(triplet(i, neighborIndices_[i][j], factor * CotWeights[j]));
                     }
 
                     for (int j=0;j<3;j++)
@@ -294,9 +270,12 @@ void MeshCurvatureflow::getImplicitMatrix()
     }
 
     // set the L matrix 
-    L_.setZero();
-    L_.resize(numVerts_, numVerts_);
-    L_.setFromTriplets(triplets_.begin(), triplets_.end());
+    Eigen::SparseMatrix<Real> L;
+    L.setZero();
+    L.resize(numVerts_, numVerts_);
+    L.setFromTriplets(triplets_.begin(), triplets_.end());
     Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(numVerts_, numVerts_).sparseView();
-    L_ = I - lambdadt_*L_;
+    L = I - lambdadt_*L;
+
+    return L;
 }

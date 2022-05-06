@@ -18,9 +18,11 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
     const auto& vertices = mesh.getvertices();
 
+    // calculate vertex neighbors
     std::vector<std::vector<int>> VertexNeighbors;
     MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
 
+    // calculate neighbor vertices that are N vertex away 
     std::vector<std::vector<int>> NeighborIndicesNVertex;
     Graph::getNearbyIndicesNVertexAway(VertexNeighbors, NumNeighbors_,NeighborIndicesNVertex);
 

@@ -138,17 +138,15 @@ class Mesh
         Real3 getShiftIntoBox(const Real3& v1);
     
     private:
+        // vertices and triangles in the mesh 
         std::vector<vertex> vertices_;
         std::vector<triangle> triangles_;
 
-        std::vector<std::vector<int>> VertexTriangleIndices_;
-
+        // the Areas and normals
         std::vector<Real> triangleArea_;
         std::vector<Real3> cornerArea_;
         std::vector<Real3> facetNormals_;
-
         std::vector<Real3> vertexNormals_;
-
         std::vector<Real3> PerVertexdir1_;
         std::vector<Real3> PerVertexdir2_;
 
@@ -213,6 +211,9 @@ namespace MeshTools
     // map Edge to faces
     void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge);
 
+    // map edge to opposing vertices --> needs boundary indicators  
+    void MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace,std::map<INT2, std::vector<int>>& MapEdgeToOppoVertices);
+
     // find boundary vertices 
     void CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator);
 
@@ -224,4 +225,7 @@ namespace MeshTools
 
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
+
+    // make an Edge, edge is simply the 2 indices of {{minIndex, maxIndex}}
+    INT2 makeEdge(int i, int j);
 };

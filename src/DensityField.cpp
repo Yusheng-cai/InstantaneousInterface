@@ -15,7 +15,6 @@ DensityField::DensityField(const DensityFieldInput& input)
     sigmasq_ = sigma_ * sigma_;
     prefactor_ = std::pow(2*Constants::PI*sigmasq_, -1.5);
 
-
     // Read in the cut off value (n*sigma_)
     input.pack_.ReadNumber("cutoff", ParameterPack::KeyType::Optional, n_);
 

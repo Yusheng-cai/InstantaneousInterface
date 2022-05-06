@@ -1311,3 +1311,55 @@ bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Rea
 
     return false;
 }
+
+MeshTools::INT2 MeshTools::makeEdge(int i, int j)
+{
+    int minIndex = std::min(i,j);
+    int maxIndex = std::max(i,j);
+
+    INT2 ret = {{minIndex, maxIndex}};
+
+    return ret;
+}
+
+void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::map<INT2, std::vector<int>>& MapEdgeToOppoVertices)
+{
+    const auto& tri = mesh.gettriangles();
+
+    // clear the map at which we want to write to  
+    MapEdgeToOppoVertices.clear();
+
+    // iterate over the edges 
+    for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++)
+    {
+        std::vector<int> faces = it -> second;
+        INT2 edge = it -> first;
+        std::vector<int> opposingPoints;
+
+        int numf = faces.size();
+
+        // only perform calculation if we are working with non boundary edge --> (edges shared by 2 faces)
+        if (numf == 2)
+        {
+            // iterate over the 2 faces 
+            for (int f : faces)
+            {
+                auto& TriIndices = tri[f].triangleindices_;
+
+                // iterate over the triangular indices of each of the face 
+                for (int id : TriIndices)
+                {
+                    bool IsInEdge = std::find(edge.begin(), edge.end(), id) != edge.end();
+
+                    if ( ! IsInEdge)
+                    {
+                        opposingPoints.push_back(id);
+                    }
+                }
+            }
+
+            ASSERT((opposingPoints.size() == 2), "The opposing points of an edge needs to be 2 while it is " << opposingPoints.size());
+            MapEdgeToOppoVertices.insert(std::make_pair(edge, opposingPoints));
+        }
+    }
+}

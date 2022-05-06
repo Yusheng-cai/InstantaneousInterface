@@ -1,3 +1,5 @@
+#pragma once
+
 #include "tools/CommonTypes.h"
 #include "Curvature.h"
 #include "LinAlgTools.h"

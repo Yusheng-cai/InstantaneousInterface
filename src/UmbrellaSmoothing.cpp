@@ -95,10 +95,6 @@ void UmbrellaSmoothing::refineStepImplicit()
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
         mesh_->scaleVertices(scale);
     }
-    else
-    {
-        mesh_->update();
-    }
 }
 
 
