@@ -175,8 +175,7 @@ void Driver::initializeXdrFile(const ParameterPack* xdrPack)
     xdrPack -> ReadString("path", ParameterPack::KeyType::Required, xdrPath);
 
     int found = xdrPath.find_last_of(".");
-    ASSERT((found != std::string::npos), "Somehow the . character is not found in the path, it is needed to specify\
-    what kind of file is being passed in.");
+    ASSERT((found != std::string::npos), "The extension of the file is not specified.");
 
     std::string type = xdrPath.substr(found+1);
 
