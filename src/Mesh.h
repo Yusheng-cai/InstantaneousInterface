@@ -23,19 +23,8 @@ struct vertex
     using Real3= CommonTypes::Real3;
     using index2 = CommonTypes::index2;
 
-    Real3 position_;
-    Real3 normals_;
-    int index;
-};
-
-struct edge
-{
-    using Real = CommonTypes::Real;
-    using Real3= CommonTypes::Real3;
-
-    // two vertices make up an edge
-    vertex vertex1_;
-    vertex vertex2_;
+    Real3 position_ = {{0,0,0}};
+    Real3 normals_ = {{0,0,0}};
 };
 
 struct triangle
@@ -43,9 +32,6 @@ struct triangle
     using  INT3 = CommonTypes::index3;
 
     INT3 triangleindices_;
-    
-    // each triangle has 3 edges
-    std::array<edge,3> edges_;
 
     // each triangle has 3 vertices
     std::array<vertex,3> vertices_;
@@ -72,7 +58,6 @@ class Mesh
 
         void printSTL(std::string name);
         void printPLY(std::string name);
-        void printPLYlibr(std::string name);
         void printBoundaryVertices(std::string name);
         void printArea(std::string name);
         void printCuttedMesh(std::string name);
@@ -119,10 +104,6 @@ class Mesh
 
         // printoutput
         void print();
-
-        // convert pbc mesh to non pbs mesh  --> usually for visualization purpose, so let's not print the normals 
-        // we don't actually change the vertices in the mesh obj
-        void ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<INT3>& faces);
 
         // calculate volume
         Real calculateVolume();
@@ -186,14 +167,8 @@ class Mesh
         // outputNames
         std::vector<std::string> outputNames_;
 
-        // indices of the boundary vertices 
-        std::vector<bool> MapBoundaryVertexIndicesToTrue_;
-
         // map vertex to edges 
         std::vector<std::vector<INT2>> MapVertexToEdges_;
-
-        // norms of all the edges in the mesh
-        std::vector<Real3> EdgeNorms_;
 
         // the factor to which all the vertices on the mesh will be multiplied by
         Real factor_=1.0;
@@ -214,8 +189,8 @@ namespace MeshTools
     using INT3  = CommonTypes::index3;
     using INT2  = CommonTypes::index2;
 
-    bool readPLY(std::string& filename, Mesh& mesh_);
-    bool readPLYlibr(std::string& filename, Mesh& mesh_);
+    bool readPLY(std::string& filename, Mesh& mesh);
+    bool readPLYlibr(std::string& filename, Mesh& mesh);
 
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
@@ -243,4 +218,10 @@ namespace MeshTools
 
     // check if point is on boundary
     bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);
+
+    // convert a PBC mesh to non PBC mesh --> usually for visualization purposes
+    void ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& faces);
+
+    // check if a particular triangle is periodic
+    bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
 };

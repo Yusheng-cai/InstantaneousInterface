@@ -47,7 +47,6 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // eigen triplet is a data structure that is useful for sparse matrix storage (i,j,value)
         std::vector<triplet> triplets_;
-        OpenMP::OpenMP_buffer<std::vector<triplet>> triplets_buffer_;
 
         Eigen::SparseMatrix<Real> L_;
 
@@ -72,4 +71,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
         // triangle areas 
         std::vector<Real> TriangleAreas_;
         std::vector<std::vector<int>> MapVertexToFace_;
+
+        // number of vertices and faces
+        int numVerts_, numFaces_;
 };

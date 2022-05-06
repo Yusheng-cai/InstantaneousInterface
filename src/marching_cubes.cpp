@@ -449,7 +449,6 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     for (int i=0;i<verts.size();i++)
     {
         verts[i].position_ = AllVertices[i];
-        verts[i].index = i;
     }
 
     auto& triMesh = mesh.accesstriangles();
@@ -479,15 +478,6 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
                     t.triangleindices_[i] = index;
                     t.vertices_[i] = verts[index];
                 }
-                // construct the edges of each triangle
-                t.edges_[0].vertex1_ = t.vertices_[0];
-                t.edges_[0].vertex2_ = t.vertices_[1];
-
-                t.edges_[1].vertex1_ = t.vertices_[1];
-                t.edges_[1].vertex2_ = t.vertices_[2];
-
-                t.edges_[2].vertex1_ = t.vertices_[2];
-                t.edges_[2].vertex2_ = t.vertices_[0];
 
                 triMesh.push_back(t);
             }

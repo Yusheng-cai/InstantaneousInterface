@@ -35,9 +35,11 @@ void MeshCurvatureflow::refine(Mesh& mesh)
 
     // find number of vertices 
     const auto& v = mesh_->getvertices();
-    newVertices_.insert(newVertices_.end(), v.begin(), v.end());
-    TotalArea_.resize(v.size());
+    numVerts_ = v.size();
+    newVertices_.resize(numVerts_);
+    TotalArea_.resize(numVerts_);
 
+    // start refining 
     for (int i=0;i<numIterations_;i++)
     {
         std::cout << "Iteration " << i << std::endl;
@@ -171,42 +173,34 @@ void MeshCurvatureflow::refineImplicitStep()
     // obtain the rhs of the equation to be solved 
     std::vector<Eigen::VectorXf> rhs;
     std::vector<Eigen::VectorXf> xyz;
-    rhs.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
-    xyz.resize(3, Eigen::VectorXf::Zero(vertexPos_.size()));
-    const auto& vertices = mesh_->getvertices();
+    rhs.resize(3, Eigen::VectorXf::Zero(numVerts_));
+    xyz.resize(3, Eigen::VectorXf::Zero(numVerts_));
 
+    // populate the solved matrices 
+    const auto& vertices = mesh_->getvertices();
     #pragma omp parallel for
-    for(int i = 0; i < vertexPos_.size(); ++i)
+    for(int i = 0; i < numVerts_; ++i)
     {
         // if mesh is not periodic and we are not doing virtual site
         // then we must scale the rhs by Lfactors_ as in (xj - xi + L)
-        if (mesh_->isPeriodic() && (! virtualSite_))
-        {
-            rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertexPos_[i][0];
-            rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertexPos_[i][1];
-            rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertexPos_[i][2];
-        }
-        else
-        {
-            rhs[0][i] = vertexPos_[i][0];
-            rhs[1][i] = vertexPos_[i][1];
-            rhs[2][i] = vertexPos_[i][2];
-        }
+        rhs[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
+        rhs[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
+        rhs[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
     }
 
+    // solve the sparse system of equations
     Sparse_LU sparsesolver;
     sparsesolver.compute(L_);
     ASSERT((sparsesolver.info() == Eigen::Success), "Compute step failed.");
-
-    // solver 
     for (int i=0;i<3;i++)
     {
         xyz[i] = sparsesolver.solve(rhs[i]);
         ASSERT((sparsesolver.info() == Eigen::Success), "The solver failed.");
     }
 
+    // copy over to new vertices data 
     #pragma omp parallel for
-    for (int i=0;i<vertices.size();i++)
+    for (int i=0;i<numVerts_;i++)
     {
         for (int j=0;j<3;j++)
         {
@@ -214,6 +208,7 @@ void MeshCurvatureflow::refineImplicitStep()
         }
     }
 
+    // update the mesh vertices 
     auto& vert = mesh_->accessvertices();
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
@@ -246,69 +241,11 @@ void MeshCurvatureflow::getImplicitMatrix()
 
     Lfactors_.clear();
     Lfactors_.resize(vertices.size(), {{0,0,0}});
-
-    Real epsilon=1e-5;
-
     triplets_.clear();
-    triplets_buffer_.set_master_object(triplets_);
-
-    // copy the positions of the vertices into a vector
-    vertexPos_.clear();
-    vertexPos_.resize(vertices.size());
-    for (int i=0;i<vertices.size();i++)
-    {
-        vertexPos_[i] = vertices[i].position_;
-    }
-
-    // let's first make all the virtual indices
-    std::vector<std::map<int,int>> neighborIndices_corrected;
-
-    // do all the virtual site business if mesh is periodic 
-    if (mesh_->isPeriodic() && virtualSite_)
-    {
-        auto boxLength = mesh_->getBoxLength();
-        for (int i=0;i<vertices.size();i++)
-        {
-            std::map<int,int> tempMap;
-            for (auto ind : neighborIndices_[i])
-            {
-                // first check if this is a periodic edge
-                Real3 newarr = {};
-                bool periodicE = MeshTools::isPeriodicEdge(vertexPos_[ind], vertexPos_[i], newarr , boxLength);
-
-                // if it is a periodic Edge, then let's push back on vertexPos vector 
-                if (periodicE)
-                {
-                    tempMap.insert(std::make_pair(ind, vertexPos_.size()));
-                    vertexPos_.push_back(newarr);
-                }
-                else
-                {
-                    tempMap.insert(std::make_pair(ind, ind));
-                }
-            }
-            // push back the temporary index array 
-            neighborIndices_corrected.push_back(tempMap);
-        }
-    }
-    else
-    {
-        for (int i=0;i<vertices.size();i++)
-        {
-            std::map<int,int> tempMap;
-            for (auto ind : neighborIndices_[i])
-            {
-                tempMap.insert(std::make_pair(ind, ind));
-            }
-            neighborIndices_corrected.push_back(tempMap);
-        }
-    }
-
 
     #pragma omp parallel
     {
-        auto& trip_omp = triplets_buffer_.access_buffer_by_id();
-        trip_omp.clear();
+        std::vector<triplet> triplet_local;
 
         #pragma omp for
         for (int i=0;i<vertices.size();i++)
@@ -326,7 +263,7 @@ void MeshCurvatureflow::getImplicitMatrix()
                 Real w = 0.0;
 
                 // Skip the calculation is Total area is 0 --> less than some threshold --> 1e-5
-                if (TotalArea_[i] > epsilon && flag)
+                if (flag)
                 {
                     Real factor = 1.0/(4.0 * TotalArea_[i]);
 
@@ -337,9 +274,7 @@ void MeshCurvatureflow::getImplicitMatrix()
 
                     for (int j=0;j<numneighbors;j++)
                     {
-                        auto it = neighborIndices_corrected[i].find(neighborId[j]);
-                        ASSERT((it != neighborIndices_corrected[i].end()), "Neighbor " << neighborId[j] << " is not found for vertex " << i);
-                        trip_omp.push_back(triplet(i, it -> second, factor * weights[j]));
+                        triplet_local.push_back(triplet(i, neighborId[j], factor * weights[j]));
                     }
 
                     for (int j=0;j<3;j++)
@@ -347,30 +282,21 @@ void MeshCurvatureflow::getImplicitMatrix()
                         Lfactors_[i][j] = Lfactor[j] * factor;
                     }
 
-                    trip_omp.push_back(triplet(i,i, -factor * w));
+                    triplet_local.push_back(triplet(i,i, -factor * w));
                 }
             }
         }
-    }
 
-    int size = triplets_.size();
-    for (auto it = triplets_buffer_.beginworker(); it < triplets_buffer_.endworker(); it++)
-    {
-        size += it->size();
-    }
-
-    triplets_.reserve(size);
-    for (auto it = triplets_buffer_.beginworker(); it < triplets_buffer_.endworker(); it++)
-    {
-        triplets_.insert(triplets_.end(), it -> begin(), it -> end());
+        #pragma omp critical
+        {
+            triplets_.insert(triplets_.end(), triplet_local.begin(), triplet_local.end());
+        }
     }
 
     // set the L matrix 
     L_.setZero();
-    L_.resize(vertexPos_.size(), vertexPos_.size());
+    L_.resize(numVerts_, numVerts_);
     L_.setFromTriplets(triplets_.begin(), triplets_.end());
-
-    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertexPos_.size(), vertexPos_.size()).sparseView();
-
+    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(numVerts_, numVerts_).sparseView();
     L_ = I - lambdadt_*L_;
 }

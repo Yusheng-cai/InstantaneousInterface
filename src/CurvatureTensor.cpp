@@ -87,10 +87,6 @@ void CurvatureTensor::calculate(Mesh& mesh)
                 diffN[k] = vertices[t[id1]].normals_[k] - vertices[t[id2]].normals_[k];
             }
 
-            #ifdef MY_DEBUG
-            std::cout << "difference in N = " << diffN[0] << " " << diffN[1] << " " << diffN[2] << std::endl;
-            #endif 
-
             Real diffNU = LinAlg3x3::DotProduct(diffN, U);
             Real diffNV = LinAlg3x3::DotProduct(diffN, V);
 
@@ -104,11 +100,6 @@ void CurvatureTensor::calculate(Mesh& mesh)
         A(1,2) = A(0,1);
         A(2,1) = A(0,1);
         A(1,0) = A(0,1);
-
-        #ifdef MY_DEBUG
-        std::cout << "A = " << A << std::endl;
-        std::cout << "b = " << b << std::endl;
-        #endif
 
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;
         Eigen::Vector3d soln = A.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);

@@ -23,7 +23,6 @@ void Mesh::registerFunc()
     // print ply file by myself 
     outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
     // print ply file but using library
-    outputs_.registerOutputFunc("plylibr", [this](std::string name) -> void {this -> printPLYlibr(name);});
     outputs_.registerOutputFunc("boundary", [this](std::string name) -> void {this -> printBoundaryVertices(name);});
     outputs_.registerOutputFunc("area", [this](std::string name) -> void {this -> printArea(name);});
     outputs_.registerOutputFunc("cutted", [this](std::string name) -> void {this -> printCuttedMesh(name);});
@@ -102,109 +101,17 @@ void Mesh::printTranslatedMesh(std::string name)
 
 void Mesh::printNonPBCMesh(std::string name)
 {
-    std::vector<Real3> tempVertices;
-    std::vector<INT3> tempFaces;
-    ConvertToNonPBCMesh(tempVertices, tempFaces);
-
-    MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
-}
-
-void Mesh::ConvertToNonPBCMesh(std::vector<Real3>& vertices, std::vector<INT3>& faces)
-{
-    // if periodic, then do something, else do nothing 
     if (isPeriodic())
     {
-        // first let's copy all the vertices 
-        vertices.clear();
-        for (auto& v : vertices_)
-        {
-            vertices.push_back(v.position_);
-        }
+        std::vector<Real3> tempVertices;
+        std::vector<INT3> tempFaces;
+        MeshTools::ConvertToNonPBCMesh(*this, tempVertices, tempFaces);
 
-        // check if triangle is periodic 
-        for (auto& t : triangles_)
-        {
-            // find all the edge lengths
-            bool periodicTriangle=false;
-            for (int i=0;i<3;i++)
-            {
-                int index1 = t.triangleindices_[i];
-                int index2 = t.triangleindices_[(i+1) % 3]; 
-                Real3 diff;
-                for (int j=0;j<3;j++)
-                {
-                    diff[j] = vertices_[index1].position_[j] - vertices_[index2].position_[j];
-
-                    if (std::abs(diff[j]) >= 0.5 * boxLength_[j])
-                    {
-                        periodicTriangle=true;
-                        break;
-                    }
-                }
-            }
-
-            // if this particular triangle is not periodic 
-            if (! periodicTriangle)
-            {
-                faces.push_back(t.triangleindices_);
-            }
-            // if it's periodic triangle, then we push back 3 new vertices 
-            else
-            {
-                Real3 verticesNew1;
-                Real3 verticesNew2, verticesDiff2;
-                Real distsq2;
-                Real3 verticesNew3, verticesDiff3;
-                Real distsq3;
-                int idx1 = t.triangleindices_[0];
-                int idx2 = t.triangleindices_[1];
-                int idx3 = t.triangleindices_[2];
-
-                // get the pbc corrected distance 
-                getVertexDistance(vertices_[idx2].position_, vertices_[idx1].position_,verticesDiff2, distsq2);
-                getVertexDistance(vertices_[idx3].position_, vertices_[idx1].position_,verticesDiff3, distsq3); 
-
-                // get the new vertices --> with respect to position 1
-                for (int j=0;j<3;j++)
-                {
-                    verticesNew2[j] = vertices_[idx1].position_[j] + verticesDiff2[j];
-                    verticesNew3[j] = vertices_[idx1].position_[j] + verticesDiff3[j];
-                }
-
-                // Find approximately the center of the triangle
-                Real3 center_of_triangle = {};
-                for (int j=0;j<3;j++)
-                {
-                    center_of_triangle[j] += vertices_[idx1].position_[j];
-                    center_of_triangle[j] += verticesNew2[j];
-                    center_of_triangle[j] += verticesNew3[j];
-                }
-
-                for (int j=0;j<3;j++)
-                {
-                    center_of_triangle[j] *= 1.0/3.0;
-                }
-
-                Real3 shift = getShiftIntoBox(center_of_triangle);
-
-                for (int j=0;j<3;j++)
-                {
-                    verticesNew1[j] = vertices_[idx1].position_[j] + shift[j];
-                    verticesNew2[j] = verticesNew2[j] + shift[j];
-                    verticesNew3[j] = verticesNew3[j] + shift[j];
-                }
-
-                int NewIndex1 = vertices.size();
-                vertices.push_back(verticesNew1);
-                int NewIndex2 = vertices.size();
-                vertices.push_back(verticesNew2);
-                int NewIndex3 = vertices.size();
-                vertices.push_back(verticesNew3);
-
-                INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
-                faces.push_back(NewT);
-            }
-        }
+        MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
+    }
+    else
+    {
+        std::cout << "WARNING: You asked to print NON PBC Mesh while the Mesh is not PBC." << "\n";
     }
 }
 
@@ -253,44 +160,6 @@ void Mesh::printBoundaryVertices(std::string name)
     ofs.close();
 }
 
-void Mesh::printPLYlibr(std::string name)
-{
-    std::vector<std::array<double,3>> positions(vertices_.size());
-    std::vector<std::vector<size_t>> fInd(triangles_.size());
-    std::vector<std::vector<double>> normals(3, std::vector<double>(vertices_.size(),0.0));
-
-    std::vector<std::string> directioNames = {"nx", "ny", "nz"};
-
-    for (int i=0;i<vertices_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            positions[i][j] = factor_ * vertices_[i].position_[j];
-            normals[j][i] = vertices_[i].normals_[j];
-        }
-    }
-
-    for (int i=0;i<triangles_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            fInd[i].push_back(triangles_[i].triangleindices_[j]);
-        }
-    }
-
-    happly::PLYData plyOut;
-
-    plyOut.addVertexPositions(positions);
-    plyOut.addFaceIndices(fInd);
-
-    for (int i=0;i<3;i++)
-    {
-        plyOut.getElement("vertex").addProperty(directioNames[i], normals[i]);
-    }
-
-    plyOut.write(name, happly::DataFormat::ASCII);
-}
-
 void Mesh::printCuttedMesh(std::string name)
 {
     ASSERT((pack_ != nullptr), "If you wanted to print cutted Mesh, you must provide a parameter pack for mesh.");
@@ -301,14 +170,14 @@ void Mesh::printCuttedMesh(std::string name)
     int index=0;
     std::map<int,int> MapOldIndexToNew;
     std::vector<Real3> newVertices;
-    for (auto& v : vertices_)
+    for (int i=0;i<vertices_.size();i++)
     {
+        auto& v = vertices_[i];
         if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
         {
-            int oldindex = v.index;
             int newindex = index;
             newVertices.push_back(v.position_);
-            MapOldIndexToNew.insert(std::make_pair(oldindex, newindex));
+            MapOldIndexToNew.insert(std::make_pair(i, newindex));
             index ++;
         }
     }
@@ -345,7 +214,6 @@ void Mesh::print()
 
 void Mesh::printPLY(std::string name)
 {
-    std::cout << "Printing ply" << std::endl;
     std::ofstream ofs;
     ofs.open(name);
 
@@ -679,16 +547,6 @@ void Mesh::update()
             int index = t.triangleindices_[j];
             t.vertices_[j] = vertices_[index];
         }
-
-        // construct the edges of each triangle
-        t.edges_[0].vertex1_ = t.vertices_[0];
-        t.edges_[0].vertex2_ = t.vertices_[1];
-
-        t.edges_[1].vertex1_ = t.vertices_[1];
-        t.edges_[1].vertex2_ = t.vertices_[2];
-
-        t.edges_[2].vertex1_ = t.vertices_[2];
-        t.edges_[2].vertex2_ = t.vertices_[0];
     }
 }
 
@@ -885,7 +743,7 @@ Real factor)
     ofs.close();
 }
 
-bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
+bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
 {
     happly::PLYData plydata(filename);
     std::vector<std::array<double,3>> vPos = plydata.getVertexPositions();
@@ -923,8 +781,8 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
     }
 
     // first we update the mesh
-    auto& vertices = mesh_.accessvertices();
-    auto& triangles= mesh_.accesstriangles();
+    auto& vertices = mesh.accessvertices();
+    auto& triangles= mesh.accesstriangles();
     vertices.clear();
     triangles.clear();
 
@@ -939,7 +797,6 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
             v.position_[j] = vPos[i][j];
             v.normals_[j]  = normals_[i][j];
         }
-        v.index = i;
     }
 
     for (int i=0;i<triangles.size();i++)
@@ -953,41 +810,32 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh_)
             t.triangleindices_[j] = fInd[i][j];
             t.vertices_[j] = vertices[fInd[i][j]];
         }
-
-        t.edges_[0].vertex1_ = t.vertices_[0];
-        t.edges_[0].vertex2_ = t.vertices_[1];
-
-        t.edges_[1].vertex1_ = t.vertices_[1];
-        t.edges_[1].vertex2_ = t.vertices_[2];
-
-        t.edges_[2].vertex1_ = t.vertices_[2];
-        t.edges_[2].vertex2_ = t.vertices_[0];
     }
 
     if ( ! hasnormals)
     {
         std::cout << "Calculating normals by myself." << std::endl;
-        mesh_.CalcVertexNormals();
+        mesh.CalcVertexNormals();
 
-        mesh_.update();
+        mesh.update();
     }
 
     return true;
 }
 
-bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
+bool MeshTools::readPLY(std::string& filename, Mesh& mesh)
 {
-    auto& vertices = mesh_.accessvertices();
-    auto& triangles= mesh_.accesstriangles();
+    auto& vertices = mesh.accessvertices();
+    auto& triangles= mesh.accesstriangles();
     vertices.clear();
     triangles.clear();
 
     // open the file
-    std::ifstream ifs_;
-    std::stringstream ss_;
-    ifs_.open(filename);
+    std::ifstream ifs;
+    std::stringstream ss;
+    ifs.open(filename);
 
-    if (! ifs_.is_open())
+    if (! ifs.is_open())
     {
         return false;
     }
@@ -995,13 +843,13 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
     std::string sentence;
     int numfaces;
     int numvertex;
-    while (std::getline(ifs_, sentence))
+    while (std::getline(ifs, sentence))
     {
-        ss_.str(sentence);
+        ss.str(sentence);
         std::string token;
 
         std::vector<std::string> vectorstring;
-        while (ss_ >> token)
+        while (ss >> token)
         {
             vectorstring.push_back(token);
         }
@@ -1030,22 +878,22 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
             }
         }
 
-        ss_.clear();
+        ss.clear();
     }
 
-    ss_.clear();
+    ss.clear();
     // read in the vertices as well as their normals     
     std::string datasentence;
     for (int i=0;i<numvertex;i++)
     {
-        std::getline(ifs_, datasentence);
-        ss_.str(datasentence);
+        std::getline(ifs, datasentence);
+        ss.str(datasentence);
         std::string data;
         std::vector<std::string> vectordata;
 
         vertex v;
 
-        while (ss_ >> data)
+        while (ss >> data)
         {
             vectordata.push_back(data);
         }
@@ -1063,24 +911,23 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
 
         v.position_ = position;
         v.normals_ = normals;
-        v.index = i;
 
         vertices.push_back(v);
 
-        ss_.clear();
+        ss.clear();
     }
 
-    ss_.clear();
+    ss.clear();
     // read in the triangles
     std::string trianglesentence_;
     for (int i=0;i<numfaces;i++)
     {
-        std::getline(ifs_,trianglesentence_);
-        ss_.str(trianglesentence_);
+        std::getline(ifs,trianglesentence_);
+        ss.str(trianglesentence_);
         std::string data;
         std::vector<std::string> vectordata;
 
-        while (ss_ >> data)
+        while (ss >> data)
         {
             vectordata.push_back(data);
         }
@@ -1102,20 +949,11 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh_)
             t.vertices_[j] = vertices[faceid[j]];
         }
 
-        t.edges_[0].vertex1_ = t.vertices_[0];
-        t.edges_[0].vertex2_ = t.vertices_[1];
-
-        t.edges_[1].vertex1_ = t.vertices_[1];
-        t.edges_[1].vertex2_ = t.vertices_[2];
-
-        t.edges_[2].vertex1_ = t.vertices_[2];
-        t.edges_[2].vertex2_ = t.vertices_[0];
-
         triangles.push_back(t);
-        ss_.clear();
+        ss.clear();
     }
 
-    ifs_.close();
+    ifs.close();
 
     return true;
 }
@@ -1364,4 +1202,112 @@ void MeshTools::CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector
 bool MeshTools::IsBoundary(int index, const std::vector<bool>& boundaryIndicator)
 {
     return boundaryIndicator[index];
+}
+
+void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& triangles)
+{
+    // if periodic, then do something, else do nothing 
+    if (mesh.isPeriodic())
+    {
+        auto MeshVertices = mesh.getvertices();
+        auto MeshTriangles = mesh.gettriangles();
+
+        // first let's copy all the vertices 
+        vertices.clear();
+        for (auto& v : MeshVertices)
+        {
+            vertices.push_back(v.position_);
+        }
+
+        // check if triangle is periodic 
+        for (auto& t : MeshTriangles)
+        {
+            // find all the edge lengths
+            bool periodicTriangle = MeshTools::IsPeriodicTriangle(MeshVertices, t.triangleindices_, mesh.getBoxLength());
+
+            // if this particular triangle is not periodic 
+            if (! periodicTriangle)
+            {
+                triangles.push_back(t.triangleindices_);
+            }
+            // if it's periodic triangle, then we push back 3 new vertices 
+            else
+            {
+                Real3 verticesNew1;
+                Real3 verticesNew2, verticesDiff2;
+                Real distsq2;
+                Real3 verticesNew3, verticesDiff3;
+                Real distsq3;
+                int idx1 = t.triangleindices_[0];
+                int idx2 = t.triangleindices_[1];
+                int idx3 = t.triangleindices_[2];
+
+                // get the pbc corrected distance 
+                mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
+                mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
+
+                // get the new vertices --> with respect to position 1
+                for (int j=0;j<3;j++)
+                {
+                    verticesNew2[j] = MeshVertices[idx1].position_[j] + verticesDiff2[j];
+                    verticesNew3[j] = MeshVertices[idx1].position_[j] + verticesDiff3[j];
+                }
+
+                // Find approximately the center of the triangle
+                Real3 center_of_triangle = {};
+                for (int j=0;j<3;j++)
+                {
+                    center_of_triangle[j] += MeshVertices[idx1].position_[j];
+                    center_of_triangle[j] += verticesNew2[j];
+                    center_of_triangle[j] += verticesNew3[j];
+                }
+
+                for (int j=0;j<3;j++)
+                {
+                    center_of_triangle[j] *= 1.0/3.0;
+                }
+
+                Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
+
+                for (int j=0;j<3;j++)
+                {
+                    verticesNew1[j] = MeshVertices[idx1].position_[j] + shift[j];
+                    verticesNew2[j] = verticesNew2[j] + shift[j];
+                    verticesNew3[j] = verticesNew3[j] + shift[j];
+                }
+
+                int NewIndex1 = vertices.size();
+                vertices.push_back(verticesNew1);
+                int NewIndex2 = vertices.size();
+                vertices.push_back(verticesNew2);
+                int NewIndex3 = vertices.size();
+                vertices.push_back(verticesNew3);
+
+                INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
+                triangles.push_back(NewT);
+            }
+        }
+    }
+}
+
+bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength)
+{
+    bool IsPeriodic=false;
+    for (int i=0;i<3;i++)
+    {
+        int index1 = face[i];
+        int index2 = face[(i+1) % 3]; 
+        Real3 diff;
+        for (int j=0;j<3;j++)
+        {
+            diff[j] = Vertices[index1].position_[j] - Vertices[index2].position_[j];
+
+            if (std::abs(diff[j]) >= 0.5 * BoxLength[j])
+            {
+                return true;
+            }
+        }
+    }
+
+    return false;
 }
