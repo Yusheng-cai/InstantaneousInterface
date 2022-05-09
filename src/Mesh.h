@@ -16,12 +16,10 @@
 #include <unordered_map>
 #include <iomanip>
 
-
 struct vertex
 {
     using Real = CommonTypes::Real;
     using Real3= CommonTypes::Real3;
-    using index2 = CommonTypes::index2;
 
     Real3 position_ = {{0,0,0}};
     Real3 normals_ = {{0,0,0}};
@@ -228,4 +226,7 @@ namespace MeshTools
 
     // make an Edge, edge is simply the 2 indices of {{minIndex, maxIndex}}
     INT2 makeEdge(int i, int j);
+
+    // calculate the corner area 
+    void CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, std::vector<Real>& VertexArea);
 };

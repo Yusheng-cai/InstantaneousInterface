@@ -1363,3 +1363,87 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
         }
     }
 }
+
+void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, std::vector<Real>& VertexArea)
+{
+    const auto& vertices = mesh.getvertices();
+    const auto& triangles= mesh.gettriangles();
+    int nf = triangles.size();
+    int nv = vertices.size();
+
+    // resize corner area
+    CornerArea.clear();
+    CornerArea.resize(nf);
+
+    // resize vertex area
+    VertexArea.clear();
+    VertexArea.resize(nv,0.0);
+
+	for (int i = 0; i < nf; i++) {
+		// Edges
+        auto& t = triangles[i];
+        int index1 = t.triangleindices_[0];
+        int index2 = t.triangleindices_[1];
+        int index3 = t.triangleindices_[2];
+
+        Real3 edge1, edge2, edge3;
+        Real edge1sq, edge2sq, edge3sq;
+
+        mesh.getVertexDistance(vertices[index3], vertices[index2], edge1, edge1sq);
+        mesh.getVertexDistance(vertices[index1], vertices[index3], edge2, edge2sq);
+        mesh.getVertexDistance(vertices[index2], vertices[index1], edge3, edge3sq);
+
+		// Compute corner weights
+        Real3 cross = LinAlg3x3::CrossProduct(edge1, edge2);
+        Real  area  = 0.5 * LinAlg3x3::norm(cross);
+
+        Real e1 = LinAlg3x3::norm(edge1);
+        Real e2 = LinAlg3x3::norm(edge2);
+        Real e3 = LinAlg3x3::norm(edge3);
+
+		Real3 l2 = { e1*e1, e2*e2, e3*e3};
+
+		// Barycentric weights of circumcenter
+		Real3 bcw = { l2[0] * (l2[1] + l2[2] - l2[0]),
+		                 l2[1] * (l2[2] + l2[0] - l2[1]),
+		                 l2[2] * (l2[0] + l2[1] - l2[2]) };
+
+		if (bcw[0] <= 0.0f) {
+			CornerArea[i][1] = -0.25f * l2[2] * area/LinAlg3x3::DotProduct(edge1, edge3);
+			CornerArea[i][2] = -0.25f * l2[1] * area/LinAlg3x3::DotProduct(edge1, edge2);
+			CornerArea[i][0] = area - CornerArea[i][1] - CornerArea[i][2];
+		} else if (bcw[1] <= 0.0f) {
+			CornerArea[i][2] = -0.25f * l2[0] * area/LinAlg3x3::DotProduct(edge2, edge1);
+			CornerArea[i][0] = -0.25f * l2[2] * area/LinAlg3x3::DotProduct(edge2, edge3);
+			CornerArea[i][1] = area - CornerArea[i][2] - CornerArea[i][0];
+		} else if (bcw[2] <= 0.0f) {
+			CornerArea[i][0] = -0.25f * l2[1] * area/LinAlg3x3::DotProduct(edge3, edge2);
+			CornerArea[i][1] = -0.25f * l2[0] * area/LinAlg3x3::DotProduct(edge3, edge1);
+			CornerArea[i][2] = area - CornerArea[i][0] - CornerArea[i][1];
+		} else {
+			float scale = 0.5f * area / (bcw[0] + bcw[1] + bcw[2]);
+			for (int j = 0; j < 3; j++)
+            {
+                int next = j - 1;
+                int nextnext = j -2;
+
+                if (next < 0)
+                {
+                    next += 3;
+                }
+
+                if (nextnext < 0)
+                {
+                    nextnext += 3;
+                }
+
+				CornerArea[i][j] = scale * (bcw[next] +
+				                             bcw[nextnext]);
+            }
+		}
+
+		VertexArea[t.triangleindices_[0]] += CornerArea[i][0];
+		VertexArea[t.triangleindices_[1]] += CornerArea[i][1];
+		VertexArea[t.triangleindices_[2]] += CornerArea[i][2];
+	}
+}
