@@ -111,7 +111,7 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
             Real costheta  = LinAlg3x3::findCosangle(vec1, vec2);
             Real sin2theta = 1 - costheta*costheta;
 
-            // if sin2theta is too close to 0 then we just return 
+            // if sin2theta is too close to 0 or even less than 0 then we just return false 
             if (sin2theta < epsilon_)
             {
                 return false;
