@@ -7,14 +7,9 @@ class CurvatureFDM: public Curvature
 
         virtual void calculate(Mesh& mesh);
         virtual ~CurvatureFDM(){};
-        void calculateArithmeticMean(Mesh& mesh);
-        void calculateGeometricMean(Mesh& mesh); 
 
         virtual void printCurvature(std::string name) override;
 
     private:
-        std::string MeanMethod_="geometric";
-        std::vector<Real> curvature_;
-
         std::vector<std::vector<int>> neighbor_indices_;
 };

@@ -23,11 +23,10 @@ void CurvatureTensor::calculate(Mesh& mesh)
     const auto& triangleArea = mesh.getTriangleArea();
     const auto& cornerArea   = mesh.getCornerAreas();
 
-    Real3 zeroArr_ = {{0,0,0}};
     curvatureTensorPerTriangle_.resize(triangles.size());
 
     // Fill the curvature Tensor Per vertex with zero arrays
-    curvatureTensorPerVertex_.resize(vertices.size(), zeroArr_);
+    curvatureTensorPerVertex_.resize(vertices.size(), {});
 
     TotalAreaPerVertex_.resize(vertices.size(), 0.0);
     CurvaturePerVertex_tot.resize(vertices.size());
@@ -38,7 +37,7 @@ void CurvatureTensor::calculate(Mesh& mesh)
         std::array<Real3,3> edges;
         Real edge0sq, edge1sq, edge2sq;
 
-        mesh.getVertexDistance(vertices[t[2]],vertices[t[1]], edges[0], edge0sq);
+        mesh.getVertexDistance(vertices[t[2]], vertices[t[1]], edges[0], edge0sq);
         mesh.getVertexDistance(vertices[t[0]], vertices[t[2]], edges[1], edge1sq);
         mesh.getVertexDistance(vertices[t[1]], vertices[t[0]], edges[2], edge2sq);
 

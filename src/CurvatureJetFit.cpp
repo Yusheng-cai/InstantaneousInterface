@@ -46,13 +46,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
     MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
 
     const auto& vertices = mesh.getvertices();
-
-    CurvaturePerVertex_.resize(vertices.size());
-    avgCurvaturePerVertex_.resize(vertices.size() ,0.0);
-    GaussCurvaturePerVertex_.resize(vertices.size(),0.0);
-
-    principalDir1_.resize(vertices.size());
-    principalDir2_.resize(vertices.size());
+    int nv = vertices.size();
 
     if (foundnumneighrs_)
     {
@@ -65,15 +59,15 @@ void CurvatureJetFit::calculate(Mesh& mesh)
         Graph::getNNearbyIndices(VertexNeighbors,numpoints_-1,NeighborIndicesNVertex_);
     }
 
-    coefficientsPerVertex_.resize(vertices.size());
-    PCAeigenvector_.resize(vertices.size());
+    coefficientsPerVertex_.resize(nv);
+    PCAeigenvector_.resize(nv);
 
     #pragma omp parallel
     {
         MongeViaJetFitting jetfitterLocal;
 
         #pragma omp for
-        for (int i=0;i<NeighborIndicesNVertex_.size();i++)
+        for (int i=0;i<nv;i++)
         {
             std::vector<Dpoint> vec;
             Real3 thisPos = vertices[i].position_;

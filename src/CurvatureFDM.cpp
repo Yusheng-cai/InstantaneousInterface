@@ -8,8 +8,6 @@ namespace CurvatureRegistry
 CurvatureFDM::CurvatureFDM(CurvatureInput& input)
 :Curvature(input)
 {
-    input.pack.ReadString("mean", ParameterPack::KeyType::Optional, MeanMethod_);
-    ASSERT((MeanMethod_ == "arithmetic" || MeanMethod_ == "geometric"), "The method for calculating mean must be either arithmetic or geometric.");
 }
 
 void CurvatureFDM::calculate(Mesh& mesh)
@@ -18,153 +16,60 @@ void CurvatureFDM::calculate(Mesh& mesh)
 
     MeshTools::CalculateVertexNeighbors(mesh, neighbor_indices_);
 
-    if (MeanMethod_ == "arithmetic")
+    // vertices 
+    const auto& vertices = mesh.getvertices();
+    int nv = vertices.size();
+
+    // Now we calculate the curvature
+    for (int i=0;i<nv;i++)
     {
-        calculateArithmeticMean(mesh);
+        auto& v1 = vertices[i];
+        auto& neighbors = neighbor_indices_[i];
+        int numneighbors= neighbors.size();
+        Real GaussCurve = 1.0;
+
+        for (int j=0;j<numneighbors;j++)
+        { 
+            auto& v2 = vertices[neighbors[j]];
+
+            Real3 diff = {};
+            Real3 diffn = {};
+            Real curve_Val;
+            
+            for(int m=0;m<3;m++)
+            {
+                diff[m]  = v2.position_[m] - v1.position_[m];
+                diffn[m] = v2.normals_[m] - v1.normals_[m];
+            }
+
+            Real diffnnorm = LinAlg3x3::norm(diffn); 
+            Real sq_diff   = LinAlg3x3::DotProduct(diff, diff);
+            Real NDotPos   = LinAlg3x3::DotProduct(diffn, diff); 
+
+            curve_Val = NDotPos/sq_diff;
+            avgCurvaturePerVertex_[i] += std::abs(curve_Val);
+            GaussCurve *= std::abs(curve_Val);
+        }
+        GaussCurvaturePerVertex_[i] = GaussCurve;
     }
-    else
+
+    for (int i=0;i<nv;i++)
     { 
-        calculateGeometricMean(mesh);
-    }
+        int neighborSize = neighbor_indices_[i].size();
+        avgCurvaturePerVertex_[i] = avgCurvaturePerVertex_[i]/neighborSize;
+        GaussCurvaturePerVertex_[i] = std::pow(GaussCurvaturePerVertex_[i], 1.0/neighborSize);
+    } 
 }
 
 void CurvatureFDM::printCurvature(std::string name)
 {
-    std::ofstream ofs_;
-    ofs_.open(name);
+    std::ofstream ofs;
+    ofs.open(name);
 
-    if (MeanMethod_ == "arithmetic")
+    ofs << "# Average Gaussian\n";
+    for (int i=0;i<avgCurvaturePerVertex_.size();i++)
     {
-        ofs_ << "# Mean curvature" << "\n";
+        ofs << avgCurvaturePerVertex_[i] << " " << GaussCurvaturePerVertex_[i] << "\n";
     }
-    else
-    {
-        ofs_ << "# Gaussian Curvature" << "\n";
-    }
-    for (int i=0;i<curvature_.size();i++)
-    {
-        ofs_ << curvature_[i];
-        ofs_ << "\n"; 
-    }
-    ofs_.close();
-}
-
-void CurvatureFDM::calculateArithmeticMean(Mesh& mesh)
-{   
-    curvature_.clear();
-    curvature_.resize(mesh.getNumVertices());
-
-    std::fill(curvature_.begin(), curvature_.end(),0.0);
-
-    const auto& vertices = mesh.getvertices();
-
-    // Now we calculate the curvature
-    for (int i=0;i<vertices.size();i++)
-    {
-        auto& v1 = vertices[i];
-        auto& neighbors = neighbor_indices_[i];
-
-        Real neighborAreaTot = 0.0;;
-
-        for (int j=0;j<neighbors.size();j++)
-        { 
-            auto& v2 = vertices[neighbors[j]];
-
-            Real3 diff;
-            Real3 diffn;
-            Real sq_diff=0.0;
-            Real dot_product = 0.0;
-            Real curve_Val;
-            diff.fill(0);
-            diffn.fill(0);
-            
-            for(int m=0;m<3;m++)
-            {
-                diff[m] = v2.position_[m] - v1.position_[m];
-                diffn[m] = v2.normals_[m] - v1.normals_[m];
-            }
-
-            Real diffnnorm = LinAlg3x3::norm(diffn); 
-
-            for (int m=0;m<3;m++)
-            {
-                sq_diff += diff[m]*diff[m];
-            }
-
-            for (int m=0;m<3;m++)
-            {
-                dot_product += diff[m]*diffn[m];
-            }
-
-            curve_Val = dot_product/sq_diff;
-            curvature_[i]  += std::abs(curve_Val);
-        }
-    }
-
-    ASSERT((neighbor_indices_.size() == curvature_.size()), "The size for number of neighors is wrong.");
-
-    for (int i=0;i<curvature_.size();i++)
-    { 
-        curvature_[i] = curvature_[i]/neighbor_indices_[i].size();
-    } 
-
-}
-
-void CurvatureFDM::calculateGeometricMean(Mesh& mesh)
-{
-    curvature_.clear();
-    curvature_.resize(mesh.getNumVertices());
-    std::fill(curvature_.begin(), curvature_.end(),1.0);
-
-    const auto& vertices = mesh.getvertices();
-
-    // Now we calculate the curvature
-    for (int i=0;i<vertices.size();i++)
-    {
-        auto& v1 = vertices[i];
-        auto& neighbors = neighbor_indices_[i];
-
-        Real neighborAreaTot = 0.0;;
-
-        for (int j=0;j<neighbors.size();j++)
-        { 
-            auto& v2 = vertices[neighbors[j]];
-
-            Real3 diff;
-            Real3 diffn;
-            Real sq_diff=0.0;
-            Real dot_product = 0.0;
-            Real curve_Val;
-            diff.fill(0);
-            diffn.fill(0);
-            
-            for(int m=0;m<3;m++)
-            {
-                diff[m] = v2.position_[m] - v1.position_[m];
-                diffn[m] = v2.normals_[m] - v1.normals_[m];
-            }
-
-            Real diffnnorm = LinAlg3x3::norm(diffn); 
-
-            for (int m=0;m<3;m++)
-            {
-                sq_diff += diff[m]*diff[m];
-            }
-
-            for (int m=0;m<3;m++)
-            {
-                dot_product += diff[m]*diffn[m];
-            }
-
-            curve_Val = dot_product/sq_diff;
-            curvature_[i]  *= std::abs(curve_Val);
-        }
-    }
-
-    ASSERT((neighbor_indices_.size() == curvature_.size()), "The size for number of neighors is wrong.");
-
-    for (int i=0;i<curvature_.size();i++)
-    { 
-        curvature_[i] = std::pow(curvature_[i], 1.0/neighbor_indices_[i].size());
-    } 
+    ofs.close();
 }

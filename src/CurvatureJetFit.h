@@ -1,3 +1,4 @@
+#pragma once 
 #include "Curvature.h"
 #include "CGAL/Simple_cartesian.h"
 #include "CGAL/Monge_via_jet_fitting.h"
@@ -23,9 +24,6 @@ class CurvatureJetFit : public Curvature
         void printNeighbors(std::string name);
         void printCoefficientPerVertex(std::string name);
         void printPCAeigenvector(std::string name);
-
-        // function that outputs the monge normals 
-        // void printMongeNormal(std::string name);
 
     private:
         Mongeform mform_;

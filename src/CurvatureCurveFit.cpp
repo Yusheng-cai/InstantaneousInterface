@@ -17,6 +17,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     initialize(mesh);
 
     const auto& vertices = mesh.getvertices();
+    int nv = vertices.size();
 
     // calculate vertex neighbors
     std::vector<std::vector<int>> VertexNeighbors;
@@ -30,19 +31,10 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     Real3 referenceDir = {{0,0,-1}};
 
     #pragma omp parallel for
-    for (int i=0;i<vertices.size();i++)
+    for (int i=0;i<nv;i++)
     {
         auto& v = vertices[i];
         auto& neighbors = NeighborIndicesNVertex[i];
-
-        if (neighbors.size() < 3)
-        {
-            for (int j=0;j<neighbors.size();j++)
-            {
-                std::cout << "Neighbor of insufficient index " << i << " is " << neighbors[j] << "\n";
-            }
-        }
-
         ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
          index = " << i << " number of neighbors = " << neighbors.size());
 
@@ -53,7 +45,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
         // initialize the 
         Eigen::Matrix3d mat = Eigen::Matrix3d::Zero();
-        Eigen::Vector3d b = Eigen::Vector3d::Zero();
+        Eigen::Vector3d b   = Eigen::Vector3d::Zero();
 
         // Fitting equation to the form of b1*x^2 + b2 * y^2 + b3 * x * y
         for (int j=0;j<neighbors.size();j++)
