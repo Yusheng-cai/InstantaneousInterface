@@ -113,9 +113,6 @@ void LinAlg3x3::RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const R
     LinAlg3x3::normalize(N2);
 
     Real3 crossProduct = LinAlg3x3::CrossProduct(N1, N2);
-    #ifdef MY_DEBUG
-    std::cout << "crossproduct = " << crossProduct[0] << " " << crossProduct[1] << " " << crossProduct[2] << std::endl;
-    #endif
     Real cosine = LinAlg3x3::DotProduct(N1, N2);
 
     Matrix ret;
