@@ -125,7 +125,6 @@ class DensityField
         Meshptr mesh_;
 
         std::vector<int> AtomIndicesInside_;
-        OpenMP::OpenMP_buffer<std::vector<int>> AtomIndicesBuffer_;
 
         // this one manages all the output functions
         Output outputs_;

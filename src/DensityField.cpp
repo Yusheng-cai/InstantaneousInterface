@@ -191,33 +191,24 @@ void DensityField::findAtomsIndicesInBoundingBox()
     auto& atoms = atomgroup.getAtoms();
 
     AtomIndicesInside_.clear();
-    AtomIndicesBuffer_.clearBuffer();
-    AtomIndicesBuffer_.set_master_object(AtomIndicesInside_);
 
     #pragma omp parallel
     {
-        auto& indices_buffer = AtomIndicesBuffer_.access_buffer_by_id();
+        std::vector<int> indices_local; 
+
         #pragma omp for
         for(int i=0;i<atoms.size();i++)
         {
             if (bound_box_ -> isInside(atoms[i].position))
             {
-                indices_buffer.push_back(i);
+                indices_local.push_back(i);
             }
         }
-    }
 
-    int size = AtomIndicesInside_.size();
-    for (auto it = AtomIndicesBuffer_.beginworker();it != AtomIndicesBuffer_.endworker();it++)
-    {
-        size += it -> size();
-    }
-
-    AtomIndicesInside_.reserve(size);
-
-    for (auto it = AtomIndicesBuffer_.beginworker();it != AtomIndicesBuffer_.endworker();it++)
-    {
-        AtomIndicesInside_.insert(AtomIndicesInside_.end(), it->begin(), it -> end());
+        #pragma omp critical
+        {
+            AtomIndicesInside_.insert(AtomIndicesInside_.end(), indices_local.begin(), indices_local.end());
+        }
     }
 }
 
