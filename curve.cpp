@@ -156,7 +156,7 @@ int main(int argc, char** argv)
         fpack -> ReadArrayNumber("zrange", ParameterPack::KeyType::Required, zrange);
         fpack -> ReadArrayNumber("dimension", ParameterPack::KeyType::Required, index);
         fpack -> ReadNumber("file", ParameterPack::KeyType::Required,fname);
-        fpack -> ReadNumber("isosurfaceval", ParameterPack::KeyType::Required,val);
+        fpack -> ReadNumber("isosurfacevalue", ParameterPack::KeyType::Required,val);
         fpack -> Readbool("pbc", ParameterPack::KeyType::Optional, pbc);
 
         // find the field pointer
