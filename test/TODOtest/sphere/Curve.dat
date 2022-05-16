@@ -5,8 +5,8 @@ plyfile = {
 curvature = {
     name = jfit
     type = jetfit
-    outputs = [ curvature ] 
-    outputNames = [ jetfit.out ]
+    outputs = [ curvature FaceCurvature ] 
+    outputNames = [ jetfit.out jetfit_face.out ]
     neighbors = 2
     degree = 4
     MongeCoefficient = 4
@@ -15,14 +15,21 @@ curvature = {
 curvature = {
     name = cfit
     type = curvefit
-    outputs = [ curvature ] 
-    outputNames = [ curvefit.out ]
+    outputs = [ curvature FaceCurvature ] 
+    outputNames = [ curvefit.out curvefit_face.out ]
     neighbors = 2
 }
 
 curvature = {
     name = t
     type = tensor
-    outputs = [ curvature ] 
-    outputNames = [ tensor.out ]
+    outputs = [ curvature FaceCurvature ] 
+    outputNames = [ tensor.out tensor_face.out ]
+}
+
+curvature = {
+    name = fdm
+    type = FDM
+    outputs = [ curvature FaceCurvature ] 
+    outputNames = [ FDM.out FDM_face.out ]
 }
