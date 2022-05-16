@@ -149,6 +149,8 @@ void CurvatureTensor::calculate(Mesh& mesh)
     } 
 
     calculatePrincipalCurvatures(mesh);
+
+    CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, FaceCurvature_);
 }
 
 void CurvatureTensor::calculatePrincipalCurvatures(Mesh& mesh)

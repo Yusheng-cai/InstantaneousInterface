@@ -149,4 +149,6 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         avgCurvaturePerVertex_[i] = avg;
         GaussCurvaturePerVertex_[i] = gauss;
     }
+
+    CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, FaceCurvature_);
 }

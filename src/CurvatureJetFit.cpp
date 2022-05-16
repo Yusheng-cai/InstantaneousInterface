@@ -141,6 +141,8 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             GaussCurvaturePerVertex_[i] = gauss;
         }
     }
+
+    CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, FaceCurvature_);
 }
 
 void CurvatureJetFit::printNeighbors(std::string name)

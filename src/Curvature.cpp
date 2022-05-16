@@ -9,6 +9,7 @@ Curvature::Curvature(CurvatureInput& input)
 
     outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
     outputs_.registerOutputFunc("principaldir", [this](std::string name) -> void {this -> printPrincipalDir(name);});
+    outputs_.registerOutputFunc("FaceCurvature", [this](std::string name)-> void {this -> printFaceCurvature(name);});
 
     ASSERT(( OutputNames_.size() == OutputFileNames_.size()), "The number of outputs does not agree with number of output files.");
 }
@@ -56,6 +57,19 @@ void Curvature::printCurvature(std::string name)
     ofs_.close();
 }
 
+void Curvature::printFaceCurvature(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "# TriangleIndex  Curvature\n";
+    for (int i=0;i<FaceCurvature_.size();i++)
+    {
+        ofs << i+1 << " " << FaceCurvature_[i] << "\n";
+    }
+    ofs.close();
+}
+
 void Curvature::printPrincipalDir(std::string name)
 {
     std::ofstream ofs_;
@@ -83,4 +97,29 @@ void Curvature::printPrincipalDir(std::string name)
     }
 
     ofs_.close();
+}
+
+void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, std::vector<Real>& FaceCurvature)
+{
+    const auto& triangle = mesh.gettriangles();
+    const auto& vertices = mesh.getvertices();
+
+    FaceCurvature.clear();
+    FaceCurvature.resize(triangle.size(),0.0);
+
+    #pragma omp parallel for
+    for (int i=0;i<triangle.size();i++)
+    {
+        auto& t = triangle[i].triangleindices_;
+
+        Real Face_C = 0.0;
+        for (int j=0;j<3;j++)
+        {
+            Face_C += VertexCurvature[t[j]];
+        }
+
+        Face_C = Face_C / 3.0;
+
+        FaceCurvature[i] = Face_C;
+    }
 }
