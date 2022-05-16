@@ -60,6 +60,8 @@ void MeshCurvatureflow::refine(Mesh& mesh)
         std::cout << "Iteration " << i << std::endl;
         refineImplicitStep();
     }
+
+    mesh_->CalcVertexNormals();
 }
 
 bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::vector<Real>& cotFactors)
