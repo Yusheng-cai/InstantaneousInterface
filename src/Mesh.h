@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <sstream>
 #include <memory>
+#include <numeric>
 #include <unordered_map>
 #include <iomanip>
 
@@ -62,6 +63,7 @@ class Mesh
         void printNonPBCMesh(std::string name);
         void printTranslatedMesh(std::string name);
         void printNeighbors(std::string name);
+        void printNonPeriodicTriangleIndices(std::string name);
 
                                         /*******************************************
                                          * ******** setting Function **************

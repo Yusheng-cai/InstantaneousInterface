@@ -29,6 +29,7 @@ void Mesh::registerFunc()
     outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printNonPBCMesh(name);});
     outputs_.registerOutputFunc("translate",[this](std::string name) -> void {this -> printTranslatedMesh(name);});
     outputs_.registerOutputFunc("neighbor", [this](std::string name) -> void {this -> printNeighbors(name);});
+    outputs_.registerOutputFunc("NonPeriodicTriangle", [this](std::string name) -> void {this -> printNonPeriodicTriangleIndices(name);});
 }
 
 void Mesh::printNeighbors(std::string name)
@@ -66,6 +67,37 @@ void Mesh::printArea(std::string name)
     for (int i=0;i<triangleA.size();i++)
     {
         ofs << triangleA[i] << "\n";
+    }
+
+    ofs.close();
+}
+
+void Mesh::printNonPeriodicTriangleIndices(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+    std::vector<int> NonPeriodicTriangleIndices;
+
+    if (isPeriodic())
+    {
+        for (int i =0;i<triangles_.size();i++)
+        {
+            auto t = triangles_[i].triangleindices_;
+            if (MeshTools::IsPeriodicTriangle(vertices_, t, getBoxLength()))
+            {
+                NonPeriodicTriangleIndices.push_back(i);
+            }
+        }
+    }
+    else
+    {
+        NonPeriodicTriangleIndices.resize(triangles_.size());
+        std::iota(NonPeriodicTriangleIndices.begin(), NonPeriodicTriangleIndices.end(),0);
+    }
+
+    for (int index : NonPeriodicTriangleIndices)
+    {
+        ofs << index << " ";
     }
 
     ofs.close();
