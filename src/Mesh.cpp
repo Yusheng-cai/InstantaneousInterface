@@ -83,7 +83,7 @@ void Mesh::printNonPeriodicTriangleIndices(std::string name)
         for (int i =0;i<triangles_.size();i++)
         {
             auto t = triangles_[i].triangleindices_;
-            if (MeshTools::IsPeriodicTriangle(vertices_, t, getBoxLength()))
+            if (! MeshTools::IsPeriodicTriangle(vertices_, t, getBoxLength()))
             {
                 NonPeriodicTriangleIndices.push_back(i);
             }
