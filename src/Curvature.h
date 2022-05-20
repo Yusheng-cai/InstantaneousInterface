@@ -64,7 +64,7 @@ class Curvature
         std::vector<Real3> principalDir1_;
         std::vector<Real3> principalDir2_;
 
-        // the curvature for each triangle
+        // the curvature for each triangle --> k1, k2 , avgCurvature
         std::vector<Real> FaceCurvature_;
 };
 

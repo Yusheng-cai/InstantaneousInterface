@@ -233,7 +233,7 @@ void Mesh::printCuttedMesh(std::string name)
             newTriangles.push_back(newt);
         }
     }
-    MeshTools::writePLY(name, newVertices, newTriangles);
+    MeshTools::writePLY(name, newVertices, newTriangles, factor_);
 }
 
 void Mesh::print()
