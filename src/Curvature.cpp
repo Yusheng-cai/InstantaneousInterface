@@ -62,10 +62,10 @@ void Curvature::printFaceCurvature(std::string name)
     std::ofstream ofs;
     ofs.open(name);
 
-    ofs << "# TriangleIndex  Curvature\n";
+    ofs << "# TriangleIndex  MeanCurvature  GaussCurvature\n";
     for (int i=0;i<FaceCurvature_.size();i++)
     {
-        ofs << i+1 << " " << FaceCurvature_[i] << "\n";
+        ofs << i+1 << " " << FaceCurvature_[i][0] << " " << FaceCurvature_[i][1] << "\n";
     }
     ofs.close();
 }
@@ -99,27 +99,33 @@ void Curvature::printPrincipalDir(std::string name)
     ofs_.close();
 }
 
-void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, std::vector<Real>& FaceCurvature)
+void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, \
+                                                   const std::vector<Real>& VertexGaussCurvature,\
+                                                   std::vector<Real2>& FaceCurvature)
 {
     const auto& triangle = mesh.gettriangles();
     const auto& vertices = mesh.getvertices();
 
     FaceCurvature.clear();
-    FaceCurvature.resize(triangle.size(),0.0);
+    FaceCurvature.resize(triangle.size());
 
     #pragma omp parallel for
     for (int i=0;i<triangle.size();i++)
     {
         auto& t = triangle[i].triangleindices_;
+        Real FaceMeanC = 0.0;
+        Real FaceGaussC= 0.0;
 
-        Real Face_C = 0.0;
         for (int j=0;j<3;j++)
         {
-            Face_C += VertexCurvature[t[j]];
+            FaceMeanC += VertexCurvature[t[j]];
+            FaceGaussC+= VertexGaussCurvature[t[j]];
         }
 
-        Face_C = Face_C / 3.0;
+        FaceMeanC = FaceMeanC / 3.0;
+        FaceGaussC= FaceGaussC / 3.0;
 
-        FaceCurvature[i] = Face_C;
+        FaceCurvature[i][0] = FaceMeanC;
+        FaceCurvature[i][1] = FaceGaussC;
     }
 }

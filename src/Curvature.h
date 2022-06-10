@@ -31,7 +31,9 @@ class Curvature
 
         // calculates the curvature using a particular method
         virtual void calculate(Mesh& mesh) = 0;
-        void CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, std::vector<Real>& FaceCurvature);
+        void CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexMeanCurvature, \
+                                                const std::vector<Real>& VertexGaussCurvature, \
+                                                std::vector<Real2>& FaceCurvature);
 
         virtual void printOutput();
         virtual void printCurvature(std::string name);
@@ -64,8 +66,8 @@ class Curvature
         std::vector<Real3> principalDir1_;
         std::vector<Real3> principalDir2_;
 
-        // the curvature for each triangle --> k1, k2 , avgCurvature
-        std::vector<Real> FaceCurvature_;
+        // the curvature for each triangle --> avgMeanCurvature , avgGaussCurvature
+        std::vector<Real2> FaceCurvature_;
 };
 
 
