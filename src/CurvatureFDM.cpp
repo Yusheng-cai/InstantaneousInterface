@@ -60,7 +60,7 @@ void CurvatureFDM::calculate(Mesh& mesh)
         GaussCurvaturePerVertex_[i] = std::pow(GaussCurvaturePerVertex_[i], 1.0/neighborSize);
     } 
 
-    CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, FaceCurvature_);
+    CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, GaussCurvaturePerVertex_, FaceCurvature_);
 }
 
 void CurvatureFDM::printCurvature(std::string name)
