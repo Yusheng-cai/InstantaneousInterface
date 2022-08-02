@@ -158,8 +158,10 @@ void Driver::readFrameXdr(int FrameNum)
 
 void Driver::update()
 {
+    // obtain the positions of the atoms from the xdr file (xtc, trr etc.)
     auto& positions_ = xdrfile_ -> getPositions();
 
+    // update the atomgroups
     for (int i=0;i<AtomGroupNames_.size();i++)
     {
         auto& agName = AtomGroupNames_[i];
