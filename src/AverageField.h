@@ -22,6 +22,20 @@ class AverageField:public DensityField
         virtual void finishCalculate() override;
         virtual void printOutputIfOnStep() override {};
 
+        // print the entire 3d field (xyz)
         void printField(std::string name);
+
+        // print the 2d field (xy, xz or yz)
+        void print2dField(std::string name);
     private:
+
+        std::map<std::string, int> Map2dNameToDimension = \
+        {
+            {"xy", 2}, 
+            {"yz", 0}, 
+            {"xz", 1}, 
+            {"yx", 2}, 
+            {"zy", 0}, 
+            {"zx", 1}     
+        };
 };

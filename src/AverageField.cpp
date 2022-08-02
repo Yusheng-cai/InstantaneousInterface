@@ -46,14 +46,14 @@ void AverageField::finishCalculate()
 
 void AverageField::printField(std::string name)
 {
-    std::ofstream ofs_;
-    ofs_.open(name);
+    std::ofstream ofs;
+    ofs.open(name);
     for (int i=0;i<field_.accessField().size();i++) 
     {
-        ofs_ << field_.accessField()[i];
+        ofs << field_.accessField()[i];
 
-        ofs_ << " ";
+        ofs << " ";
     }
 
-    ofs_.close();
+    ofs.close();
 }

@@ -1,4 +1,5 @@
 #pragma once
+
 #include "tools/Assert.h"
 #include "tools/CommonTypes.h"
 #include "LinAlgTools.h"
@@ -231,4 +232,7 @@ namespace MeshTools
 
     // calculate the corner area 
     void CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, std::vector<Real>& VertexArea);
+
+    // cut mesh and give a new mesh 
+    void CutMesh(Mesh& mesh, std::vector<INT3>& face, std::vector<Real3>& vertices, Real3 volume);
 };

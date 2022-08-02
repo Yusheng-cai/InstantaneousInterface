@@ -199,40 +199,10 @@ void Mesh::printCuttedMesh(std::string name)
 
     pack_->ReadArrayNumber("largerthan", ParameterPack::KeyType::Required, volume);
 
-    int index=0;
-    std::map<int,int> MapOldIndexToNew;
     std::vector<Real3> newVertices;
-    for (int i=0;i<vertices_.size();i++)
-    {
-        auto& v = vertices_[i];
-        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
-        {
-            int newindex = index;
-            newVertices.push_back(v.position_);
-            MapOldIndexToNew.insert(std::make_pair(i, newindex));
-            index ++;
-        }
-    }
-
     std::vector<INT3> newTriangles;
-    for (auto& t : triangles_)
-    {
-        bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
-        bool it2 = MapOldIndexToNew.find(t.triangleindices_[1]) != MapOldIndexToNew.end();
-        bool it3 = MapOldIndexToNew.find(t.triangleindices_[2]) != MapOldIndexToNew.end();
 
-        if (it1 && it2 && it3)
-        {
-            INT3 newt;
-            for (int i=0;i<3;i++)
-            {
-                auto it = MapOldIndexToNew.find(t.triangleindices_[i]);
-                int newIndex = it -> second;
-                newt[i] = newIndex;
-            }
-            newTriangles.push_back(newt);
-        }
-    }
+    MeshTools::CutMesh(*this, newTriangles, newVertices, volume);
     MeshTools::writePLY(name, newVertices, newTriangles, factor_);
 }
 
@@ -1384,6 +1354,48 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
 
             ASSERT((opposingPoints.size() == 2), "The opposing points of an edge needs to be 2 while it is " << opposingPoints.size());
             MapEdgeToOppoVertices.insert(std::make_pair(edge, opposingPoints));
+        }
+    }
+}
+
+void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>& vertices, Real3 volume)
+{
+    vertices.clear();
+    faces.clear();
+
+    const auto& verts = mesh.getvertices();
+    const auto& tri   = mesh.gettriangles();
+
+    int index=0;
+    std::map<int,int> MapOldIndexToNew;
+    for (int i=0;i<verts.size();i++)
+    {
+        auto& v = verts[i];
+        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
+        {
+            int newindex = index;
+            vertices.push_back(v.position_);
+            MapOldIndexToNew.insert(std::make_pair(i, newindex));
+            index ++;
+        }
+    }
+
+    for (auto& t : tri)
+    {
+        bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
+        bool it2 = MapOldIndexToNew.find(t.triangleindices_[1]) != MapOldIndexToNew.end();
+        bool it3 = MapOldIndexToNew.find(t.triangleindices_[2]) != MapOldIndexToNew.end();
+
+        if (it1 && it2 && it3)
+        {
+            INT3 newt;
+            for (int i=0;i<3;i++)
+            {
+                auto it = MapOldIndexToNew.find(t.triangleindices_[i]);
+                int newIndex = it -> second;
+                newt[i] = newIndex;
+            }
+            faces.push_back(newt);
         }
     }
 }

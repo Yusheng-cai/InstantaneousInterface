@@ -18,15 +18,21 @@ class Field
         using index3 = CommonTypes::index3;
         using Range3= Real3;
 
+        // constructor for the concentration field 
         Field(){};
         Field(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
-        void resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
-        void clearField();
 
+        // resize function for the concentration field
+        void resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange, Range& yrange, Range& zrange);
+
+        // zero or clear the field
+        void clearField();
         void pushback(Real val);
 
+        // defined an operator for easy access of data in the field
         Real& operator()(int i, int j, int k);
 
+        // set different range for x, y, z
         void setXrange(Range& xrange) 
         {   
             x_range_ = xrange;
