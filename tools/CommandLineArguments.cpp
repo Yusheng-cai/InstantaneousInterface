@@ -22,7 +22,8 @@ void CommandLineArguments::ParseArgv()
     {
         bool isNum = StringTools::isNumber(argv_[i]);
 
-        // First check if the argv is empty, then check if the first char is "-", then check if it is a number
+        // First check if the argv is empty, then check if the first char is "-", then check if it is a number, it could 
+        // be a negative number 
         if (argv_[i].size() > 0 && argv_[i][0] == '-' &&  (! isNum))
         {
             key_indices.push_back(i);
@@ -44,11 +45,11 @@ void CommandLineArguments::ParseArgv()
         std::string key = argv_[key_idx].substr(dash_pos);
 
         // Create insert the item into the map
-        std::vector<std::string> a_;
+        std::vector<std::string> a;
         auto args_it = args_map_.find(key);
         ASSERT((args_it == args_map_.end()), "The argument " << key << " is repeated.");
 
-        args_map_.insert(std::pair<std::string, std::vector<std::string>>(key, a_));
+        args_map_.insert(std::pair<std::string, std::vector<std::string>>(key, a));
 
         // begin is the next charater after the one with "-", end is either end of string or the next "-"
         int begin = key_idx + 1;
@@ -103,3 +104,30 @@ bool CommandLineArguments::has_key(const std::string& key) const
         return false;
     }
 }
+
+bool CommandLineArguments::readBool(const std::string& key, const Keys type, bool& value) const 
+{
+    std::string boolstr;
+    bool read = readString(key, type, boolstr); 
+
+    // if read, then we return true
+    if (read)
+    {
+        StringTools::to_lower(boolstr);
+
+        if (boolstr == "true" || boolstr =="yes" || boolstr =="y")
+        {
+            value = true;
+        }
+        else
+        {
+            value = false;
+        }
+
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+} 

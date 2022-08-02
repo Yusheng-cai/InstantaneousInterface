@@ -27,6 +27,8 @@ class CommandLineArguments
         template<typename T>
         bool readVector(const std::string& key,const Keys, std::vector<T>& vec) const;
 
+        bool readBool(const std::string& key, const Keys, bool& value) const;
+
         bool has_key(const std::string& key) const;
 
         bool readString(const std::string& key, const Keys type, std::string& str) const
