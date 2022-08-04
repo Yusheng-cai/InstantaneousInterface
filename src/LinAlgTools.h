@@ -29,4 +29,7 @@ namespace LinAlg3x3
 
     // find sin(angle) between 2 vectors 
     Real findSinangle(Real3& vec1, Real3& vec2);
+
+    // find determinant
+    Real MatrixDeterminant(Matrix& mat);
 }

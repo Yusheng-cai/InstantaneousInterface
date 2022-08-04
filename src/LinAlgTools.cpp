@@ -24,6 +24,15 @@ LinAlg3x3::Real LinAlg3x3::DotProduct(const Real3& v1, const Real3& v2)
     return ret;
 }
 
+LinAlg3x3::Real LinAlg3x3::MatrixDeterminant(Matrix& mat)
+{
+    Real firstterm = mat[0][0] * (mat[1][1] * mat[2][2] - mat[1][2] * mat[2][1]);
+    Real secondterm = mat[0][1] * (mat[1][0] * mat[2][2] - mat[1][2] * mat[2][0]);
+    Real thirdterm = mat[0][2] * (mat[1][0] * mat[2][1] - mat[1][1] * mat[2][0]);
+
+    return firstterm - secondterm + thirdterm;
+}
+
 LinAlg3x3::Real LinAlg3x3::norm(const Real3& v1)
 {
     Real ret = 0.0;
