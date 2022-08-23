@@ -94,4 +94,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("cut", "-op cut -volume x y z -i input.ply -o output.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::CutMesh(cmd);}, \
                     mapF, mapU);
+    RegisterAction("ConvertToNonPBCMesh", "-op ConvertToNonPBCMesh -box[required] x y z -i[required] input.ply -o [nonpbc.ply]", \
+                    [](CommandLineArguments& cmd) -> void {return MeshActions::ConvertToNonPBCMesh(cmd);}, \
+                    mapF, mapU);
 }
