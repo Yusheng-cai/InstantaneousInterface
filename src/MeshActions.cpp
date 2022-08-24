@@ -298,3 +298,123 @@ void MeshActions::ScaleMesh(CommandLineArguments& cmd)
     // write to output
     MeshTools::writePLY(outputfname, verts, face);
 }
+
+void MeshActions::ColorVertex(CommandLineArguments& cmd)
+{
+
+}
+
+void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
+{
+    using INT2 = std::array<int,2>;
+
+    std::string inputfname, outputfname, fcfname;
+    Real origin_pos=0.0;
+    int index=0;
+    int n1, n2, colnum;
+    Real L1, L2, d1, d2;
+    std::vector<Real> fc;
+    Real3 box;
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("index", CommandLineArguments::Keys::Optional, index);
+    cmd.readValue("origin", CommandLineArguments::Keys::Optional, origin_pos);
+    cmd.readValue("n1", CommandLineArguments::Keys::Required, n1);
+    cmd.readValue("n2", CommandLineArguments::Keys::Required, n2);
+    cmd.readValue("L1", CommandLineArguments::Keys::Required, L1);
+    cmd.readValue("L2", CommandLineArguments::Keys::Required, L2);
+    cmd.readValue("fc", CommandLineArguments::Keys::Required, fcfname);
+    cmd.readValue("col", CommandLineArguments::Keys::Required, colnum);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // read the tabulated data for curvature
+    StringTools::ReadTabulatedData(fcfname, colnum,fc);
+
+    // read the input file and set up the mesh 
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+    if (isPBC)
+    {
+        mesh.setBoxLength(box);
+    }
+
+    // direction 
+    Real3 D = {{0,0,0}};
+    D[index] = 1;
+
+    // other index 
+    std::vector<int> otherIndex;
+    for (int i=0;i<3;i++)
+    {
+        if (i != index)
+        {
+            otherIndex.push_back(i);
+        }
+    }
+
+    // calculate the delta 
+    d1 = L1 / n1;
+    d2 = L2 / n2;
+
+    // initialize the points
+    std::vector<Real3> points(n1*n2);
+    std::vector<Real> pointCurvature(n1*n2);
+
+    // populate the points 
+    for (int i=0;i<n1;i++)
+    {
+        for (int j=0;j<n2;j++)
+        {
+            Real3 p;
+            p[index] = origin_pos;
+            p[otherIndex[0]] = i * d1;
+            p[otherIndex[1]] = j * d2;
+
+            points.push_back(p);
+        }
+    }
+
+    // faces, verts of the mesh 
+    const auto& face = mesh.gettriangles();
+    const auto& verts= mesh.getvertices();
+    const auto& faceNormal = mesh.getFaceNormals();
+
+    #pragma omp parallel for 
+    for (int i=0;i<points.size();i++)
+    {
+        Real3 O = points[i];
+        std::vector<int> faceIndex;
+        std::vector<Real> value;
+        for (int j=0;j<face.size();j++)
+        {
+            Real3 A = verts[face[j].triangleindices_[0]].position_;
+            Real3 B, C;
+            Real t, u, v;
+            if (isPBC)
+            {
+                B = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[0]], verts[face[j].triangleindices_[1]]);
+                C = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[0]], verts[face[j].triangleindices_[2]]);
+            }
+            else
+            {
+                B = verts[face[j].triangleindices_[1]].position_;
+                C = verts[face[j].triangleindices_[2]].position_;
+            }
+
+            bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
+                                                O, D, faceNormal[j], \
+                                                t, u ,v);
+            if (isIntersect)
+            {
+                faceIndex.push_back(j);
+                value.push_back(t);
+            }
+        }
+
+        // find the min element of value
+        auto it = std::min_element(value.begin(), value.end());
+        int minIndex = it - value.begin();
+        pointCurvature[i] = fc[minIndex];
+    }
+}

@@ -13,6 +13,7 @@
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
 #include "CurvatureCurveFit.h"
+#include "tools/InputParser.h"
 
 namespace MeshActions
 {
@@ -30,4 +31,6 @@ namespace MeshActions
     void CutMesh(CommandLineArguments& cmd);
     void ConvertToNonPBCMesh(CommandLineArguments& cmd);
     void ScaleMesh(CommandLineArguments& cmd);
+    void ColorVertex(CommandLineArguments& cmd);
+    void Project3dCurvature(CommandLineArguments& cmd);
 };
