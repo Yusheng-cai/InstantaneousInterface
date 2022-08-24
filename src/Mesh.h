@@ -193,6 +193,7 @@ namespace MeshTools
 
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
+    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB);
 
     // calculate PBC distance
     Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);
@@ -235,4 +236,7 @@ namespace MeshTools
 
     // cut mesh and give a new mesh 
     void CutMesh(Mesh& mesh, std::vector<INT3>& face, std::vector<Real3>& vertices, Real3 volume);
+
+    // Moller Trumbore Ray-Triangle intersection method 
+    bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real3 FaceNormal, Real& t, Real& u, Real& v);
 };

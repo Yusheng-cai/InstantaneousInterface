@@ -1483,3 +1483,49 @@ void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, 
 		VertexArea[t.triangleindices_[2]] += CornerArea[i][2];
 	}
 }
+
+bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real3 FaceNormal, Real& t, Real& u, Real& v)
+{
+    Real epsilon = 1e-8;
+    
+    // declare the variables 
+    Real3 T, E1, E2, P, Q;
+    Real det, invdet;
+
+    // find E1=B-A and E2=C-A
+    for (int i=0;i<3;i++)
+    {
+        E1[i] = B[i] - A[i];
+        E2[i] = C[i] - A[i];
+    }
+
+    P = LinAlg3x3::CrossProduct(D, E2);
+    det= LinAlg3x3::DotProduct(P, E1);
+
+    // if det is close to 0, then the ray and triangle are parallel
+    if (std::abs(det) < epsilon)
+    {
+        return false;
+    }
+
+    // calculate inverse of det  
+    invdet = 1.0 / det;
+    for (int i=0;i<3;i++)
+    {
+        T[i] = O[i] - A[i];
+    }
+
+    // find u
+    u = LinAlg3x3::DotProduct(T, P) * invdet;
+    if (u < 0 || u > 1) return false;
+
+    // find v
+    Q = LinAlg3x3::CrossProduct(T,E1);
+    v = LinAlg3x3::DotProduct(D, Q) * invdet;
+    if (v < 0 || u+v > 1) return false;
+
+    // find t
+    t = LinAlg3x3::DotProduct(E2, Q) * invdet;
+
+    return true;
+}
