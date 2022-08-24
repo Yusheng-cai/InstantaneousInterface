@@ -97,4 +97,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("ConvertToNonPBCMesh", "-op ConvertToNonPBCMesh -box[required] x y z -i[required] input.ply -o [nonpbc.ply]", \
                     [](CommandLineArguments& cmd) -> void {return MeshActions::ConvertToNonPBCMesh(cmd);}, \
                     mapF, mapU);
+    RegisterAction("scale", "-op scale -i input.ply -o scaled.ply", \
+                    [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
+                    mapF, mapU);
 }
