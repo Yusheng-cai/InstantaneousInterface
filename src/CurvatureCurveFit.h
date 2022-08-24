@@ -17,8 +17,13 @@ class CurvatureCurveFit : public Curvature
         CurvatureCurveFit(CurvatureInput& input);
 
         virtual void calculate(Mesh& mesh) override;
+
+        // printing function specifically for curvefit
+        void printff2(std::string name);
     
     private:
         int NumParameters_ = 3;
         int NumNeighbors_ = 1;
+
+        std::vector<Real3> ff2_parameter_;
 };

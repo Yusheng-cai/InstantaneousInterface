@@ -19,6 +19,9 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     const auto& vertices = mesh.getvertices();
     int nv = vertices.size();
 
+    // resize fundamental form vector which contains (L,M,N)
+    ff2_parameter_.resize(nv);
+
     // calculate vertex neighbors
     std::vector<std::vector<int>> VertexNeighbors;
     MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
@@ -89,6 +92,14 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         SecondFundamentalMat(1,1) = 2*ans[1];
         eigensolver.compute(SecondFundamentalMat);
 
+        // ff2
+        Real3 ff2;
+        for (int j=0;j<3;j++)
+        {
+            ff2[j] = ans[j];
+        }
+        ff2_parameter_[i] = {{2*ff2[0], ff2[1], 2*ff2[2]}};
+
         // Compute the eigenvalues 
         Eigen::Vector2d eigenvalues = eigensolver.eigenvalues().real();
         Eigen::Matrix2d eigenvectors= eigensolver.eigenvectors().real();
@@ -151,4 +162,19 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     }
 
     CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, GaussCurvaturePerVertex_, FaceCurvature_);
+}
+
+void CurvatureCurveFit::printff2(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    ofs << "# VertexNumber L M N\n";
+
+    for (int i=0;i<ff2_parameter_.size();i++)
+    {
+        ofs << i << " " << ff2_parameter_[i][0] << " " << ff2_parameter_[i][1] << " " << ff2_parameter_[i][2] << "\n";
+    }
+
+    ofs.close();
 }
