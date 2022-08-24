@@ -81,7 +81,7 @@ class DensityField
 
         std::array<int,3> dimensions_;
 
-        std::string atomGroupName_;
+        std::vector<std::string> atomGroupNames_;
 
         std::vector<OP::Atom> Allatoms_;
 
@@ -124,7 +124,7 @@ class DensityField
         MarchingCubes MarchingCubes_;
         Meshptr mesh_;
 
-        std::vector<int> AtomIndicesInside_;
+        std::vector<std::vector<int>> AtomIndicesInside_;
 
         // this one manages all the output functions
         Output outputs_;

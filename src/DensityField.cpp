@@ -7,8 +7,11 @@ DensityField::DensityField(const DensityFieldInput& input)
     input.pack_.ReadArrayNumber("dimensions", ParameterPack::KeyType::Required, dimensions_);
 
     // Read the atomgroup names of the system
-    input.pack_.ReadString("atomgroup", ParameterPack::KeyType::Required, atomGroupName_);
-    addAtomGroup(atomGroupName_);
+    input.pack_.ReadVectorString("atomgroups", ParameterPack::KeyType::Required, atomGroupNames_);
+    for (auto ag : atomGroupNames_)
+    {
+        addAtomGroup(ag);
+    }
 
     // Read in the sigma value for the gaussian smoothing function
     input.pack_.ReadNumber("sigma", ParameterPack::KeyType::Required, sigma_);
@@ -187,28 +190,34 @@ void DensityField::initializeMesh()
 
 void DensityField::findAtomsIndicesInBoundingBox()
 {
-    auto atomgroup = getAtomGroup(atomGroupName_);
-    auto& atoms = atomgroup.getAtoms();
-
     AtomIndicesInside_.clear();
-
-    #pragma omp parallel
+    for (auto ag : atomGroupNames_)
     {
-        std::vector<int> indices_local; 
+        auto atomgroup = getAtomGroup(ag);
+        auto& atoms = atomgroup.getAtoms();
 
-        #pragma omp for
-        for(int i=0;i<atoms.size();i++)
+        std::vector<int> indices_ag;
+
+        #pragma omp parallel
         {
-            if (bound_box_ -> isInside(atoms[i].position))
+            std::vector<int> indices_local; 
+
+            #pragma omp for
+            for(int i=0;i<atoms.size();i++)
             {
-                indices_local.push_back(i);
+                if (bound_box_ -> isInside(atoms[i].position))
+                {
+                    indices_local.push_back(i);
+                }
+            }
+
+            #pragma omp critical
+            {
+                indices_ag.insert(indices_ag.end(), indices_local.begin(), indices_local.end());
             }
         }
 
-        #pragma omp critical
-        {
-            AtomIndicesInside_.insert(AtomIndicesInside_.end(), indices_local.begin(), indices_local.end());
-        }
+        AtomIndicesInside_.push_back(indices_ag);
     }
 }
 
@@ -225,48 +234,52 @@ void DensityField::CalculateInstantaneousField()
 
     findAtomsIndicesInBoundingBox(); 
 
-    auto atomgroup = getAtomGroup(atomGroupName_);
-    auto& atoms = atomgroup.getAtoms();
-
-    #pragma omp parallel
+    for (int i=0;i<atomGroupNames_.size();i++)
     {
-        auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
+        std::string ag = atomGroupNames_[i];
+        auto atomgroup = getAtomGroup(ag);
+        auto& atoms = atomgroup.getAtoms();
 
-        #pragma omp for 
-        for (int i=0;i<AtomIndicesInside_.size();i++)
+        #pragma omp parallel
         {
-            int indices        = AtomIndicesInside_[i];;
-            Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
-            INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
+            auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
 
-            // Fix the index 
-            fieldbuf.fixIndex(Index);
-
-            for(int j=0;j<offsetIndex_.size();j++)
+            #pragma omp for 
+            for (int j=0;j<AtomIndicesInside_[i].size();j++)
             {
-                INT3 RealIndex;
-                for (int k=0;k<3;k++)
+                int indices        = AtomIndicesInside_[i][j];;
+                Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
+                INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
+
+                // Fix the index 
+                fieldbuf.fixIndex(Index);
+
+                for(int j=0;j<offsetIndex_.size();j++)
                 {
-                    RealIndex[k] = Index[k] + offsetIndex_[j][k];
+                    INT3 RealIndex;
+                    for (int k=0;k<3;k++)
+                    {
+                        RealIndex[k] = Index[k] + offsetIndex_[j][k];
+                    }
+
+                    Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
+
+                    Real3 distance;
+                    bound_box_->calculateDistance(latticepos, correctedPos, distance);
+
+                    Real val = GaussianCoarseGrainFunction(distance);
+                    fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
                 }
+            }    
+        }
 
-                Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
-
-                Real3 distance;
-                bound_box_->calculateDistance(latticepos, correctedPos, distance);
-
-                Real val = GaussianCoarseGrainFunction(distance);
-                fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
-            }
-        }    
-    }
-
-    #pragma omp parallel for
-    for (int i=0;i<field_.totalSize();i++)
-    {
-        for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
+        #pragma omp parallel for
+        for (int i=0;i<field_.totalSize();i++)
         {
-            field_.accessField()[i] += it->accessField()[i];
+            for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
+            {
+                field_.accessField()[i] += it->accessField()[i];
+            }
         }
     }
 }
