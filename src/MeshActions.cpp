@@ -48,6 +48,7 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     std::string inputfname;
     std::string outputfname="curvefit.out";
     std::string faceCfname="curvefit_faceC.out";
+    std::string ff2fname="ff2.out";
     std::string neighbors;
     ParameterPack pack;
 
@@ -57,7 +58,8 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    bool fc_read  = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    bool ff2_read = cmd.readString("ff2", CommandLineArguments::Keys::Optional, ff2fname);
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
@@ -76,10 +78,24 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     CurvatureInput input = {{pack}};
     curve = curveptr(CurvatureRegistry::Factory::instance().create("curvefit", input));
 
+    // calculate the curvature 
     curve->calculate(mesh);
 
+    // print the curvature 
     curve->printCurvature(outputfname);
-    curve->printFaceCurvature(faceCfname);
+
+    if (fc_read)
+    {
+        curve->printFaceCurvature(faceCfname);
+    }
+
+    if (ff2_read)
+    {
+        CurvatureCurveFit* c = dynamic_cast<CurvatureCurveFit*>(curve.get());
+        ASSERT((c != nullptr), "Something went wrong in curvefit mesh action.");
+        c->printff2(ff2fname);
+    }
+
 }
 
 void MeshActions::JetFit(CommandLineArguments& cmd)
@@ -142,7 +158,7 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readString("iterations", CommandLineArguments::Keys::Required, iterations);
+    cmd.readString("iteration", CommandLineArguments::Keys::Required, iterations);
     cmd.readString("lambdadt", CommandLineArguments::Keys::Optional, lambdadt);
     cmd.readBool("nonpbc", CommandLineArguments::Keys::Optional, nonpbc);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
@@ -207,11 +223,78 @@ void MeshActions::CutMesh(CommandLineArguments& cmd)
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readArray("volume", CommandLineArguments::Keys::Required, volume);
 
+
     // read the mesh
     MeshTools::readPLYlibr(inputfname, mesh);
 
     std::vector<INT3> face;
     std::vector<Real3> verts;
     MeshTools::CutMesh(mesh, face, verts, volume);
+    MeshTools::writePLY(outputfname, verts, face);
+}
+
+void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
+{
+    std::string inputfname;
+    std::string outputfname="nonpbc.ply";
+
+    Mesh mesh;
+    Real3 Box;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("box", CommandLineArguments::Keys::Required, Box);
+
+    mesh.setBoxLength(Box);
+
+    // read the mesh 
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // output non pbc mesh 
+    std::vector<INT3> face;
+    std::vector<Real3> verts;
+    MeshTools::ConvertToNonPBCMesh(mesh, verts, face);
+
+    // write the non pbc mesh 
+    MeshTools::writePLY(outputfname, verts, face);
+}
+
+void MeshActions::ScaleMesh(CommandLineArguments& cmd)
+{
+    std::string inputfname;
+    std::string outputfname="scaled.ply";
+
+    Mesh mesh;
+    Real scale;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("scale", CommandLineArguments::Keys::Required, scale);
+
+    std::vector<INT3> face;
+    std::vector<Real3> verts;
+
+    // read the Mesh
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    const auto& meshVerts = mesh.getvertices();
+    const auto& meshFaces = mesh.gettriangles();
+
+    for (int i=0;i<meshVerts.size();i++)
+    {
+        Real3 pos;
+        for (int j=0;j<3;j++)
+        {
+            pos[j] = meshVerts[i].position_[j] * scale;
+        }
+        verts.push_back(pos);
+    }
+
+    for (int i=0;i<meshFaces.size();i++)
+    {
+        face.push_back(meshFaces[i].triangleindices_);
+    }
+
+    // write to output
     MeshTools::writePLY(outputfname, verts, face);
 }

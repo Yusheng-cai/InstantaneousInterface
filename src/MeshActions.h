@@ -12,6 +12,7 @@
 #include "Curvature.h"
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
+#include "CurvatureCurveFit.h"
 
 namespace MeshActions
 {
@@ -27,4 +28,6 @@ namespace MeshActions
     void CurvatureFlow(CommandLineArguments& cmd);
     void FindNonPBCTriangles(CommandLineArguments& cmd);
     void CutMesh(CommandLineArguments& cmd);
+    void ConvertToNonPBCMesh(CommandLineArguments& cmd);
+    void ScaleMesh(CommandLineArguments& cmd);
 };
