@@ -11,9 +11,12 @@
 #include <utility>
 #include <functional>
 #include <array>
+#include "tools/CommonTypes.h"
 
 namespace StringTools
 {
+    using Real = CommonTypes::Real;
+
     template <typename T>
     bool StringToType(std::string str, T& num);
 
@@ -29,6 +32,9 @@ namespace StringTools
     bool VectorStringTransform(std::vector<std::string> vecstr, std::vector<T>& output);
 
     void RemoveBlankInString(std::string& str);
+
+    // Function that reads tabulated data by specified column
+    void ReadTabulatedData(std::string filename, int col, std::vector<Real>& data);
 }
 
 
