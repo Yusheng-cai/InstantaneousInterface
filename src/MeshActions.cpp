@@ -100,22 +100,21 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
 
 void MeshActions::JetFit(CommandLineArguments& cmd)
 {
-    std::string inputfname;
-    std::string outputfname="jetfit.out";
-    std::string faceCfname="jetfit_faceC.out";
-    std::string neighbors;
-    std::string degree;
-    std::string MongeCoefficient;
+    std::string inputfname, outputfname="jetfit.out", faceCfname="jetfit_faceC.out", neighbors, degree, MongeCoefficient;
+    std::string monge;
+    Real3 box;
 
+    // Curvature parameters pack
     ParameterPack pack;
 
+    // initialize the necessary pointers
     Mesh mesh;
-    Real3 box;
     curveptr curve;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    bool fcread = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    bool MongeRead = cmd.readString("mongeFile", CommandLineArguments::Keys::Optional, monge);
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
     cmd.readString("degree", CommandLineArguments::Keys::Required, degree);
     cmd.readString("MongeCoefficient", CommandLineArguments::Keys::Required, MongeCoefficient);
@@ -141,7 +140,18 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
     curve->calculate(mesh);
 
     curve->printCurvature(outputfname);
-    curve->printFaceCurvature(faceCfname);
+
+    if (fcread)
+    {
+        curve->printFaceCurvature(faceCfname);
+    }
+
+    if (MongeRead)
+    {
+        CurvatureJetFit* jetfit = dynamic_cast<CurvatureJetFit*>(curve.get());
+        ASSERT((jetfit != nullptr), "Something went wrong in jetfit.");
+        jetfit->printCoefficientPerVertex(monge);
+    }
 }
 
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
@@ -301,7 +311,94 @@ void MeshActions::ScaleMesh(CommandLineArguments& cmd)
 
 void MeshActions::ColorVertex(CommandLineArguments& cmd)
 {
+    std::string inputfname, cfname, outputfname;
+    int col;
+    Real vmin, vmax;
+    Real3 box;
 
+    // read in the necessary inputs 
+    cmd.readValue("curvature",CommandLineArguments::Keys::Required, cfname);
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("col", CommandLineArguments::Keys::Required, col);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    bool vminRead = cmd.readValue("vmin", CommandLineArguments::Keys::Optional, vmin);
+    bool vmaxRead = cmd.readValue("vmax", CommandLineArguments::Keys::Optional, vmax);
+
+    // read in the curvature 
+    std::vector<Real> curvature;
+    StringTools::ReadTabulatedData(cfname, col, curvature);
+
+    // read in the mesh 
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // find the min and max curvature 
+    if (! vminRead)
+    {
+        vmin = *std::min_element(curvature.begin(), curvature.end());
+    }
+
+    if (! vmaxRead)
+    {
+        vmax = *std::max_element(curvature.begin(), curvature.end());
+    }
+
+    // initialize RGB value
+    std::vector<Real3> RGB(curvature.size());
+    for (int i=0;i<curvature.size();i++)
+    {
+        Real3 c={{0,0,0}};
+        if (curvature[i] > vmax || curvature[i] < vmin)
+        {
+            c = {{0,0,0}};
+        }
+        else
+        {
+            c[0] = 255.0;
+            c[1] = 0.0;
+            c[2] = std::round(255 * (curvature[i] - vmin)/(vmax - vmin));
+        }
+
+        RGB[i] = c;
+    }
+
+    // copy vertices and faces 
+    std::vector<Real3> v;
+    std::vector<INT3> f;
+
+    // nonpbc index
+    const auto& verts = mesh.getvertices();
+    const auto& faces = mesh.gettriangles();
+    // the triangles which are non pbc 
+    std::vector<int> nonpbcIndex;
+    if (isPBC)
+    {
+        for (int i=0;i<faces.size();i++)
+        {
+            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), const_cast<INT3&>(faces[i].triangleindices_),\
+                                            box))
+            {
+                nonpbcIndex.push_back(i);
+
+            }
+        }
+    }
+    else
+    {
+        nonpbcIndex.resize(faces.size());
+        std::iota(nonpbcIndex.begin(), nonpbcIndex.end(), 0);
+    }
+    for (int i=0;i<verts.size();i++)
+    {
+        v.push_back(verts[i].position_);
+    }
+    for (int i=0;i<nonpbcIndex.size();i++)
+    {
+        f.push_back(faces[nonpbcIndex[i]].triangleindices_);
+    }
+    
+    MeshTools::writePLYRGB(outputfname, v, f, RGB);
 }
 
 void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
@@ -310,15 +407,19 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
     std::string inputfname, outputfname, fcfname;
     Real origin_pos=0.0;
-    int index=0;
-    int n1, n2, colnum;
+    int n1, n2, colnum, directionIndex=0;
     Real L1, L2, d1, d2;
     std::vector<Real> fc;
-    Real3 box;
+    Real3 box, D;
 
+    // read the inputs 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readValue("index", CommandLineArguments::Keys::Optional, index);
+    cmd.readArray("direction", CommandLineArguments::Keys::Optional,D);
+    cmd.readValue("directionIndex", CommandLineArguments::Keys::Optional, directionIndex);
+    LinAlg3x3::normalize(D);
+
+    // the origin 
     cmd.readValue("origin", CommandLineArguments::Keys::Optional, origin_pos);
     cmd.readValue("n1", CommandLineArguments::Keys::Required, n1);
     cmd.readValue("n2", CommandLineArguments::Keys::Required, n2);
@@ -339,15 +440,11 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         mesh.setBoxLength(box);
     }
 
-    // direction 
-    Real3 D = {{0,0,0}};
-    D[index] = 1;
-
     // other index 
     std::vector<int> otherIndex;
     for (int i=0;i<3;i++)
     {
-        if (i != index)
+        if (i != directionIndex)
         {
             otherIndex.push_back(i);
         }
@@ -358,7 +455,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     d2 = L2 / n2;
 
     // initialize the points
-    std::vector<Real3> points(n1*n2);
+    std::vector<Real3> points;
     std::vector<Real> pointCurvature(n1*n2);
 
     // populate the points 
@@ -367,7 +464,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         for (int j=0;j<n2;j++)
         {
             Real3 p;
-            p[index] = origin_pos;
+            p[directionIndex] = origin_pos;
             p[otherIndex[0]] = i * d1;
             p[otherIndex[1]] = j * d2;
 
@@ -378,23 +475,28 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // faces, verts of the mesh 
     const auto& face = mesh.gettriangles();
     const auto& verts= mesh.getvertices();
+    mesh.CalcVertexNormals();
     const auto& faceNormal = mesh.getFaceNormals();
 
+    // iterate over the points 
     #pragma omp parallel for 
     for (int i=0;i<points.size();i++)
     {
         Real3 O = points[i];
         std::vector<int> faceIndex;
         std::vector<Real> value;
+
         for (int j=0;j<face.size();j++)
         {
             Real3 A = verts[face[j].triangleindices_[0]].position_;
             Real3 B, C;
             Real t, u, v;
+
+            // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
             if (isPBC)
             {
-                B = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[0]], verts[face[j].triangleindices_[1]]);
-                C = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[0]], verts[face[j].triangleindices_[2]]);
+                B = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[1]], verts[face[j].triangleindices_[0]]);
+                C = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[2]], verts[face[j].triangleindices_[0]]);
             }
             else
             {
@@ -412,9 +514,278 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
             }
         }
 
-        // find the min element of value
-        auto it = std::min_element(value.begin(), value.end());
-        int minIndex = it - value.begin();
-        pointCurvature[i] = fc[minIndex];
+        if (value.size() != 0)
+        {
+            // find the min element of value
+            auto it = std::min_element(value.begin(), value.end());
+            int minIndex = it - value.begin();
+            pointCurvature[i] = fc[faceIndex[minIndex]];
+        }
+        else
+        {
+            pointCurvature[i] = 0;
+        }
     }
+
+    // start to output file
+    std::ofstream ofs(outputfname);
+    int index=0;
+    for (int i=0;i<n1;i++)
+    {
+        for (int j=0;j<n2;j++)
+        {
+            ofs << i << " " << j << " " << pointCurvature[index] << "\n";
+            index++;
+        }
+    }
+
+    ofs.close();
+}
+
+void MeshActions::MeshDistanceCutoff(CommandLineArguments& cmd)
+{
+    std::string inputfname, reffname, indfname="index.out";
+    std::string outputfname="cut.ply";
+
+    // distance of hydration shell in [nm]
+    Real cutoff=0.3, cutoffsq;
+    Real3 box;
+
+    // distance index
+    std::vector<int> distanceIndex = {{0,1,2}};
+
+    // read the inputs 
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("ref", CommandLineArguments::Keys::Required, reffname);
+    cmd.readValue("cutoff", CommandLineArguments::Keys::Required, cutoff);
+    cmd.readVector("distanceIndex", CommandLineArguments::Keys::Optional, distanceIndex);
+    bool indread = cmd.readValue("ind", CommandLineArguments::Keys::Optional, indfname);
+    cutoffsq = cutoff * cutoff;
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional,box);
+
+    // set up the mesh object 
+    Mesh mesh, refmesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+    MeshTools::readPLYlibr(reffname, refmesh);
+
+    // calculate vertices differences 
+    const auto& v = mesh.getvertices();
+    const auto& f = mesh.gettriangles();
+    const auto& refv = refmesh.getvertices();
+    std::vector<bool> indicator(v.size(), true);
+
+    #pragma omp parallel for
+    for (int i=0;i<v.size();i++)
+    {
+        for (int j=0;j<refv.size();j++)
+        {
+            Real3 distance;
+
+            if (isPBC)
+            {
+                Real d;
+                MeshTools::calculateDistance(v[i].position_, refv[j].position_, box, distance, d);
+            }
+            else
+            {
+                for (int k=0;k<3;k++)
+                {
+                    distance[k] = v[i].position_[k] - refv[j].position_[k];
+                }
+            }
+
+            // calculate the squared distances 
+            Real distsq = 0.0;
+            for (int k=0;k<distanceIndex.size();k++)
+            {
+                distsq += distance[distanceIndex[k]] * distance[distanceIndex[k]];
+            }
+
+            if (distsq < cutoffsq)
+            {
+                indicator[i] = false;
+                break;
+            }
+        }
+    }
+
+    std::vector<Real3> newV;
+    std::vector<INT3> newF;
+    std::vector<int> NewTIndices;
+    std::vector<int> MapOldIndicesToNew(v.size(),-1);
+    int index=0;
+
+    // make new vertices and convert the old indices into new 
+    for (int i=0;i<v.size();i++)
+    {
+        if (indicator[i])
+        {
+            newV.push_back(v[i].position_);
+            MapOldIndicesToNew[i] = index;
+            index++;
+        }
+    }
+
+    // make new faces 
+    for (int i=0;i<f.size();i++)
+    {
+        INT3 ind = f[i].triangleindices_;
+        bool validTriangle=true;
+        for (int j=0;j<3;j++)
+        {
+            if (! indicator[ind[j]])
+            {
+                validTriangle=false;
+            }
+        }
+
+        if (validTriangle)
+        {
+            INT3 newT;
+            for (int j=0;j<3;j++)
+            {
+                newT[j] = MapOldIndicesToNew[ind[j]];
+            }
+
+            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), const_cast<INT3&>(f[i].triangleindices_), box))
+            {
+                NewTIndices.push_back(i);
+                newF.push_back(newT);
+            }
+        }
+    }
+
+    // output the ply file
+    MeshTools::writePLY(outputfname, newV, newF);
+
+    // output the indices 
+    if (indread)
+    {
+        std::ofstream ofs;
+        ofs.open(indfname);
+        for (int i=0;i<NewTIndices.size();i++)
+        {
+            ofs << NewTIndices[i] << " ";
+        }
+        ofs.close();
+    }
+}
+
+void MeshActions::MinimumMeshDistance(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname, reffname;
+    Real3 box;
+    std::vector<int> DistanceIndices={{0,1,2}};
+
+    // read in the inputs 
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("ref", CommandLineArguments::Keys::Required, reffname);
+    cmd.readVector("index", CommandLineArguments::Keys::Optional, DistanceIndices);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // mesh object 
+    Mesh mesh, refmesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+    MeshTools::readPLYlibr(reffname, refmesh);
+
+    const auto& v = mesh.getvertices();
+    const auto& refv = refmesh.getvertices();
+
+    std::vector<Real> minDist(v.size(), 0.0);
+
+    #pragma omp parallel for
+    for (int i=0;i<v.size();i++)
+    {
+        std::vector<Real> distance(refv.size(),0.0);
+        for (int j=0;j<refv.size();j++)
+        {
+            Real distsq=0.0;
+            if (isPBC)
+            {
+                Real3 r;
+                MeshTools::calculateDistance(v[i].position_, refv[j].position_, box, r, distsq);
+                distsq = 0.0;
+
+                for (int k=0;k<DistanceIndices.size();k++)
+                {
+                    distsq += r[DistanceIndices[k]] * r[DistanceIndices[k]];
+                }
+            }
+            else
+            {
+                for (int k=0;k<DistanceIndices.size();k++)
+                {
+                    distsq += std::pow((v[i].position_[DistanceIndices[k]]-refv[j].position_[DistanceIndices[k]]),2.0);
+                }
+            }
+            Real dist = std::sqrt(distsq);
+            distance[j] = dist;
+        }
+        Real min_dist = *std::min_element(distance.begin(), distance.end());
+        minDist[i] = min_dist;
+    }
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    for (int i=0;i<v.size();i++)
+    {
+        ofs << i << " " << minDist[i] << "\n";
+    }
+    ofs.close();
+}
+
+void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
+{
+    using Intersector = MeshPlaneIntersect<Real, int>;
+
+    std::vector<Intersector::Vec3D> vertices;
+    std::vector<Intersector::Face> faces;
+    Real3 p, o;
+
+    std::string inputfname;
+    std::string outputfname="intersect.out";
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("plane", CommandLineArguments::Keys::Required, p);
+    cmd.readArray("points", CommandLineArguments::Keys::Required, o);
+
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    const auto& v = mesh.getvertices();
+    const auto& f = mesh.gettriangles();
+
+    // copy the data to mesh plane intersection code 
+    for (int i=0;i<v.size();i++)
+    {
+        vertices.push_back(v[i].position_);
+    }
+
+    for (int i=0;i<f.size();i++)
+    {
+        faces.push_back(f[i].triangleindices_);
+    }
+
+    // create the mesh for mesh-plane intersection
+    Intersector::Mesh m(vertices, faces);
+    Intersector::Plane plane;
+    plane.normal = p;
+    plane.origin = o;
+
+    auto result = m.Intersect(plane);
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    for (int i=0;i<result[0].points.size();i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << result[0].points[i][j] << " ";
+        }
+        ofs << "\n";
+    }
+    ofs.close();
 }

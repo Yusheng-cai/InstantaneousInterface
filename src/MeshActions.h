@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "tools/Assert.h"
+#include "MeshPlaneIntersection.hpp"
 #include "tools/CommandLineArguments.h"
 #include "Mesh.h"
 #include "tools/CommonTypes.h"
@@ -13,6 +14,7 @@
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
 #include "CurvatureCurveFit.h"
+#include "CurvatureJetFit.h"
 #include "tools/InputParser.h"
 
 namespace MeshActions
@@ -23,14 +25,42 @@ namespace MeshActions
     using curveptr = std::unique_ptr<Curvature>;
     using refineptr= std::unique_ptr<MeshRefineStrategy>;
 
+    // translate a mesh
     void TranslateMesh(CommandLineArguments& cmd);
+
+    // calculate the mesh of a mesh using the method of curve fitting (second fundamental form)
     void CurveFit(CommandLineArguments& cmd);
+
+    // calculate the curvature of a mesh using the method of jet fitting
     void JetFit(CommandLineArguments& cmd);
+
+    // smooth a mesh using curvature flow (implicit fairing)
     void CurvatureFlow(CommandLineArguments& cmd);
+
+    // function that finds the indices of non periodic triangles in a periodic mesh 
     void FindNonPBCTriangles(CommandLineArguments& cmd);
+
+    // cut the mesh 
     void CutMesh(CommandLineArguments& cmd);
+
+    // convert a pbc mesh to non pbc mesh
     void ConvertToNonPBCMesh(CommandLineArguments& cmd);
+
+    // scale mesh by some number 
     void ScaleMesh(CommandLineArguments& cmd);
+
+    // put color onto vertex based on curvature value
     void ColorVertex(CommandLineArguments& cmd);
+
+    // project 3d curvature onto 2d using Moller Trumbore Ray-Triangle intersection algorithm
     void Project3dCurvature(CommandLineArguments& cmd);
+
+    // function that constructs a new mesh such that none of the vertices is within a certain distance of the reference mesh 
+    void MeshDistanceCutoff(CommandLineArguments& cmd);
+
+    // Find the minimum distance of a mesh against another reference mesh
+    void MinimumMeshDistance(CommandLineArguments& cmd);
+
+    // find mesh plane intersection
+    void MeshPlaneIntersection(CommandLineArguments& cmd);
 };
