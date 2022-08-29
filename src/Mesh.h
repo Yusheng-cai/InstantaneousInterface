@@ -85,6 +85,7 @@ class Mesh
                                          * **********  getter Function **************
                                          * *****************************************/
         const std::vector<vertex>& getvertices() const {return vertices_;}
+        std::vector<Real3> getVertexPositions();
         const std::vector<triangle>& gettriangles() const {return triangles_;}
         const std::vector<Real>& getTriangleArea() const {return triangleArea_;}
         const std::vector<Real3>& getPerVertexDir1() const {return PerVertexdir1_;}
@@ -193,10 +194,13 @@ namespace MeshTools
 
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
-    void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB);
+    void writePLYRGB(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB);
 
     // calculate PBC distance
     Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);
+
+    // calculate pbc distance 
+    void calculateDistance(const Real3& vec1, const Real3& vec2, const Real3& boxlength, Real3& distance, Real& distsq);
 
     // find if an edge is periodic 
     bool isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength);

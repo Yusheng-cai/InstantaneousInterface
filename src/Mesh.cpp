@@ -631,6 +631,16 @@ void Mesh::CalcVertexNormalsAreaWeighted()
     }
 }
 
+std::vector<Mesh::Real3> Mesh::getVertexPositions()
+{
+    std::vector<Real3> v;
+    for (int i=0;i<vertices_.size();i++)
+    {
+        v.push_back(vertices_[i].position_);
+    }
+    return v;
+}
+
                                     /**************************************
                                      ************   MeshTools *************
                                      *************************************/       
@@ -735,6 +745,64 @@ Real factor)
     }
 
     ofs.close();
+}
+
+void MeshTools::writePLYRGB(std::string filename, const std::vector<Real3>& vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB)
+{
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    ofs << "ply" << "\n";
+    ofs << "format ascii 1.0\n";
+    ofs << "comment Created by Yusheng Cai\n";
+
+    int sizeVertex = vertices.size();
+    int sizetriangle = faces.size();
+    int sizeRGB    = RGB.size();
+
+    ofs << "element vertex " << sizeVertex << std::endl; 
+    ofs << "property float x\n";
+    ofs << "property float y\n";
+    ofs << "property float z\n";
+    ofs << "property uchar red\n";
+    ofs << "property uchar green\n";
+    ofs << "property uchar blue\n";
+    ofs << "element face " << sizetriangle << "\n";
+    ofs << "property list uchar uint vertex_indices\n";
+    ofs << "end_header\n";
+
+    ASSERT((sizeRGB == sizeVertex), "The size of RGB value provided must agree with the size of vertex.");
+
+    ofs << std::fixed << std::setprecision(6);
+    for (int i=0;i<sizeVertex;i++)
+    {
+        for (int j=0;j<3;j++)
+        {
+            ofs << vertices[i][j] << " ";
+        }
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << (int)RGB[i][j] << " ";
+        }
+
+        ofs << "\n";
+    }
+
+    for (int i=0;i<sizetriangle;i++)
+    {
+        ofs << 3 << " ";
+        auto& t = faces[i];
+
+        for (int j=0;j<3;j++)
+        {
+            ofs << t[j] << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+
 }
 
 bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
@@ -965,6 +1033,21 @@ MeshTools::Real3 MeshTools::calculateShift(const Real3& vec1, const Real3& vec2,
     }
     
     return diff;
+}
+
+void MeshTools::calculateDistance(const Real3& vec1, const Real3& vec2, const Real3& boxLength, Real3& distance, Real& distsq)
+{
+    distsq = 0.0;
+    for (int i=0;i<3;i++)
+    {
+        Real d = vec1[i] - vec2[i];
+
+        if (d > (0.5 * boxLength[i])) distance[i] = d-boxLength[i];
+        else if (d < (- 0.5 * boxLength[i])) distance[i] = d+boxLength[i];
+        else distance[i] = d;
+
+        distsq += distance[i] * distance[i];
+    }
 }
 
 bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength)
