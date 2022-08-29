@@ -1,32 +1,25 @@
 #include "Driver.h"
 
 Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
-: pack_(pack)
+: pack_(const_cast<ParameterPack&>(pack)), cmd_(const_cast<CommandLineArguments&>(cmd))
 {
-    bool read = cmd.readString("abspath", CommandLineArguments::Keys::Optional, abs_path_);
+    bool read = cmd_.readString("abspath", CommandLineArguments::Keys::Optional, abs_path_);
     if ( ! read)
     {
         abs_path_ = FileSystem::getCurrentPath();
     }
 
     // required xdr file input
-    auto xdrPack = pack.findParamPack("xdrfile",ParameterPack::KeyType::Required);
-    initializeXdrFile(xdrPack);
+    initializeXdrFile();
 
     // find gro file input
-    auto groPack = pack.findParamPack("grofile", ParameterPack::KeyType::Optional);
-    if(groPack != nullptr)
-    {
-        initializeGroFile(groPack);
-    }
+    initializeGroFile();
 
     // find all the atomgroup packs
-    auto atomgroupPack = pack.findParamPacks("atomgroup", ParameterPack::KeyType::Required);
-    initializeAtomGroups(atomgroupPack);
+    initializeAtomGroups();
 
     // Find the bounding box
-    auto boundingboxPack = pack.findParamPacks("boundingbox", ParameterPack::KeyType::Required);
-    initializeBoundingBox(boundingboxPack);
+    initializeBoundingBox();
 
     // initialize curvature 
     initializeCurvature();
@@ -35,8 +28,7 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
     initializeDensityField();
 
     // find the driver pack which is optional
-    auto DriverPack = pack.findParamPack("driver", ParameterPack::KeyType::Optional);
-    initializeDriver(DriverPack);
+    initializeDriver();
 }
 
 bool Driver::CheckValidStep(int FrameNum)
@@ -57,23 +49,43 @@ bool Driver::CheckValidStep(int FrameNum)
     return true;
 }
 
-void Driver::initializeDriver(const ParameterPack* driverPack)
+void Driver::initializeDriver()
 {
+    auto driverPack = pack_.findParamPack("driver", ParameterPack::KeyType::Optional);
+
     if (driverPack != nullptr)
     {
-        driverPack -> ReadNumber("startingframe", ParameterPack::KeyType::Optional, starting_frame_);
-        driverPack -> ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
-        ASSERT((skip_ >= 0), "Skip must be an non-negative number, but provided skip = " << skip_);
-        ASSERT((starting_frame_ >= 1), "The starting frame must be a number larger or equal to 1, but provided \
-        startng frame = " << starting_frame_);
-
-        // We do the 0 based counting inside the code
-        starting_frame_ -= 1;
+        driverPack -> Readbool("bootstrap", ParameterPack::KeyType::Optional, bootstrap_);
     }
-    int totalFrames;
-    totalFrames = (Totalframes_ - starting_frame_)/(skip_ + 1);
 
-    simstate_.setTotalFramesToBeCalculated(totalFrames);
+    // if not bootstrap, then we read different stuff from driver pack 
+    if (! bootstrap_)
+    {
+        if (driverPack != nullptr)
+        {
+            driverPack -> ReadNumber("startingframe", ParameterPack::KeyType::Optional, starting_frame_);
+            driverPack -> ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
+            ASSERT((skip_ >= 0), "Skip must be an non-negative number, but provided skip = " << skip_);
+            ASSERT((starting_frame_ >= 1), "The starting frame must be a number larger or equal to 1, but provided \
+            startng frame = " << starting_frame_);
+
+            // We do the 0 based counting inside the code
+            starting_frame_ -= 1;
+        }
+        int totalFrames;
+        totalFrames = (Totalframes_ - starting_frame_)/(skip_ + 1);
+
+        simstate_.setTotalFramesToBeCalculated(totalFrames);
+    }
+    else
+    {
+        if (driverPack != nullptr)
+        {
+            driverPack -> ReadNumber("BootstrapIterations", ParameterPack::KeyType::Required, BootstrapIterations_);
+            driverPack -> ReadNumber("BootstrapSamples", ParameterPack::KeyType::Required, BootstrapSamples_);
+            Algorithm::Permutation(Totalframes_, BootstrapSamples_, BootstrapIterations_, BootstrapIndices_);
+        }
+    }
 }
 
 void Driver::initializeDensityField()
@@ -87,8 +99,10 @@ void Driver::initializeDensityField()
     densityfield_ = DensityPtr(DensityFieldRegistry::Factory::instance().create(densityType, input));
 }
 
-void Driver::initializeBoundingBox(std::vector<const ParameterPack*>& bbPack)
+void Driver::initializeBoundingBox()
 {
+    auto bbPack = pack_.findParamPacks("boundingbox", ParameterPack::KeyType::Required);
+
     for (int i=0;i<bbPack.size();i++)
     {
         std::string bbName;
@@ -171,8 +185,10 @@ void Driver::update()
     }
 }
 
-void Driver::initializeXdrFile(const ParameterPack* xdrPack)
+void Driver::initializeXdrFile()
 {
+    auto xdrPack = pack_.findParamPack("xdrfile",ParameterPack::KeyType::Required);
+
     std::string xdrPath;
     xdrPack -> ReadString("path", ParameterPack::KeyType::Required, xdrPath);
 
@@ -191,15 +207,19 @@ void Driver::initializeXdrFile(const ParameterPack* xdrPack)
     simstate_.setTotalFrames(Totalframes_);
 }
 
-void Driver::initializeGroFile(const ParameterPack* groPack)
+void Driver::initializeGroFile()
 {
+    auto groPack = pack_.findParamPack("grofile", ParameterPack::KeyType::Optional);
+
     groPack->ReadString("path", ParameterPack::KeyType::Required, groPath_);
 
     grofile_.Open(groPath_);
 }
 
-void Driver::initializeAtomGroups(std::vector<const ParameterPack*>& agPack)
+void Driver::initializeAtomGroups()
 {
+    auto agPack = pack_.findParamPacks("atomgroup", ParameterPack::KeyType::Required);
+
     for (int i=0;i<agPack.size();i++)
     {
         auto pack = agPack[i];
@@ -244,4 +264,55 @@ void Driver::printOutputfileIfOnStep()
 void Driver::printFinalOutput()
 {
     densityfield_->printFinalOutput();
+}
+
+void Driver::run()
+{
+    if (! bootstrap_)
+    {
+        // non boot strapped version of averaging
+        for (int i=0;i<getNumFrames();i++)
+        {
+            if (CheckValidStep(i))
+            {
+                std::cout << "Frame = " << i << std::endl;
+                readFrameXdr(i);
+
+                update();
+
+                auto start = std::chrono::high_resolution_clock::now();
+
+                calculate();
+
+                printOutputfileIfOnStep();
+                auto end = std::chrono::high_resolution_clock::now();
+                auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+                std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
+            }
+        }
+
+        auto start = std::chrono::high_resolution_clock::now();
+        finishCalculate();
+        auto end = std::chrono::high_resolution_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+        std::cout << "Time it took for finish calculate is " << diff.count() << std::endl;
+
+        printFinalOutput();
+    }
+    else
+    {
+        for (int i=0;i<BootstrapIterations_;i++)
+        {
+            for (int j=0;j<BootstrapSamples_;j++)
+            {
+                int frameIndex = BootstrapIndices_[i][j];
+
+                readFrameXdr(frameIndex);
+
+                update();
+
+                calculate();
+            }
+        }
+    }
 }

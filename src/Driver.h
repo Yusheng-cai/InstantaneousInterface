@@ -8,6 +8,7 @@
 #include "tools/InputParser.h"
 #include "tools/CommandLineArguments.h"
 #include "tools/FileSystem.h"
+#include "tools/Algorithm.h"
 #include "BoundingBox.h"
 #include "Curvature.h"
 #include "Registry.h"
@@ -28,18 +29,13 @@ class Driver
 
         Driver(const ParameterPack& pack, const CommandLineArguments& cmd);
 
-        void initializeAtomGroups(std::vector<const ParameterPack*>& agPack);
-
-        void initializeGroFile(const ParameterPack* groPack);
-
-        void initializeXdrFile(const ParameterPack* xdrPack);
-
-        void initializeBoundingBox(std::vector<const ParameterPack*>& bbPack);
-
+        // initialize a bunch of stuff 
+        void initializeAtomGroups();
+        void initializeGroFile();
+        void initializeXdrFile();
+        void initializeBoundingBox();
         void initializeDensityField();
-
-        void initializeDriver(const ParameterPack* driverPack);
-
+        void initializeDriver();
         void initializeCurvature();
 
         // we initialize the parameters packs for mesh refinement
@@ -58,6 +54,9 @@ class Driver
 
         void finishCalculate();
 
+        // now run from driver directly, nothing in main
+        void run();
+
         // check if the step is valid, the FrameNum is inputted in 0 based counting
         bool CheckValidStep(int FrameNum);
 
@@ -71,23 +70,30 @@ class Driver
         AtomGroup& getAtomGroup(const std::string& name);
 
     private:
-        ParameterPack pack_;
+        // parameter pack
+        ParameterPack& pack_;
+        CommandLineArguments& cmd_;
+
 
         SimulationState simstate_;
+
+        // path of the gro file
         GroFile grofile_;
+        std::string groPath_;
 
         std::vector<std::string> AtomGroupNames_;
         std::vector<std::string> BBNames_;
 
-        std::string groPath_;
-
+        // xdr file pointer
         XdrPtr xdrfile_;
 
         // the absolute path of the program
         std::string abs_path_;
 
+        // density field pointer 
         DensityPtr densityfield_;
 
+        // bounding box pointer 
         BBPtr boundingbox_;
 
         // vector of curvature objects
@@ -95,12 +101,23 @@ class Driver
 
         Registry reg_;
 
+        // The total number of frames 
         int Totalframes_;
 
         // The starting frame_ + how many frames to skip for calculation
         // This is 1 based counting
         int starting_frame_ = 1;
+
         // the number of frames to be skipped between 2 calculation
         // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3
         int skip_ = 0;
+
+        // bootstrapping things 
+        bool bootstrap_=false;
+        int BootstrapIterations_;
+        int BootstrapSamples_;
+        std::vector<std::vector<int>> BootstrapIndices_;
+
+        // whether we are being verbose
+        bool verbose_=true;
 };
