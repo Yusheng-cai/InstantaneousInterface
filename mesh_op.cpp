@@ -97,7 +97,26 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("ConvertToNonPBCMesh", "-op ConvertToNonPBCMesh -box[required] x y z -i[required] input.ply -o [nonpbc.ply]", \
                     [](CommandLineArguments& cmd) -> void {return MeshActions::ConvertToNonPBCMesh(cmd);}, \
                     mapF, mapU);
-    RegisterAction("scale", "-op scale -i input.ply -o scaled.ply", \
+    RegisterAction("scale", "-op scale -scale[float] num -i input.ply -o scaled.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
                     mapF, mapU);
+    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -direction x,y,z \
+                                        -origin[float] num -n1[int] -n2[int] -L1[float] -L2[float] -fc[required] fc.out \
+                                        -col[int] num -box[optional] x y z", 
+                                        [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dCurvature(cmd);}, 
+                                        mapF, mapU);
+    RegisterAction("DistanceCutoff", "-op DistanceCutoff -i input.ply -ref ref.ply -o[optional] cut.ply -cutoff[float] distance \
+                                      -box[optional] x y z",\
+                                      [](CommandLineArguments& cmd)-> void {return MeshActions::MeshDistanceCutoff(cmd);}, \
+                                      mapF, mapU);
+    RegisterAction("ColorVertex", "-op ColorVertex -i input.ply -o output.ply -curvature[string] c.out -col[int] column -vmin[optional] \
+                                   -vmax[optional]", \
+                                    [](CommandLineArguments& cmd)-> void {return MeshActions::ColorVertex(cmd);}, \
+                                    mapF, mapU);
+    RegisterAction("MeshMinDistance", "-op MeshMinDistance -i input.ply -ref ref.ply -o output.out -box[optional] x y z", \
+                                    [](CommandLineArguments& cmd)-> void {return MeshActions::MinimumMeshDistance(cmd);}, \
+                                    mapF, mapU);
+    RegisterAction("MeshPlaneIntersect", "-op MeshPlaneIntersect -i input.ply -o intersect.out -plane[Real3] x y z -point[Real3] x y z", \
+                                    [](CommandLineArguments& cmd)-> void {return MeshActions::MeshPlaneIntersection(cmd);},\
+                                    mapF, mapU);
 }
