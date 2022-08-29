@@ -42,9 +42,12 @@ void CurvatureJetFit::calculate(Mesh& mesh)
 {
     initialize(mesh);
 
+    // First calculate the vertex neighbors for each of the vertex -->
+    // simply just the triangles that each vertex is connected to
     std::vector<std::vector<int>> VertexNeighbors;
     MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
 
+    // start calculating number of neighbors 
     const auto& vertices = mesh.getvertices();
     int nv = vertices.size();
 

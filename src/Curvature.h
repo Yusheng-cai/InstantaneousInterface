@@ -46,6 +46,7 @@ class Curvature
 
         const std::vector<Real>& getAvgCurvaturePerVertex() {return avgCurvaturePerVertex_;}
         const std::vector<Real>& getGaussCurvaturePerVertex() {return GaussCurvaturePerVertex_;}
+        const std::vector<Real2>& getFaceCurvature() {return FaceCurvature_;}
 
     protected:
         ParameterPack& pack_;
