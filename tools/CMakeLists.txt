@@ -6,6 +6,7 @@ target_sources(IItools PRIVATE
     "CommandLineArguments.cpp"
     "FileSystem.cpp"
     "OutputFunction.cpp"
+    "Algorithm.cpp"
 )
 
 set(IITOOLS_HEADER
@@ -18,6 +19,7 @@ set(IITOOLS_HEADER
     "Registry.h"
     "FileSystem.h"
     "OutputFunction.h"
+    "Algorithm.h"
 )
 
 target_include_directories(IItools
