@@ -56,6 +56,7 @@ set(IIsrc_HEADER
     "MeshGeneration.h"
     "MeshGen2d.h"
     "MeshActions.h"
+    "MeshPlaneIntersection.hpp"
 )
 
 target_include_directories(IIsrc
