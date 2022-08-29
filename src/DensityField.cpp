@@ -232,6 +232,7 @@ void DensityField::CalculateInstantaneousField()
     // set up the omp buffers
     FieldBuffer_.set_master_object(field_);
 
+    // find all the atom groups indices that are in the bounding box
     findAtomsIndicesInBoundingBox(); 
 
     for (int i=0;i<atomGroupNames_.size();i++)
@@ -251,9 +252,10 @@ void DensityField::CalculateInstantaneousField()
                 Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
                 INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
 
-                // Fix the index 
+                // Fix the index --> to correct for periodic boundary conditions  
                 fieldbuf.fixIndex(Index);
 
+                // iterate over all the indices and calculate instantaneousinterface
                 for(int j=0;j<offsetIndex_.size();j++)
                 {
                     INT3 RealIndex;
