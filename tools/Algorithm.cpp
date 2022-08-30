@@ -20,3 +20,19 @@ void Algorithm::Permutation(int max, int numSamples, int numTimes, std::vector<s
         samples[i] = newInd;
     }
 }
+
+void Algorithm::Permutation(int max, int numSamples, std::vector<int>& samples)
+{
+    auto rng = std::default_random_engine {};
+    std::vector<int> indices(max,0);
+    std::iota(indices.begin(), indices.end(),0);
+
+    samples.clear();
+    samples.resize(numSamples);
+
+    std::shuffle(std::begin(indices), std::end(indices), rng);
+    for (int j=0;j<numSamples;j++)
+    {
+        samples[j] = indices[j];
+    }
+}
