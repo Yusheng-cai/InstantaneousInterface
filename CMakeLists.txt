@@ -50,22 +50,21 @@ add_subdirectory(xdr)
 add_subdirectory(test)
 
 add_executable(InstantaneousInterface main.cpp)
-add_executable(Curve curve.cpp)
 add_executable(mesh_gen mesh_gen.cpp)
 add_executable(mesh_op mesh_op.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
+#target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_gen PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
-target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel)
+#target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_gen PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel)
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
-install(TARGETS Curve DESTINATION bin)
+#install(TARGETS Curve DESTINATION bin)
 install(TARGETS mesh_gen DESTINATION bin)
 install(TARGETS mesh_op DESTINATION bin)
