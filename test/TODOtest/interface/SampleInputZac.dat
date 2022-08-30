@@ -15,26 +15,31 @@ curvature   = {
         name = c
 	type = tensor
 	outputs = [ curvature ]
-	outputNames = [ IIcurvature.out ] 
+	outputNames = [ tensor.out ] 
+}
+
+curvature   = {
+        name = c2
+	type = jetfit
+        neighbors = 3
+        MongeCoefficient = 3
+        degree = 3
+	outputs = [ curvature ]
+	outputNames = [ jetfit.out ] 
 }
 
 densityfield = {
     type        = averagefield
-    Mesh = {
-	outputs  = [ ply ]
-	outputNames = [ zacII.ply ] 
-	factor   = 10
-    }
 
     isosurfacevalue  = 16
-    curvature   = [ c ]
+    curvature   = [ c c2 ]
     dimensions  = [ 160 40 50 ]
     boundingbox = bb
     sigma       = 0.24
     cutoff      = 2.5
-    atomgroup   = ice
-    outputs 	= [ field ]
-    outputFiles = [ zacfield.out ]
+    atomgroups  = [ ice ]
+    outputs 	= [ ply field ]
+    outputFiles = [ zacII.ply zacfield.out ]
 }
 
 boundingbox = {
@@ -46,5 +51,5 @@ boundingbox = {
 
 driver = {
     startingframe = 1
-    skip = 0
+    skip = 10
 }
