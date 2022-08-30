@@ -111,7 +111,7 @@ class Driver
 
         // the number of frames to be skipped between 2 calculation
         // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3
-        int skip_ = 0;
+        int skip_ = 1;
         std::vector<int> SimulationFrames_;
 
         // Randomly Sample from the simulation frames to be averaged 

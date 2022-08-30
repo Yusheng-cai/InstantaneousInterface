@@ -65,22 +65,21 @@ void Driver::initializeDriver()
         {
             driverPack -> ReadNumber("startingframe", ParameterPack::KeyType::Optional, starting_frame_);
             driverPack -> ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
-            ASSERT((skip_ >= 0), "Skip must be an non-negative number, but provided skip = " << skip_);
+            ASSERT((skip_ > 0), "Skip must be an non-negative number, but provided skip = " << skip_);
             ASSERT((starting_frame_ >= 1), "The starting frame must be a number larger or equal to 1, but provided \
             startng frame = " << starting_frame_);
 
             // We do the 0 based counting inside the code
             starting_frame_ -= 1;
         }
-        int totalFrames;
-        totalFrames = (Totalframes_ - starting_frame_)/(skip_ + 1);
-
-        simstate_.setTotalFramesToBeCalculated(totalFrames);
+        SimulationFrames_ = Algorithm::arange(starting_frame_, Totalframes_-1, skip_);
+        simstate_.setTotalFramesToBeCalculated(SimulationFrames_.size());
     }
     else
     {
         driverPack -> ReadNumber("NumberRandomSample", ParameterPack::KeyType::Required, numRandomSample_);
         Algorithm::Permutation(Totalframes_, numRandomSample_, SimulationFrames_);
+        simstate_.setTotalFramesToBeCalculated(numRandomSample_);
     }
 }
 
@@ -264,54 +263,32 @@ void Driver::printFinalOutput()
 
 void Driver::run()
 {
-    if (! bootstrap_)
+    for (int i=0;i<SimulationFrames_.size();i++)
     {
-        // non boot strapped version of averaging
-        for (int i=0;i<getNumFrames();i++)
-        {
-            if (CheckValidStep(i))
-            {
-                std::cout << "Frame = " << i << std::endl;
-                readFrameXdr(i);
+        int ind = SimulationFrames_[i];
 
-                update();
+        std::cout << "Frame = " << ind << std::endl;
 
-                auto start = std::chrono::high_resolution_clock::now();
+        // first read the frame from xdr
+        readFrameXdr(ind);
 
-                calculate();
-
-                printOutputfileIfOnStep();
-                auto end = std::chrono::high_resolution_clock::now();
-                auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-                std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
-            }
-        }
+        // perform an update on the atom positions etc.
+        update();
 
         auto start = std::chrono::high_resolution_clock::now();
-        finishCalculate();
+
+        // perform the calculations
+        calculate();
+
+        printOutputfileIfOnStep();
         auto end = std::chrono::high_resolution_clock::now();
         auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
-        std::cout << "Time it took for finish calculate is " << diff.count() << std::endl;
-
-        printFinalOutput();
+        std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
     }
-    // else we are doing bootstrapping
-    else
-    {
-        for (int i=0;i<BootstrapIterations_;i++)
-        {
-            for (int j=0;j<BootstrapSamples_;j++)
-            {
-                int frameIndex = BootstrapIndices_[i][j];
 
-                readFrameXdr(frameIndex);
+    // finish the calculation step
+    finishCalculate();
 
-                update();
-
-                calculate();
-            }
-
-            finishCalculate();
-        }
-    }
+    // print the final output
+    printFinalOutput();
 }
