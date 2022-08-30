@@ -36,6 +36,7 @@ class DensityField
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;
         using INT3 =std::array<int,3>;
+        using INT2 = CommonTypes::index2;
         using Range= CommonTypes::Real2;
         using Meshptr = std::unique_ptr<Mesh>;
         using outputfunc = std::function<void(std::string)>;
@@ -58,19 +59,32 @@ class DensityField
         // initialize the mesh object
         void initializeMesh();
 
+        // helper function that finds atom indices that lies within the bounding box 
         void findAtomsIndicesInBoundingBox();
 
+        // helper function that calculates the offset index 
         void CalcOffsetIndex();
+
+        // calculate the instantaneous concentration field 
         void CalculateInstantaneousField();
 
+        // function that adds the atom group to the current object 
         void addAtomGroup(std::string& name);
         void registerAtomGroupID(std::string& name, int index);
-
         int getAtomGroupID(std::string& name);
         const AtomGroup& getAtomGroup(std::string& name);
         AtomGroup& accessAtomGroup(std::string& name);
+
+        // mesh printing functions
+        void printSTL(std::string name);
+        void printPLY(std::string name);
+        void printBoundaryVertices(std::string name);
+        void printnonPBCMesh(std::string name);
+
+        // access the mesh object 
         Mesh& accessMesh() {return *mesh_;}
-        
+
+        // inline function that coarse grains the concentration
         inline Real GaussianCoarseGrainFunction(const Real3& dx);
 
     protected:
@@ -122,7 +136,12 @@ class DensityField
         Real isoSurfaceVal_;
 
         MarchingCubes MarchingCubes_;
+
+        // Mesh stuff 
         Meshptr mesh_;
+        std::vector<std::string> MeshOutputs_;
+        std::vector<std::string> MeshOutputNames_;
+        bool pbcmesh_=false;
 
         std::vector<std::vector<int>> AtomIndicesInside_;
 

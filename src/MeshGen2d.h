@@ -90,7 +90,4 @@ class Mesh2d : public MeshGeneration
         // boolean that signifies whether or not the calculation is for pbc
         bool isPBC_=false;
         Real2 box_length_;
-
-        // The mesh object 
-        Mesh mesh_;
 };

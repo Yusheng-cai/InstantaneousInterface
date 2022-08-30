@@ -16,6 +16,7 @@
 #include <vector>
 #include <memory>
 #include <array>
+#include <chrono>
 
 class Driver
 {
@@ -111,12 +112,11 @@ class Driver
         // the number of frames to be skipped between 2 calculation
         // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3
         int skip_ = 0;
+        std::vector<int> SimulationFrames_;
 
-        // bootstrapping things 
-        bool bootstrap_=false;
-        int BootstrapIterations_;
-        int BootstrapSamples_;
-        std::vector<std::vector<int>> BootstrapIndices_;
+        // Randomly Sample from the simulation frames to be averaged 
+        bool RandomSample_=false;
+        int numRandomSample_;
 
         // whether we are being verbose
         bool verbose_=true;

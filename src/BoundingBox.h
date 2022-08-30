@@ -36,6 +36,7 @@ class BoundingBox
         Real3 PutInBoundingBox(const Real3& position) const;
 
         std::string getName() const {return name_;}
+        Real3 getSides() const {return sides_;}
 
     
     private:
@@ -54,6 +55,8 @@ class BoundingBox
         SimulationBox& simBox_;
 
         Real3 center_;
+
+        Real3 sides_;
 
         std::string name_;
 };

@@ -1,152 +1,5 @@
 #include "Mesh.h"
 
-Mesh::Mesh(const ParameterPack* pack)
-: pack_(pack)
-{
-    registerFunc();
-
-    if (pack != nullptr)
-    {
-        pack->ReadVectorString("outputs", ParameterPack::KeyType::Optional, outs_);
-        pack->ReadVectorString("outputNames", ParameterPack::KeyType::Optional, outputNames_);
-        pack->ReadNumber("factor", ParameterPack::KeyType::Optional, factor_);
-
-        // if box length is read, then the mesh is periodic 
-        isPeriodic_ = pack->ReadArrayNumber("BoxLength", ParameterPack::KeyType::Optional, boxLength_);
-    }
-}
-
-void Mesh::registerFunc()
-{   
-    // set up output 
-    outputs_.registerOutputFunc("stl", [this](std::string name) -> void { this -> printSTL(name);});
-    // print ply file by myself 
-    outputs_.registerOutputFunc("ply", [this](std::string name) -> void { this -> printPLY(name);});
-    // print ply file but using library
-    outputs_.registerOutputFunc("boundary", [this](std::string name) -> void {this -> printBoundaryVertices(name);});
-    outputs_.registerOutputFunc("area", [this](std::string name) -> void {this -> printArea(name);});
-    outputs_.registerOutputFunc("cutted", [this](std::string name) -> void {this -> printCuttedMesh(name);});
-    outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printNonPBCMesh(name);});
-    outputs_.registerOutputFunc("translate",[this](std::string name) -> void {this -> printTranslatedMesh(name);});
-    outputs_.registerOutputFunc("neighbor", [this](std::string name) -> void {this -> printNeighbors(name);});
-    outputs_.registerOutputFunc("NonPeriodicTriangle", [this](std::string name) -> void {this -> printNonPeriodicTriangleIndices(name);});
-}
-
-void Mesh::printNeighbors(std::string name)
-{
-    // calculate the neighbor indices 
-    std::vector<std::vector<int>> neighborInd;
-    MeshTools::CalculateVertexNeighbors(*this, neighborInd);
-
-    std::ofstream ofs;
-    ofs.open(name);
-
-    for (int i=0;i<neighborInd.size();i++)
-    {
-        ofs << i << " ";
-        for (auto ind : neighborInd[i])
-        {
-            ofs << ind << " ";
-        }
-        ofs << "\n";
-    }
-
-    ofs.close();
-}
-
-void Mesh::printArea(std::string name)
-{
-    // calculate the area and facet normals 
-    std::vector<Real> triangleA;
-    std::vector<Real3> facetN;
-    MeshTools::CalculateTriangleAreasAndFaceNormals(*this, triangleA, facetN);
-
-    std::ofstream ofs;
-    ofs.open(name);
-
-    for (int i=0;i<triangleA.size();i++)
-    {
-        ofs << triangleA[i] << "\n";
-    }
-
-    ofs.close();
-}
-
-void Mesh::printNonPeriodicTriangleIndices(std::string name)
-{
-    std::ofstream ofs;
-    ofs.open(name);
-    std::vector<int> NonPeriodicTriangleIndices;
-
-    if (isPeriodic())
-    {
-        for (int i =0;i<triangles_.size();i++)
-        {
-            auto t = triangles_[i].triangleindices_;
-            if (! MeshTools::IsPeriodicTriangle(vertices_, t, getBoxLength()))
-            {
-                NonPeriodicTriangleIndices.push_back(i);
-            }
-        }
-    }
-    else
-    {
-        NonPeriodicTriangleIndices.resize(triangles_.size());
-        std::iota(NonPeriodicTriangleIndices.begin(), NonPeriodicTriangleIndices.end(),0);
-    }
-
-    for (int index : NonPeriodicTriangleIndices)
-    {
-        ofs << index << " ";
-    }
-
-    ofs.close();
-}
-
-void Mesh::printTranslatedMesh(std::string name)
-{
-    Real3 translate;
-    bool readTranslate = pack_->ReadArrayNumber("translation", ParameterPack::KeyType::Optional, translate);
-
-    if (readTranslate)
-    {
-        std::vector<Real3> tempVertices;
-        std::vector<INT3> tempFaces;
-        tempVertices.resize(vertices_.size());
-        int index=0;
-        for (auto& v : vertices_)
-        {
-            for (int i=0;i<3;i++)
-            {
-                 tempVertices[index][i] = v.position_[i] + translate[i];
-            }
-            index++;
-        }
-
-        for (auto& t : triangles_)
-        {
-            tempFaces.push_back(t.triangleindices_);
-        }
-        MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
-    }
-}
-
-void Mesh::printNonPBCMesh(std::string name)
-{
-    if (isPeriodic())
-    {
-        std::vector<Real3> tempVertices;
-        std::vector<INT3> tempFaces;
-        MeshTools::ConvertToNonPBCMesh(*this, tempVertices, tempFaces);
-
-        MeshTools::writePLY(name, tempVertices, tempFaces, factor_);
-    }
-    else
-    {
-        std::cout << "WARNING: You asked to print NON PBC Mesh while the Mesh is not PBC." << "\n";
-    }
-}
-
 void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
 {
     if (isPeriodic())
@@ -168,130 +21,6 @@ void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
             NewVerPos[i] = boxCenter[i] + diff[i];
         }
     }
-}
-
-void Mesh::printBoundaryVertices(std::string name)
-{
-    std::ofstream ofs;
-    ofs.open(name);
-
-    std::vector<bool> boundaryIndicator;
-    MeshTools::MapEdgeToFace(*this, MapEdgeToFace_, MapVertexToEdges_);
-    MeshTools::CalculateBoundaryVertices(*this, MapEdgeToFace_, boundaryIndicator);
-
-    ofs << "# Index Vx Vy Vz Nx Ny Nz" << "\n";
-    for (int i=0;i<vertices_.size();i++)
-    {
-        if (MeshTools::IsBoundary(i, boundaryIndicator))
-        {
-            ofs << i << " " << vertices_[i].position_[0] << " " << vertices_[i].position_[1] << " " << vertices_[i].position_[2] << \
-            " " << vertices_[i].normals_[0] << " " << vertices_[i].normals_[1] << " " << vertices_[i].normals_[2] << "\n";
-        }
-    }
-
-    ofs.close();
-}
-
-void Mesh::printCuttedMesh(std::string name)
-{
-    ASSERT((pack_ != nullptr), "If you wanted to print cutted Mesh, you must provide a parameter pack for mesh.");
-    Real3 volume;
-
-    pack_->ReadArrayNumber("largerthan", ParameterPack::KeyType::Required, volume);
-
-    std::vector<Real3> newVertices;
-    std::vector<INT3> newTriangles;
-
-    MeshTools::CutMesh(*this, newTriangles, newVertices, volume);
-    MeshTools::writePLY(name, newVertices, newTriangles, factor_);
-}
-
-void Mesh::print()
-{
-    for (int i=0;i<outs_.size();i++)
-    {
-        outputs_.getOutputFuncByName(outs_[i])(outputNames_[i]);
-    }
-}
-
-void Mesh::printPLY(std::string name)
-{
-    std::ofstream ofs;
-    ofs.open(name);
-
-    ofs << "ply" << "\n";
-    ofs << "format ascii 1.0\n";
-    ofs << "comment Created by Yusheng Cai\n";
-
-    int sizeVertex = vertices_.size();
-    int sizetriangle = triangles_.size();
-
-    ofs << "element vertex " << sizeVertex << std::endl; 
-    ofs << "property float x\n";
-    ofs << "property float y\n";
-    ofs << "property float z\n";
-    ofs << "property float nx\n";
-    ofs << "property float ny\n";
-    ofs << "property float nz\n";
-    ofs << "element face " << sizetriangle << "\n";
-    ofs << "property list uchar uint vertex_indices\n";
-    ofs << "end_header\n";
-
-    ofs << std::fixed << std::setprecision(6);
-    for (int i=0;i<sizeVertex;i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].position_[j] * factor_ << " ";
-        }
-
-        for (int j=0;j<3;j++)
-        {
-            ofs << vertices_[i].normals_[j] << " ";
-        }
-
-        ofs << "\n";
-    }
-
-    for (int i=0;i<sizetriangle;i++)
-    {
-        ofs << 3 << " ";
-        auto& t = triangles_[i];
-
-        for (int j=0;j<3;j++)
-        {
-            ofs << t.triangleindices_[j] << " ";
-        }
-        ofs << "\n";
-    }
-
-    ofs.close();
-}
-
-void Mesh::printSTL(std::string name)
-{
-    std::ofstream ofs;
-    ofs.open(name);
-
-    ofs << "solid " << name << "\n";
-
-    for (int i=0;i<triangles_.size();i++)
-    {
-        ofs << "facet normal " << facetNormals_[i][0] << " " << facetNormals_[i][1] << " " << facetNormals_[i][2] << "\n";
-
-        ofs << "\touter loop\n";
-        auto& t = triangles_[i];
-
-        for (int j=0;j<3;j++)
-        {
-            auto& pos = t.vertices_[j].position_;
-            ofs << "vertex " << pos[0] << " " << pos[1] << " " << pos[2] << "\n";
-        }
-
-        ofs << "\tendloop\n";
-        ofs << "endfacet\n";
-    }
-    ofs << "endsolid " << name;
 }
 
 void Mesh::CalcPerVertexDir()
@@ -644,6 +373,29 @@ std::vector<Mesh::Real3> Mesh::getVertexPositions()
                                     /**************************************
                                      ************   MeshTools *************
                                      *************************************/       
+void MeshTools::writePLY(std::string filename, Mesh& mesh)
+{
+    std::vector<Real3> verts;
+    std::vector<INT3> faces;
+
+    const auto& v = mesh.getvertices();
+    const auto& f = mesh.gettriangles();
+
+    verts.resize(v.size());
+    faces.resize(f.size());
+
+    for (int i=0;i<v.size();i++)
+    {
+        verts[i] = v[i].position_;
+    }
+
+    for (int i=0;i<f.size();i++)
+    {
+        faces[i] = f[i].triangleindices_;
+    }
+
+    writePLY(filename, verts, faces);
+}
 
 void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals)
 {
@@ -802,6 +554,35 @@ void MeshTools::writePLYRGB(std::string filename, const std::vector<Real3>& vert
     }
 
     ofs.close();
+}
+
+void MeshTools::writeSTL(std::string name, Mesh& mesh)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    const auto& f = mesh.gettriangles();
+    const auto& n = mesh.getFaceNormals();
+    
+    ofs << "solid " << name << "\n";
+
+    for (int i=0;i<f.size();i++)
+    {
+        ofs << "facet normal " << n[i][0] << " " << n[i][1] << " " << n[i][2] << "\n";
+
+        ofs << "\touter loop\n";
+        auto& t = f[i];
+
+        for (int j=0;j<3;j++)
+        {
+            auto& pos = t.vertices_[j].position_;
+            ofs << "vertex " << pos[0] << " " << pos[1] << " " << pos[2] << "\n";
+        }
+
+        ofs << "\tendloop\n";
+        ofs << "endfacet\n";
+    }
+    ofs << "endsolid " << name;
 
 }
 
@@ -1611,4 +1392,80 @@ bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O
     t = LinAlg3x3::DotProduct(E2, Q) * invdet;
 
     return true;
+}
+
+void MeshTools::writeNonPBCMesh(std::string name, Mesh& mesh)
+{
+    if (mesh.isPeriodic())
+    {
+        std::vector<Real3> tempVertices;
+        std::vector<INT3> tempFaces;
+        MeshTools::ConvertToNonPBCMesh(mesh, tempVertices, tempFaces);
+
+        MeshTools::writePLY(name, tempVertices, tempFaces);
+    }
+    else
+    {
+        std::cout << "WARNING: You asked to print NON PBC Mesh while the Mesh is not PBC." << "\n";
+    }
+}
+
+void MeshTools::writeNonPeriodicTriangleIndices(std::string name, Mesh& mesh)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+    std::vector<int> NonPeriodicTriangleIndices;
+
+    const auto& f = mesh.gettriangles();
+    const auto& v = mesh.getvertices();
+
+    if (mesh.isPeriodic())
+    {
+        for (int i =0;i<f.size();i++)
+        {
+            auto t = f[i].triangleindices_;
+            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), t, mesh.getBoxLength()))
+            {
+                NonPeriodicTriangleIndices.push_back(i);
+            }
+        }
+    }
+    else
+    {
+        NonPeriodicTriangleIndices.resize(f.size());
+        std::iota(NonPeriodicTriangleIndices.begin(), NonPeriodicTriangleIndices.end(),0);
+    }
+
+    for (int index : NonPeriodicTriangleIndices)
+    {
+        ofs << index << " ";
+    }
+
+    ofs.close();
+}
+
+void MeshTools::writeMeshArea(std::string filename, Mesh& mesh)
+{
+    // calculate the area and facet normals 
+    std::vector<Real> triangleA;
+    std::vector<Real3> facetN;
+    MeshTools::CalculateTriangleAreasAndFaceNormals(mesh, triangleA, facetN);
+
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    for (int i=0;i<triangleA.size();i++)
+    {
+        ofs << triangleA[i] << "\n";
+    }
+
+    ofs.close();
+}
+
+void MeshTools::writeCuttedMesh(std::string filename, Mesh& mesh, Real3& volume)
+{
+    std::vector<INT3> faces;
+    std::vector<Real3> verts;
+    CutMesh(mesh, faces, verts, volume);
+    writePLY(filename, verts, faces);
 }

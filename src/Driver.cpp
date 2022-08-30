@@ -55,11 +55,11 @@ void Driver::initializeDriver()
 
     if (driverPack != nullptr)
     {
-        driverPack -> Readbool("bootstrap", ParameterPack::KeyType::Optional, bootstrap_);
+        driverPack -> Readbool("RandomSample", ParameterPack::KeyType::Optional, RandomSample_);
     }
 
     // if not bootstrap, then we read different stuff from driver pack 
-    if (! bootstrap_)
+    if (! RandomSample_)
     {
         if (driverPack != nullptr)
         {
@@ -79,12 +79,8 @@ void Driver::initializeDriver()
     }
     else
     {
-        if (driverPack != nullptr)
-        {
-            driverPack -> ReadNumber("BootstrapIterations", ParameterPack::KeyType::Required, BootstrapIterations_);
-            driverPack -> ReadNumber("BootstrapSamples", ParameterPack::KeyType::Required, BootstrapSamples_);
-            Algorithm::Permutation(Totalframes_, BootstrapSamples_, BootstrapIterations_, BootstrapIndices_);
-        }
+        driverPack -> ReadNumber("NumberRandomSample", ParameterPack::KeyType::Required, numRandomSample_);
+        Algorithm::Permutation(Totalframes_, numRandomSample_, SimulationFrames_);
     }
 }
 
@@ -299,6 +295,7 @@ void Driver::run()
 
         printFinalOutput();
     }
+    // else we are doing bootstrapping
     else
     {
         for (int i=0;i<BootstrapIterations_;i++)
@@ -313,6 +310,8 @@ void Driver::run()
 
                 calculate();
             }
+
+            finishCalculate();
         }
     }
 }

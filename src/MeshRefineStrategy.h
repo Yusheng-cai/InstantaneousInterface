@@ -18,7 +18,6 @@ struct MeshRefineStrategyInput
     ParameterPack& pack;
 };
 
-
 class MeshRefineStrategy
 {
     public:

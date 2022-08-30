@@ -46,30 +46,15 @@ class Mesh
         using INT2  = CommonTypes::index2;
         using INT3  = CommonTypes::index3;
 
-        Mesh(const ParameterPack* pack);
-        Mesh() {registerFunc();};
+        // default constructor and destructor
+        Mesh() {};
         ~Mesh(){};
-
-        void registerFunc();
-
-                                        /*******************************************
-                                         ********** Printing Function **************
-                                         ******************************************/
-
-        void printSTL(std::string name);
-        void printPLY(std::string name);
-        void printBoundaryVertices(std::string name);
-        void printArea(std::string name);
-        void printCuttedMesh(std::string name);
-        void printNonPBCMesh(std::string name);
-        void printTranslatedMesh(std::string name);
-        void printNeighbors(std::string name);
-        void printNonPeriodicTriangleIndices(std::string name);
 
                                         /*******************************************
                                          * ******** setting Function **************
                                          * ****************************************/
-        void setBoxLength(Real3 box) { boxLength_ = box; isPeriodic_=true;}
+        void setBoxLength(Real3 box) { boxLength_ = box;setPBC(true);}
+        void setPBC(bool isPbc) {isPeriodic_=isPbc;}
 
                                         /********************************************
                                          * ******** accessing Function **************
@@ -79,7 +64,6 @@ class Mesh
         std::vector<Real>& accessTriangleArea() {return triangleArea_;}
         std::vector<Real3>& accessPerVertexDir1() {return PerVertexdir1_;}
         std::vector<Real3>& accessPerVertexDir2() {return PerVertexdir2_;}
-        Output& accessOutput() {return outputs_;}
 
                                         /********************************************
                                          * **********  getter Function **************
@@ -103,9 +87,6 @@ class Mesh
 
         // Calculate the corner area according to trimesh code C++
         void CalculateCornerArea();
-
-        // printoutput
-        void print();
 
         // calculate volume
         Real calculateVolume();
@@ -158,23 +139,11 @@ class Mesh
         // a map from vertex indices to the face indices  
         std::vector<std::vector<int>> MapVertexIndicesToFaceIndices_;
 
-        // output function
-        Output outputs_;
-
-        // outputs
-        std::vector<std::string> outs_;
-
-        // outputNames
-        std::vector<std::string> outputNames_;
-
         // map vertex to edges 
         std::vector<std::vector<INT2>> MapVertexToEdges_;
 
         // the factor to which all the vertices on the mesh will be multiplied by
         Real factor_=1.0;
-
-        // parameter pack pointer
-        const ParameterPack* pack_;
 
         // whether or not the mesh is periodic
         bool isPeriodic_=false;
@@ -192,9 +161,22 @@ namespace MeshTools
     bool readPLY(std::string& filename, Mesh& mesh);
     bool readPLYlibr(std::string& filename, Mesh& mesh);
 
+    // write PLY file
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
     void writePLYRGB(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB);
+    void writePLY(std::string filename, Mesh& mesh);
+
+    // write non pbc mesh 
+    void writeNonPBCMesh(std::string filename, Mesh& mesh);
+    void writeNonPeriodicTriangleIndices(std::string name, Mesh& mesh);
+
+    // auxiliary functions for writing mesh areas
+    void writeMeshArea(std::string filename, Mesh& mesh);
+    void writeCuttedMesh(std::string filename, Mesh& mesh, Real3& volume);
+
+    // write STL file
+    void writeSTL(std::string filename, Mesh& mesh);
 
     // calculate PBC distance
     Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);

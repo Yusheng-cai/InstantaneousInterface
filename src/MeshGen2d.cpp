@@ -14,13 +14,6 @@ Mesh2d::Mesh2d(ParameterPack& pack)
     isPBC_ = pack_.ReadArrayNumber("boxLength", ParameterPack::KeyType::Optional, box_length_);
 
     InputFileReader();
-
-    auto& out = mesh_.accessOutput();
-
-    for (auto name : out.getOutputNames())
-    {
-        output_.registerOutputFunc(name, out.getOutputFuncByName(name));
-    }
 }
 
 void Mesh2d::InputFileReader()

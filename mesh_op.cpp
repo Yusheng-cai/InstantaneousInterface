@@ -85,6 +85,12 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("jetfit", "-op jetfit -box[optional] x y z -i input.ply -o curve.out -fc faceC.out -neighbors number[int] -MongeCoefficient number[int] -degree number[int]",\
                               [](CommandLineArguments& cmd)->void{return MeshActions::JetFit(cmd);}, \
                               mapF, mapU);
+    RegisterAction("tensorfit", "-op tensorfit -box[optional] x y z -i input.ply -o tensor.out -fc tensor_faceC.out", \
+                              [](CommandLineArguments& cmd)-> void {return MeshActions::TensorFit(cmd);}, \
+                              mapF, mapU);
+    RegisterAction("FDMfit", "-op FDMfit -box[optional] x y z -i input.ply -o FDMfit.out -fc FDMfit_faceC.out", \
+                              [](CommandLineArguments& cmd)->void {return MeshActions::FDMFit(cmd);}, \
+                              mapF, mapU);
     RegisterAction("curvatureflow", "-op curvatureflow -box[optional] x y z -i input.ply -o output.ply -nonpbc true/yes/TRUE -iteration number[int] -lambdadt number[float]", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::CurvatureFlow(cmd);}, \
                     mapF, mapU);

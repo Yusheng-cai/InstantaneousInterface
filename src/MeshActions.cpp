@@ -95,7 +95,45 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
         ASSERT((c != nullptr), "Something went wrong in curvefit mesh action.");
         c->printff2(ff2fname);
     }
+}
 
+void MeshActions::TensorFit(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="tensor.out", faceCfname="tensor_faceC.out";
+
+    Real3 box;
+
+    // Curvature parameters pack
+    ParameterPack pack;
+
+    // initialize the necessary pointers
+    Mesh mesh;
+    curveptr curve;
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    bool fcread  = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    if (pbcMesh)
+    {
+        mesh.setBoxLength(box);
+    }
+
+    // read the mesh
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // initialize curvature
+    CurvatureInput input = {{pack}};
+    curve = curveptr(CurvatureRegistry::Factory::instance().create("tensor", input));
+
+    curve->calculate(mesh);
+
+    curve->printCurvature(outputfname);
+
+    if (fcread)
+    {
+        curve->printFaceCurvature(faceCfname);
+    }
 }
 
 void MeshActions::JetFit(CommandLineArguments& cmd)
@@ -154,6 +192,50 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
     }
 }
 
+void MeshActions::FDMFit(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="FDMfit.out", faceCfname="FDMfit_faceC.out";
+    Real3 box;
+
+    // Curvature parameters pack
+    ParameterPack pack;
+
+    // initialize the necessary pointers
+    Mesh mesh;
+    curveptr curve;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    bool fcread = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
+    bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    if (pbcMesh)
+    {
+        mesh.setBoxLength(box);
+    }
+
+    // read the mesh
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // initialize curvature
+    CurvatureInput input = {{pack}};
+    curve = curveptr(CurvatureRegistry::Factory::instance().create("FDM", input));
+
+    curve->calculate(mesh);
+
+    curve->printCurvature(outputfname);
+
+    if (fcread)
+    {
+        curve->printFaceCurvature(faceCfname);
+    }
+}
+
+void MeshActions::CurveEvolution(CommandLineArguments& cmd)
+{
+
+}
+
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 {
     refineptr refine;
@@ -192,13 +274,14 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 
     if (nonpbc)
     {
-        mesh.printNonPBCMesh(outputfname);
+        MeshTools::writeNonPBCMesh(outputfname, mesh);
     }
     else
     {
-        mesh.printPLY(outputfname);
+        MeshTools::writePLY(outputfname, mesh);
     }
 }
+
 
 void MeshActions::FindNonPBCTriangles(CommandLineArguments& cmd)
 {
@@ -219,7 +302,7 @@ void MeshActions::FindNonPBCTriangles(CommandLineArguments& cmd)
     // read the mesh
     MeshTools::readPLYlibr(inputfname, mesh);
 
-    mesh.printNonPeriodicTriangleIndices(outputfname);
+    MeshTools::writeNonPeriodicTriangleIndices(outputfname, mesh);
 }
 
 void MeshActions::CutMesh(CommandLineArguments& cmd)
@@ -788,4 +871,36 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
         ofs << "\n";
     }
     ofs.close();
+}
+
+void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="neighbors.out";
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    // read in the mesh
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // calculate the neighbor indices 
+    std::vector<std::vector<int>> neighborInd;
+    MeshTools::CalculateVertexNeighbors(mesh, neighborInd);
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+
+    for (int i=0;i<neighborInd.size();i++)
+    {
+        ofs << i << " ";
+        for (auto ind : neighborInd[i])
+        {
+            ofs << ind << " ";
+        }
+        ofs << "\n";
+    }
+
+    ofs.close();
+
 }

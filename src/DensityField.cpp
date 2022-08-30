@@ -54,6 +54,7 @@ DensityField::DensityField(const DensityFieldInput& input)
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
 
+    // initialize the mesh object 
     initializeMesh();
 
     // stores a vector of pointers to the curvature 
@@ -62,6 +63,10 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // initialize the refinement process
     initializeRefinement();
+
+    outputs_.registerOutputFunc("ply", [this](std::string name)-> void {this -> printPLY(name);});
+    outputs_.registerOutputFunc("stl", [this](std::string name)-> void {this -> printSTL(name);});
+    outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printnonPBCMesh(name);});
 }
 
 void DensityField::initializeRefinement()
@@ -99,8 +104,6 @@ void DensityField::printFinalOutput()
     {
         curvatures_[i]->printOutput();
     }
-
-    mesh_ -> print();
 }
 
 inline DensityField::Real DensityField::GaussianCoarseGrainFunction(const Real3& dx)
@@ -184,8 +187,15 @@ AtomGroup& DensityField::accessAtomGroup(std::string& name)
 
 void DensityField::initializeMesh()
 {
-    auto meshP = pack_.findParamPack("Mesh", ParameterPack::KeyType::Optional);
-    mesh_ = Meshptr(new Mesh(meshP));
+    // check if we want to output a pbc mesh 
+    pack_.Readbool("PBCMesh", ParameterPack::KeyType::Optional, MCpbc_);
+
+    // initialize the mesh object 
+    mesh_ = Meshptr(new Mesh());
+    if (MCpbc_)
+    {
+        mesh_->setBoxLength(bound_box_->getSides());
+    }
 }
 
 void DensityField::findAtomsIndicesInBoundingBox()
@@ -235,6 +245,7 @@ void DensityField::CalculateInstantaneousField()
     // find all the atom groups indices that are in the bounding box
     findAtomsIndicesInBoundingBox(); 
 
+    // start calculating InstantaneousInterface
     for (int i=0;i<atomGroupNames_.size();i++)
     {
         std::string ag = atomGroupNames_[i];
@@ -284,4 +295,46 @@ void DensityField::CalculateInstantaneousField()
             }
         }
     }
+}
+
+void DensityField::printSTL(std::string name)
+{
+    MeshTools::writeSTL(name, *mesh_);
+}
+
+void DensityField::printPLY(std::string name)
+{
+    MeshTools::writePLY(name, *mesh_);
+}
+
+void DensityField::printBoundaryVertices(std::string name)
+{
+    std::ofstream ofs;
+    ofs.open(name);
+
+    std::vector<bool> boundaryIndicator;
+    std::vector<std::vector<INT2>> MapVertexToEdges;
+    std::map<INT2, std::vector<int>> MapEdgeToFace;
+
+    MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace, MapVertexToEdges);
+    MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace, boundaryIndicator);
+    
+    const auto& v = mesh_->getvertices();
+
+    ofs << "# Index Vx Vy Vz Nx Ny Nz" << "\n";
+    for (int i=0;i<v.size();i++)
+    {
+        if (MeshTools::IsBoundary(i, boundaryIndicator))
+        {
+            ofs << i << " " << v[i].position_[0] << " " << v[i].position_[1] << " " << v[i].position_[2] << \
+            " " << v[i].normals_[0] << " " << v[i].normals_[1] << " " << v[i].normals_[2] << "\n";
+        }
+    }
+
+    ofs.close();
+}
+
+void DensityField::printnonPBCMesh(std::string name)
+{
+    MeshTools::writeNonPBCMesh(name, *mesh_);
 }

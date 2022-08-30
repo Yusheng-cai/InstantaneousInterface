@@ -5,6 +5,7 @@
 #include "tools/GenericFactory.h"
 #include "tools/InputParser.h"
 #include "tools/OutputFunction.h"
+#include "Mesh.h"
 
 #include <iostream>
 #include <vector>
@@ -24,6 +25,8 @@ class MeshGeneration
         virtual void generate() = 0;
         virtual void printOutputs();
 
+        void printPLY(std::string name);
+
     protected:
         ParameterPack& pack_;
         Output output_;
@@ -36,6 +39,9 @@ class MeshGeneration
         std::map<INT2, std::vector<int>> MapEdgeToFace_;
         std::vector<std::vector<INT2>> MapVertexToEdge_;
         std::vector<bool> boundaryIndicator_;
+
+        // The mesh object 
+        Mesh mesh_;
 };
 
 

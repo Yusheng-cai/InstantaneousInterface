@@ -34,6 +34,15 @@ namespace MeshActions
     // calculate the curvature of a mesh using the method of jet fitting
     void JetFit(CommandLineArguments& cmd);
 
+    // calculate the curvature of a mesh using the method of tensor
+    void TensorFit(CommandLineArguments& cmd);
+
+    // calculate the curvature of a mesh using the method of FDM
+    void FDMFit(CommandLineArguments& cmd);
+
+    // curvature evolution 
+    void CurveEvolution(CommandLineArguments& cmd);
+
     // smooth a mesh using curvature flow (implicit fairing)
     void CurvatureFlow(CommandLineArguments& cmd);
 
@@ -63,4 +72,7 @@ namespace MeshActions
 
     // find mesh plane intersection
     void MeshPlaneIntersection(CommandLineArguments& cmd);
+
+    // find vertex neighbors 
+    void FindVertexNeighbors(CommandLineArguments& cmd);
 };

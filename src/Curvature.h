@@ -25,6 +25,7 @@ class Curvature
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;
         using Real2 = CommonTypes::Real2;
+        using INT2 = CommonTypes::index2;
 
         Curvature(CurvatureInput& input); 
         virtual ~Curvature(){};
