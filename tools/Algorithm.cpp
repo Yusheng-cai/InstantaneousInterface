@@ -23,7 +23,7 @@ void Algorithm::Permutation(int max, int numSamples, int numTimes, std::vector<s
 
 void Algorithm::Permutation(int max, int numSamples, std::vector<int>& samples)
 {
-    auto rng = std::default_random_engine {};
+    std::default_random_engine rng(time(0));
     std::vector<int> indices(max,0);
     std::iota(indices.begin(), indices.end(),0);
 
