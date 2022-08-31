@@ -13,13 +13,11 @@ class XtcFile:public XdrWrapper
 
         virtual ~XtcFile(){};
 
-        virtual bool readFrame(int FrameNum) override;
+        virtual void readFrame(int FrameNum) override;
         virtual void readNumAtoms() override;
         virtual void readNframes() override;
         virtual void writeFrame(const std::vector<Real3>& pos, int step, Real time, Matrix box);
 
     private:
         Frame::Real precision_;
-
-        std::vector<int64_t> offsets_;
 };

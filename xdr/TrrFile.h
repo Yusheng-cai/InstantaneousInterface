@@ -11,7 +11,7 @@ class TrrFile:public XdrWrapper
         TrrFile(const XdrInput& input);
         virtual ~TrrFile(){};
 
-        virtual bool readFrame(int FrameNum) override;
+        virtual void readFrame(int FrameNum) override;
         virtual void readNumAtoms() override;    
         virtual void readNframes() override;
     private:

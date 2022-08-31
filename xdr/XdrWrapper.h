@@ -48,13 +48,16 @@ class XdrWrapper
 
         int getNumAtoms() const {return natoms_;}
 
-        virtual bool readFrame(int FrameNum) = 0;
+        // write check point file
+        void writeCheckPoint(std::string filename, std::vector<int>& offsets);
+
+        virtual void readFrame(int FrameNum) = 0;
         virtual void writeFrame(const std::vector<Real3>& pos, int step, Real time, Matrix box){};
         virtual void readNumAtoms()  = 0;
         virtual void readNframes(){};
         const Frame::VectorReal3& getPositions() const{return frame_.getPositions();}
         const Frame::VectorReal3& getVelocities() const{return frame_.getVelocities();}
-        const Frame::VectorReal3& getFroces() const{return frame_.getForces();}
+        const Frame::VectorReal3& getForces() const{return frame_.getForces();}
         Real getTime() const {return frame_.getTime();}
         int getStep() const {return frame_.getStep();}
         int getNframes() const {return nframes_;}
@@ -74,6 +77,9 @@ class XdrWrapper
         int nframes_=0;
 
         std::string apath_;
+
+        // the offsets in terms of the number of bits
+        std::vector<int64_t> offsets_;
 };
 
 namespace XdrFiles

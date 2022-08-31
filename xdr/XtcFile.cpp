@@ -60,13 +60,10 @@ void XtcFile::readNframes()
     offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
 }
 
-bool XtcFile::readFrame(int FrameNum)
+void XtcFile::readFrame(int FrameNum)
 {
     ASSERT((isOpen()), "The file is not opened.");
-    if (FrameNum > nframes_)
-    {
-        return true;
-    }
+    ASSERT((FrameNum < nframes_), "Frame exceeded the maximum frames in xtc file");
 
     auto& positions_ = frame_.accessPositions();
     ASSERT((positions_.size() == natoms_), "The shape of positions is not of natoms size.");
@@ -76,11 +73,13 @@ bool XtcFile::readFrame(int FrameNum)
     matrix box_;
     Frame::Matrix matrix_box_;
 
-    auto positions_ptr_ = (rvec*)positions_.data();
+    auto positions_ptr = (rvec*)positions_.data();
 
+    // seek to the offset number 
     xdr_seek(file_,offsets_[FrameNum], 0);
-    int ret = read_xtc(file_, natoms_, &step, &time, box_, positions_ptr_, &precision_);
 
+    // read the xtc file
+    int ret = read_xtc(file_, natoms_, &step, &time, box_, positions_ptr, &precision_);
     ASSERT((ret == exdrOK || ret == exdrENDOFFILE), "The reading operation in xtc file is not sucessful.");
 
     for(int i=0;i<3;i++)
@@ -93,13 +92,4 @@ bool XtcFile::readFrame(int FrameNum)
     frame_.setBox(matrix_box_);
     frame_.setTime(time);
     frame_.setStep(step);
-
-    if (ret == exdrENDOFFILE)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
 }

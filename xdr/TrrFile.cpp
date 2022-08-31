@@ -18,7 +18,7 @@ void TrrFile::readNframes()
     offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
 }
 
-bool TrrFile::readFrame(int FrameNum)
+void TrrFile::readFrame(int FrameNum)
 {
     ASSERT((isOpen()), "The file is not opened.");
 
@@ -52,15 +52,6 @@ bool TrrFile::readFrame(int FrameNum)
         }
     }
     frame_.setBox(box_);
-
-    if (ret == exdrENDOFFILE)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
 }
 
 void TrrFile::readNumAtoms()
