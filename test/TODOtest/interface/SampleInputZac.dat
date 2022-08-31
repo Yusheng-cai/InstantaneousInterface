@@ -14,8 +14,8 @@ atomgroup = {
 curvature   = {
         name = c
 	type = tensor
-	outputs = [ curvature ]
-	outputNames = [ tensor.out ] 
+	outputs = [ curvature FaceCurvature ]
+	outputNames = [ tensor.out tensor_fc.out ] 
 }
 
 curvature   = {
@@ -24,8 +24,8 @@ curvature   = {
         neighbors = 3
         MongeCoefficient = 3
         degree = 3
-	outputs = [ curvature ]
-	outputNames = [ jetfit.out ] 
+	outputs = [ curvature FaceCurvature ]
+	outputNames = [ jetfit.out jetfit_fc.out ] 
 }
 
 densityfield = {
