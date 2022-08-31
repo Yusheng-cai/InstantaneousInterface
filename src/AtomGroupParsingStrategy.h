@@ -22,7 +22,7 @@ class AtomGroupParsingStrategy
         virtual ~AtomGroupParsingStrategy(){};
 
         virtual void Parse(std::vector<int>& indices) = 0;
-        virtual void update(std::vector<int>& indices){};
+        virtual void update(std::vector<int>& indices, int FrameNum){};
 
         void SortAndCheckNoDuplicate(std::vector<int>& indices);
     protected:
@@ -74,7 +74,7 @@ class IndexFileParsing: public AtomGroupParsingStrategy
         IndexFileParsing(AtomGroupParsingInput& input);
         virtual ~IndexFileParsing(){};
 
-        virtual void update(std::vector<int>& indices);
+        virtual void update(std::vector<int>& indices, int FrameNum);
         virtual void Parse(std::vector<int>& indices);
 
         const std::vector<std::vector<int>>& getIndexFileIndices() const { return Fileindices_;} 

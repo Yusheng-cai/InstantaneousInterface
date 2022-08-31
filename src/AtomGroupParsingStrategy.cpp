@@ -309,8 +309,6 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
     ifs_.close(); 
 
     totalFrames_ = Fileindices_.size();
-
-    frame_count = 0;
 }
 
 bool IndexFileParsing::isOpen()
@@ -325,22 +323,11 @@ void IndexFileParsing::Parse(std::vector<int>& indices)
     indices.insert(indices.end(),Fileindices_[0].begin(), Fileindices_[0].end());
 }
 
-void IndexFileParsing::update(std::vector<int>& indices)
+void IndexFileParsing::update(std::vector<int>& indices, int FrameNum)
 {
-    ASSERT((frame_count < totalFrames_), "Out of range frame for Index File " << selection_str_[0]);
+    ASSERT((FrameNum < totalFrames_), "Out of range frame for Index File " << selection_str_[0]);
 
     indices.clear();
 
-    indices.insert(indices.end(), Fileindices_[frame_count].begin(), Fileindices_[frame_count].end());
-
-
-    #ifdef MY_DEBUG
-    std::cout << "In index file update." << std::endl;
-    for (int i=0;i<indices.size();i++)
-    {
-        std::cout << "Af frame = " << frame_count << "Indices = " << indices[i] << std::endl;
-    }
-    #endif
-
-    frame_count++;
+    indices.insert(indices.end(), Fileindices_[FrameNum].begin(), Fileindices_[FrameNum].end());
 }
