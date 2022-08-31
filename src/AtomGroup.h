@@ -44,7 +44,7 @@ class AtomGroup
         AtomGroup(const AtomGroupInput& input);
         ~AtomGroup(){};
 
-        void update(const VectorReal3& total_atoms_);
+        void update(const VectorReal3& total_atoms_, int FrameNum);
 
         // getters
         std::string getName() const{return name_;}
