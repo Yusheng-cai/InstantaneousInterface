@@ -31,24 +31,6 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
     initializeDriver();
 }
 
-bool Driver::CheckValidStep(int FrameNum)
-{
-    if (FrameNum < starting_frame_)
-    {
-        return false;
-    }
-
-    int step_corrected = FrameNum- starting_frame_;
-    int onStep = step_corrected % (skip_ + 1);
-
-    if (onStep != 0)
-    {
-        return false;
-    }
-
-    return true;
-}
-
 void Driver::initializeDriver()
 {
     auto driverPack = pack_.findParamPack("driver", ParameterPack::KeyType::Optional);
@@ -165,18 +147,20 @@ void Driver::readFrameXdr(int FrameNum)
     simstate_.setTime(xdrfile_->getTime());
 }
 
-void Driver::update()
+void Driver::update(int FrameNum)
 {
+    readFrameXdr(FrameNum);
+
     // obtain the positions of the atoms from the xdr file (xtc, trr etc.)
-    auto& positions_ = xdrfile_ -> getPositions();
+    const auto& positions_ = xdrfile_ -> getPositions();
 
     // update the atomgroups
     for (int i=0;i<AtomGroupNames_.size();i++)
     {
-        auto& agName = AtomGroupNames_[i];
+        auto  agName = AtomGroupNames_[i];
         auto& ag     = simstate_.getAtomGroup(agName);
 
-        ag.update(positions_); 
+        ag.update(positions_, FrameNum); 
     }
 }
 
@@ -206,9 +190,12 @@ void Driver::initializeGroFile()
 {
     auto groPack = pack_.findParamPack("grofile", ParameterPack::KeyType::Optional);
 
-    groPack->ReadString("path", ParameterPack::KeyType::Required, groPath_);
+    if (groPack != nullptr)
+    {
+        groPack->ReadString("path", ParameterPack::KeyType::Required, groPath_);
 
-    grofile_.Open(groPath_);
+        grofile_.Open(groPath_);
+    }
 }
 
 void Driver::initializeAtomGroups()
@@ -269,11 +256,8 @@ void Driver::run()
 
         std::cout << "Frame = " << ind << std::endl;
 
-        // first read the frame from xdr
-        readFrameXdr(ind);
-
         // perform an update on the atom positions etc.
-        update();
+        update(ind);
 
         auto start = std::chrono::high_resolution_clock::now();
 
