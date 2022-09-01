@@ -54,6 +54,8 @@ void Driver::initializeDriver()
             // We do the 0 based counting inside the code
             starting_frame_ -= 1;
         }
+
+        // arange the simulation frames from starting frame to total frame
         SimulationFrames_ = Algorithm::arange(starting_frame_, Totalframes_-1, skip_);
         simstate_.setTotalFramesToBeCalculated(SimulationFrames_.size());
     }
@@ -149,6 +151,7 @@ void Driver::readFrameXdr(int FrameNum)
 
 void Driver::update(int FrameNum)
 {
+    // read the xdr frame 
     readFrameXdr(FrameNum);
 
     // obtain the positions of the atoms from the xdr file (xtc, trr etc.)
