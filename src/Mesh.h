@@ -6,6 +6,7 @@
 #include "tools/InputParser.h"
 #include "MeshRefineStrategy.h"
 #include "tools/OutputFunction.h"
+#include "tools/CommonOperations.h"
 #include "happly.h"
 
 #include <vector>

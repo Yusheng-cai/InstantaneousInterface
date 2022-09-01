@@ -5,10 +5,7 @@ void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
     if (isPeriodic())
     {
         Real3 boxCenter;
-        for (int i=0;i<3;i++)
-        {
-            boxCenter[i] = boxLength_[i] * 0.5;
-        }
+        boxCenter = boxLength_ * 0.5;
 
         Real3 diff;
         for (int i=0;i<3;i++)
@@ -112,12 +109,7 @@ void Mesh::scaleVertices(Real num)
 
 void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist)
 {
-    for (int i=0;i<3;i++)
-        {
-            Real diff = v1[i] - v2[i];
-            distVec[i] = diff;
-    }
-
+    distVec = v1 - v2;
     dist = LinAlg3x3::norm(distVec);
 
     if (isPeriodic())
@@ -156,12 +148,7 @@ Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2)
 
     // v1 - v2
     getVertexDistance(v1, v2, dist, distsq);
-    Real3 ret;
-
-    for (int i=0;i<3;i++)
-    {
-        ret[i] = v2.position_[i] + dist[i];
-    }
+    Real3 ret = v2.position_ + dist;
 
     return ret;
 }
@@ -170,10 +157,7 @@ Mesh::Real3 Mesh::getShiftIntoBox(const Real3& v1)
 {
     Real3 shift;
     Real3 center;
-    for (int i=0;i<3;i++)
-    {
-        center[i] = boxLength_[i] * 0.5;
-    }
+    center = boxLength_ * 0.5;
 
     for (int i=0;i<3;i++)
     {
@@ -1357,11 +1341,8 @@ bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O
     Real det, invdet;
 
     // find E1=B-A and E2=C-A
-    for (int i=0;i<3;i++)
-    {
-        E1[i] = B[i] - A[i];
-        E2[i] = C[i] - A[i];
-    }
+    E1 = B - A;
+    E2 = C - A;
 
     P = LinAlg3x3::CrossProduct(D, E2);
     det= LinAlg3x3::DotProduct(P, E1);
@@ -1374,10 +1355,7 @@ bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O
 
     // calculate inverse of det  
     invdet = 1.0 / det;
-    for (int i=0;i<3;i++)
-    {
-        T[i] = O[i] - A[i];
-    }
+    T = O - A;
 
     // find u
     u = LinAlg3x3::DotProduct(T, P) * invdet;
