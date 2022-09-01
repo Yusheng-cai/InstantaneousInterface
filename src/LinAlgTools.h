@@ -1,6 +1,7 @@
 #pragma once
 #include "tools/CommonTypes.h"
 #include "tools/Assert.h"
+#include "tools/CommonOperations.h"
 
 #include <cmath>
 

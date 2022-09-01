@@ -64,12 +64,8 @@ LinAlg3x3::Matrix LinAlg3x3::dyad(const Real3& v1, const Real3& v2)
 
 void LinAlg3x3::normalize(Real3& v1)
 {
-    Real norm_ = norm(v1);
-
-    for (int i=0;i<3;i++)
-    {
-        v1[i] = v1[i]/norm_;
-    }
+    Real sqr = norm(v1);
+    v1 = v1 / sqr;
 }
 
 LinAlg3x3::Real3 LinAlg3x3::MatrixDotVector(const Matrix& A, const Real3& v1)
