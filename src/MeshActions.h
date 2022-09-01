@@ -16,12 +16,15 @@
 #include "CurvatureCurveFit.h"
 #include "CurvatureJetFit.h"
 #include "tools/InputParser.h"
+#include "tools/CommonOperations.h"
+#include "tools/Algorithm.h"
 
 namespace MeshActions
 {
     using INT3 = std::array<int,3>;
     using Real = CommonTypes::Real;
     using Real3= CommonTypes::Real3;
+    using Real2= CommonTypes::Real2;
     using curveptr = std::unique_ptr<Curvature>;
     using refineptr= std::unique_ptr<MeshRefineStrategy>;
 

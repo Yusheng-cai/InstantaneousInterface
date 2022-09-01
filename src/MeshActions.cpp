@@ -489,27 +489,27 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     using INT2 = std::array<int,2>;
 
     std::string inputfname, outputfname, fcfname;
-    Real origin_pos=0.0;
-    int n1, n2, colnum, directionIndex=0;
-    Real L1, L2, d1, d2;
+    // some large number 
+    Real origin_pos=100.0;
+    int colnum;
+    Real2 L, n, d, ProjectedIndex;
     std::vector<Real> fc;
     Real3 box, D;
 
     // read the inputs 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readArray("direction", CommandLineArguments::Keys::Optional,D);
-    cmd.readValue("directionIndex", CommandLineArguments::Keys::Optional, directionIndex);
+    cmd.readArray("RayDirection", CommandLineArguments::Keys::Optional,D);
+    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
     LinAlg3x3::normalize(D);
 
     // the origin 
     cmd.readValue("origin", CommandLineArguments::Keys::Optional, origin_pos);
-    cmd.readValue("n1", CommandLineArguments::Keys::Required, n1);
-    cmd.readValue("n2", CommandLineArguments::Keys::Required, n2);
-    cmd.readValue("L1", CommandLineArguments::Keys::Required, L1);
-    cmd.readValue("L2", CommandLineArguments::Keys::Required, L2);
-    cmd.readValue("fc", CommandLineArguments::Keys::Required, fcfname);
-    cmd.readValue("col", CommandLineArguments::Keys::Required, colnum);
+    cmd.readArray("L", CommandLineArguments::Keys::Required, L);
+    cmd.readArray("n", CommandLineArguments::Keys::Required, n);
+    d = L/n;
+    cmd.readValue("FaceCurvatureFile", CommandLineArguments::Keys::Required, fcfname);
+    cmd.readValue("FileColumn", CommandLineArguments::Keys::Required, colnum);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     // read the tabulated data for curvature
@@ -523,42 +523,27 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         mesh.setBoxLength(box);
     }
 
-    // other index 
-    std::vector<int> otherIndex;
-    for (int i=0;i<3;i++)
-    {
-        if (i != directionIndex)
-        {
-            otherIndex.push_back(i);
-        }
-    }
-
-    // calculate the delta 
-    d1 = L1 / n1;
-    d2 = L2 / n2;
-
     // initialize the points
     std::vector<Real3> points;
-    std::vector<Real> pointCurvature(n1*n2);
+    std::vector<Real> pointCurvature(n[0]*n[2]);
 
     // populate the points 
-    for (int i=0;i<n1;i++)
+    for (int i=0;i<n[0];i++)
     {
-        for (int j=0;j<n2;j++)
+        for (int j=0;j<n[1];j++)
         {
-            Real3 p;
-            p[directionIndex] = origin_pos;
-            p[otherIndex[0]] = i * d1;
-            p[otherIndex[1]] = j * d2;
+            Real3 p = {{origin_pos, origin_pos, origin_pos}};
+            p[ProjectedIndex[0]] = i * d[0];
+            p[ProjectedIndex[1]] = j * d[1];
 
             points.push_back(p);
         }
     }
 
     // faces, verts of the mesh 
+    mesh.CalcVertexNormals();
     const auto& face = mesh.gettriangles();
     const auto& verts= mesh.getvertices();
-    mesh.CalcVertexNormals();
     const auto& faceNormal = mesh.getFaceNormals();
 
     // iterate over the points 
@@ -571,6 +556,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
         for (int j=0;j<face.size();j++)
         {
+            Real3 projectedD;
             Real3 A = verts[face[j].triangleindices_[0]].position_;
             Real3 B, C;
             Real t, u, v;
@@ -613,9 +599,9 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // start to output file
     std::ofstream ofs(outputfname);
     int index=0;
-    for (int i=0;i<n1;i++)
+    for (int i=0;i<n[0];i++)
     {
-        for (int j=0;j<n2;j++)
+        for (int j=0;j<n[1];j++)
         {
             ofs << i << " " << j << " " << pointCurvature[index] << "\n";
             index++;
