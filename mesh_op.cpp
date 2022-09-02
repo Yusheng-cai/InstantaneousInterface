@@ -106,9 +106,9 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("scale", "-op scale -scale[float] num -i input.ply -o scaled.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
                     mapF, mapU);
-    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -direction x,y,z \
-                                        -origin[float] num -n1[int] -n2[int] -L1[float] -L2[float] -fc[required] fc.out \
-                                        -col[int] num -box[optional] x y z", 
+    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -ProjectedIndex[array2] dim1 dim2 \
+                                        -origin[float] num -n n1 n2 -L L1 L2 -FaceCurvatureFile[required] fc.out \
+                                        -FileColumn[int] col -box[optional] x y z", 
                                         [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dCurvature(cmd);}, 
                                         mapF, mapU);
     RegisterAction("DistanceCutoff", "-op DistanceCutoff -i input.ply -ref ref.ply -o[optional] cut.ply -cutoff[float] distance \
