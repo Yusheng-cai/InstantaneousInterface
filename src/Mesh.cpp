@@ -110,7 +110,6 @@ void Mesh::scaleVertices(Real num)
 void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist)
 {
     distVec = v1 - v2;
-    dist = LinAlg3x3::norm(distVec);
 
     if (isPeriodic())
     {
@@ -119,9 +118,8 @@ void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, R
             if (distVec[i] > boxLength_[i] * 0.5) distVec[i] -= boxLength_[i];
             if (distVec[i] < -boxLength_[i] * 0.5) distVec[i] += boxLength_[i];
         }
-
-        dist = LinAlg3x3::norm(distVec);
     }
+    dist = LinAlg3x3::norm(distVec);
 }
 
 void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist)
@@ -1446,4 +1444,64 @@ void MeshTools::writeCuttedMesh(std::string filename, Mesh& mesh, Real3& volume)
     std::vector<Real3> verts;
     CutMesh(mesh, faces, verts, volume);
     writePLY(filename, verts, faces);
+}
+
+
+void MeshTools::CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndices)
+{
+    const auto& f = mesh.gettriangles();
+    const auto& v = mesh.getvertices();
+    faceIndices.clear();
+    Real epsilon=1e-8;
+
+    // what we check is if one side is whether or not a + b = c 
+    for (int i=0;i<f.size();i++)
+    {
+        INT3 indices = f[i].triangleindices_;
+
+        // get all three vertices of the triangle
+        Real3 A = v[indices[0]].position_;
+        Real3 B = v[indices[1]].position_;
+        Real3 C = v[indices[2]].position_;
+
+        // obtain the side length
+        Real3 vec;
+        Real AB, BC, CA;
+        mesh.getVertexDistance(A, B, vec, AB);
+        mesh.getVertexDistance(B, C, vec, BC);
+        mesh.getVertexDistance(C, A, vec, CA);
+
+        // check if AB+BC=CA, if so, then the triangle is degenerate
+        Real diff = CA - AB - BC;
+        if (std::abs(diff) < epsilon)
+        {
+            faceIndices.push_back(i);
+        }
+    }
+}
+
+bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
+{
+    std::vector<int> faceIndices;
+    CheckDegenerateTriangle(mesh, faceIndices);
+
+    if (faceIndices.size() != 0)
+    {
+        auto& triangles = mesh.accesstriangles();
+        std::vector<triangle> newT;
+
+        for (int i=0;i<triangles.size();i++)
+        {
+            if (! Algorithm::contain(faceIndices,i))
+            {
+                newT.push_back(triangles[i]);
+            }
+        }
+        triangles.clear();
+        triangles = newT;
+
+        return true;
+    }
+
+    return false;
 }

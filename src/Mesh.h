@@ -7,6 +7,7 @@
 #include "MeshRefineStrategy.h"
 #include "tools/OutputFunction.h"
 #include "tools/CommonOperations.h"
+#include "tools/Algorithm.h"
 #include "happly.h"
 
 #include <vector>
@@ -103,21 +104,20 @@ class Mesh
 
         // update the triangles/vertex/edges if they were to be changed
         void update();
+                                        ///////////////////////////////
+                                        /////       PBC stuff   ///////
+                                        ///////////////////////////////
 
         // Check whether or not the mesh is periodic 
         bool isPeriodic() {return isPeriodic_;}
-
         // find PBC distance between 2 vertices 
         void getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist);
         void getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist);
         void CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec);
-
         // move a vertex into pbc box
         void MoveVertexIntoBox(const Real3& OldVertPos, Real3& NewVertexPos);
-
         // find shifted vertex position
         Real3 getShiftedVertexPosition(const vertex& v1, const vertex& v2);
-
         // find the shit that takes a position into the box 
         Real3 getShiftIntoBox(const Real3& v1);
     
@@ -226,4 +226,10 @@ namespace MeshTools
 
     // Moller Trumbore Ray-Triangle intersection method 
     bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real3 FaceNormal, Real& t, Real& u, Real& v);
+
+    // check degenerate triangles 
+    void CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndices);
+
+    // decimate degenerate triangles
+    bool decimateDegenerateTriangle(Mesh& mesh);
 };
