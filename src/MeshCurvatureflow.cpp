@@ -15,7 +15,6 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     // set Eigen to be using the correct number of threads 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
-    std::cout << "Eigen is using " << Eigen::nbThreads() << " threads." << std::endl;
 }
 
 void MeshCurvatureflow::refine(Mesh& mesh)
@@ -38,10 +37,10 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     // Map from edges to their opposing vertex indices 
     MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
 
+    // if we are scaling, we need to calculate the volume
     if (scale_)
     {
         initialVolume_ = mesh_->calculateVolume();
-        std::cout << "Initial volume of the mesh is " << initialVolume_ <<std::endl;
     }
 
     // find number of vertices 
@@ -57,6 +56,26 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     // start refining 
     for (int i=0;i<numIterations_;i++)
     {
+        // every iteration, decimate the degenerate triangles
+        if (MeshTools::decimateDegenerateTriangle(*mesh_))
+        {
+            // obtain map from edge index {minIndex, maxIndex} to the face index 
+            // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
+            MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+
+            // Calculate the boundary vertices --> vertices which that has an edge shared by only 1 face
+            MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+
+            // Calculate the vertex neighbors
+            MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
+
+            // Map from vertex indices to face indices 
+            MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
+
+            // Map from edges to their opposing vertex indices 
+            MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
+        }
+
         std::cout << "Iteration " << i << std::endl;
         refineImplicitStep();
     }
