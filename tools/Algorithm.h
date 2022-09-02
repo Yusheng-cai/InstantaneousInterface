@@ -27,6 +27,18 @@ namespace Algorithm
 
     template <typename T> 
     std::vector<T> arange(T min, T max, T step);
+
+    template <typename T>
+    std::vector<T> linspace(T min, T max, int num);
+
+    template <typename T>
+    T max(std::vector<T>& vec);
+
+    template <typename T>
+    T min(std::vector<T>& vec);
+
+    template <typename T>
+    bool contain(std::vector<T>& vec, T num);
 };
 
 template<typename T>
@@ -40,7 +52,7 @@ std::vector<T> Algorithm::arange(T start, T stop, T step) {
 template <std::size_t dim>
 int Algorithm::argmin(std::array<Real,dim>& arr)
 {
-    std::array<Real,dim>::iterator it = std::min_element(arr.begin(), arr.end());
+    typename std::array<Real,dim>::iterator it = std::min_element(arr.begin(), arr.end());
 
     return it - arr.begin();
 }
@@ -48,7 +60,7 @@ int Algorithm::argmin(std::array<Real,dim>& arr)
 template <std::size_t dim>
 int Algorithm::argmax(std::array<Real,dim>& arr)
 {
-    std::array<Real,dim>::iterator it = std::max_element(arr.begin(), arr.end());
+    typename std::array<Real,dim>::iterator it = std::max_element(arr.begin(), arr.end());
 
     return it - arr.begin();
 }
@@ -56,7 +68,7 @@ int Algorithm::argmax(std::array<Real,dim>& arr)
 template <typename T>
 int Algorithm::argmax(std::vector<T>& vec)
 {
-    std::vector<T>::iterator it = std::max_element(vec.begin(), vec.end());
+    typename std::vector<T>::iterator it = std::max_element(vec.begin(), vec.end());
 
     return it - vec.begin();
 }
@@ -64,7 +76,42 @@ int Algorithm::argmax(std::vector<T>& vec)
 template <typename T>
 int Algorithm::argmin(std::vector<T>& vec)
 {
-    std::vector<T>::iterator it = std::min_element(vec.begin(), vec.end());
+    typename std::vector<T>::iterator it = std::min_element(vec.begin(), vec.end());
 
     return it - vec.begin();
+}
+
+template <typename T>
+std::vector<T> Algorithm::linspace(T min, T max, int num)
+{
+    T step = (max - min)/num;
+    std::vector<T> ret;
+    for (int i=0;i<num;i++)
+    {
+        ret.push_back(min + i*step);
+    }
+
+    return ret;
+}
+
+template <typename T>
+T Algorithm::max(std::vector<T>& vec)
+{
+    typename std::vector<T>::iterator max_element = std::max_element(vec.begin(), vec.end());
+
+    return *max_element;
+}
+
+template <typename T>
+T Algorithm::min(std::vector<T>& vec)
+{
+    typename std::vector<T>::iterator min_element = std::min_element(vec.begin(), vec.end());
+
+    return *min_element;
+}
+
+template <typename T>
+bool Algorithm::contain(std::vector<T>& vec, T num)
+{
+    return (std::find(vec.begin(), vec.end(), num) != vec.end());
 }
