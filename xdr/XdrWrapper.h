@@ -50,6 +50,7 @@ class XdrWrapper
 
         // write check point file
         void writeCheckPoint(std::string filename, std::vector<int>& offsets);
+        std::string CheckPointFileName(std::string filename);
 
         virtual void readFrame(int FrameNum) = 0;
         virtual void writeFrame(const std::vector<Real3>& pos, int step, Real time, Matrix box){};

@@ -21,11 +21,7 @@ XdrWrapper::XdrWrapper(std::string filename, std::string mode)
 
 void XdrWrapper::writeCheckPoint(std::string filename, std::vector<int>& offsets)
 {
-    std::string::size_type pos = filename.find(".");
-    ASSERT((pos != std::string::npos), "The filename " << filename << " does not contain .");
-    std::string xtcName = filename.substr(0, pos);
-
-    std::string newOffsetName = "." + xtcName + "_offset.out";
+    std::string newOffsetName = CheckPointFileName(filename);
 
     std::ofstream ofs;
     ofs.open(newOffsetName);
@@ -35,6 +31,16 @@ void XdrWrapper::writeCheckPoint(std::string filename, std::vector<int>& offsets
     }
 
     ofs.close();
+}
+
+std::string XdrWrapper::CheckPointFileName(std::string filename)
+{
+    std::string::size_type pos = filename.find(".");
+    ASSERT((pos != std::string::npos), "The filename " << filename << " does not contain .");
+    std::string xdrName = filename.substr(0, pos);
+    std::string newOffsetName = "." + xdrName + "_offset.out";
+
+    return newOffsetName;
 }
 
 void XdrWrapper::open()
