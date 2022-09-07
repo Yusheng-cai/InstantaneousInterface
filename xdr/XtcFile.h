@@ -1,6 +1,8 @@
 #pragma once
+
 #include "XdrWrapper.h"
 #include "libxdr/xtc_seek.h"
+#include "tools/FileSystem.h"
 
 #include <chrono>
 #include <memory>

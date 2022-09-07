@@ -53,11 +53,26 @@ void XtcFile::writeFrame(const std::vector<Real3>& pos, int step, Real time, Mat
 
 void XtcFile::readNframes()
 {
-    int est_nframes=0;
-    int64_t* offsets=nullptr;
+    offsets_.clear();
 
-    read_xtc_n_frames(const_cast<char*>(path_.c_str()),&nframes_, &est_nframes, &offsets);
-    offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
+    // find the check point file name 
+    std::string cptFile = CheckPointFileName(path_);
+
+    // check if check point file exist
+    if (FileSystem::FileExist(cptFile))
+    {
+        readCheckPoint(path_, offsets_);
+        nframes_ = offsets_.size();
+    }
+    else
+    {
+        int est_nframes=0;
+        int64_t* offsets=nullptr;
+
+        read_xtc_n_frames(const_cast<char*>(path_.c_str()),&nframes_, &est_nframes, &offsets);
+        offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
+        writeCheckPoint(path_, offsets_);
+    }
 }
 
 void XtcFile::readFrame(int FrameNum)
