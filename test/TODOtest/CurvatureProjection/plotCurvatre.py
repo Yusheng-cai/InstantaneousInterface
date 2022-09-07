@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 def read_data(file:str):
     with open(file, "r") as f:
@@ -13,7 +14,7 @@ if __name__ == "__main__":
     read_file = "c.out" 
     data = read_data(read_file)
 
-    c = np.zeros((100,100))
+    c = np.zeros((400,400))
     for d in data:
         index1, index2 = int(d[0]), int(d[1])
         c[index1,index2] = d[-1]
@@ -29,9 +30,12 @@ if __name__ == "__main__":
     fig = plt.figure(dpi=300)
     ax  = fig.add_subplot(111)
     levels = np.linspace(0,0.5,100)
-    c = ax.contourf(c.T, cmap='jet', levels=levels)
-    ax.scatter(p[:,0], p[:,1],c='r')
-    fig.colorbar(c)
+    p = cm.ScalarMappable(cmap=cm.jet)
+    p.set_array([0,0.5])
+    p.set_clim(0,0.5)
+    colors = p.to_rgba(c.T)
+    print(colors[0,0])
+    ax.imshow(colors, interpolation="nearest")
     plt.savefig("test.png")
 
 
