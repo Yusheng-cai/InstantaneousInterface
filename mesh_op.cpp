@@ -125,4 +125,12 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("MeshPlaneIntersect", "-op MeshPlaneIntersect -i input.ply -o intersect.out -plane[Real3] x y z -point[Real3] x y z", \
                                     [](CommandLineArguments& cmd)-> void {return MeshActions::MeshPlaneIntersection(cmd);},\
                                     mapF, mapU);
+
+    RegisterAction("BoundaryVertices", "-op BoundaryVertices -i input.ply -o boundary.out",\
+                                    [](CommandLineArguments& cmd) -> void {return MeshActions::FindBoundaryVertices(cmd);},\
+                                    mapF, mapU);
+    RegisterAction("ProjectMesh", "-op ProjectMesh -i[vector] a.ply b.ply .. -L L1 L2 \
+                                    -n n1 n2 -RayDirection -ProjectedIndex ind1 ind2 -height h -box[optional] x y z",\
+                                    [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dMesh(cmd);}, \
+                                    mapF, mapU);
 }
