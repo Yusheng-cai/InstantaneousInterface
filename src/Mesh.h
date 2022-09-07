@@ -215,6 +215,9 @@ namespace MeshTools
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
 
+    // shift a triangle 
+    void ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& faces, Real3 BoxLength, Real3& A, Real3& B, Real3& C);
+
     // make an Edge, edge is simply the 2 indices of {{minIndex, maxIndex}}
     INT2 makeEdge(int i, int j);
 

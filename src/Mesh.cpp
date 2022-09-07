@@ -1152,6 +1152,31 @@ bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Rea
     return false;
 }
 
+void MeshTools::ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& face, Real3 BoxLength, Real3& A, Real3& B, Real3& C)
+{
+    // half box
+    Real3 half_box = BoxLength * 0.5;
+
+    // first shift B C wrt to A
+    A = Vertices[face[0]].position_;
+    B = Vertices[face[1]].position_;
+    C = Vertices[face[2]].position_;
+    Real3 shiftB = MeshTools::calculateShift(B, A, BoxLength);
+    Real3 shiftC = MeshTools::calculateShift(C, A, BoxLength);
+    B = B + shiftB;
+    C = C + shiftC;
+
+    // calculate the triangle center
+    Real3 center = (A + B + C) * 1.0/3.0;
+
+    // calculate shift
+    Real3 shiftTriangle = MeshTools::calculateShift(center, half_box, BoxLength);
+
+    A = A + shiftTriangle;
+    B = B + shiftTriangle;
+    C = C + shiftTriangle;
+}
+
 MeshTools::INT2 MeshTools::makeEdge(int i, int j)
 {
     int minIndex = std::min(i,j);
