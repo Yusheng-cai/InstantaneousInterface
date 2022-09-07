@@ -43,17 +43,21 @@ void XdrWrapper::readCheckPoint(std::string path, std::vector<int64_t>& offsets)
     ifs.open(OffsetName);
     std::string sentence;
 
+    // ASSERT that the file exists
     ASSERT((ifs.is_open()), "The file " << path << " is not opened.");
 
     while(std::getline(ifs, sentence))
     {
         std::stringstream ss;
-        ss.str(sentence);
-
-        int64_t number;
-        while (ss >> number)
+        if (! sentence.empty())
         {
-            offsets.push_back(number);
+            ss.str(sentence);
+
+            int64_t number;
+            while (ss >> number)
+            {
+                offsets.push_back(number);
+            }
         }
     }
 }
