@@ -11,11 +11,26 @@ TrrFile::TrrFile(const XdrInput& input)
 
 void TrrFile::readNframes()
 {
-    int est_nframes=0;
-    int64_t* offsets=nullptr;
+    offsets_.clear();
 
-    read_trr_n_frames(const_cast<char*>(path_.c_str()),&nframes_, &est_nframes, &offsets);
-    offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
+    // find the check point file name 
+    std::string cptFile = CheckPointFileName(path_);
+
+    // check if check point file exist
+    if (FileSystem::FileExist(cptFile))
+    {
+        readCheckPoint(path_, offsets_);
+        nframes_ = offsets_.size();
+    }
+    else
+    {
+        int est_nframes=0;
+        int64_t* offsets=nullptr;
+
+        read_trr_n_frames(const_cast<char*>(path_.c_str()),&nframes_, &est_nframes, &offsets);
+        offsets_.insert(offsets_.end(),offsets, offsets+nframes_);
+        writeCheckPoint(path_, offsets_);
+    }
 }
 
 void TrrFile::readFrame(int FrameNum)

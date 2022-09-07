@@ -15,5 +15,4 @@ class TrrFile:public XdrWrapper
         virtual void readNumAtoms() override;    
         virtual void readNframes() override;
     private:
-        std::vector<int> offsets_;
 };
