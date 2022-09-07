@@ -18,10 +18,12 @@
 #include "tools/InputParser.h"
 #include "tools/CommonOperations.h"
 #include "tools/Algorithm.h"
+#include "LinAlgTools.h"
 
 namespace MeshActions
 {
     using INT3 = std::array<int,3>;
+    using INT2 = std::array<int,2>;
     using Real = CommonTypes::Real;
     using Real3= CommonTypes::Real3;
     using Real2= CommonTypes::Real2;
@@ -78,4 +80,10 @@ namespace MeshActions
 
     // find vertex neighbors 
     void FindVertexNeighbors(CommandLineArguments& cmd);
+
+    // find boundary vertices 
+    void FindBoundaryVertices(CommandLineArguments& cmd);
+
+    // find the 2d projection of a 3d mesh viewed from a certain angle 
+    void Project3dMesh(CommandLineArguments& cmd);
 };

@@ -484,11 +484,131 @@ void MeshActions::ColorVertex(CommandLineArguments& cmd)
     MeshTools::writePLYRGB(outputfname, v, f, RGB);
 }
 
+void MeshActions::Project3dMesh(CommandLineArguments& cmd)
+{
+    using INT2 = std::array<int,2>;
+
+    // define input output file names 
+    std::vector<std::string> inputfname;
+    std::string outputfname;
+
+    // some large number 
+    Real origin_pos=100.0;
+    int colnum;
+    Real2 L, n, d, ProjectedIndex;
+    std::vector<Real> fc;
+    Real3 box, D;
+
+    // read the inputs 
+    cmd.readVector("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("RayDirection", CommandLineArguments::Keys::Required,D);
+    LinAlg3x3::normalize(D);
+    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
+
+    // the origin 
+    cmd.readValue("height", CommandLineArguments::Keys::Optional, origin_pos);
+    cmd.readArray("L", CommandLineArguments::Keys::Required, L);
+    cmd.readArray("n", CommandLineArguments::Keys::Required, n);
+    d = L/n;
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // read the input file and set up the mesh 
+    std::vector<Mesh> Meshs;
+    for (auto fname : inputfname)
+    {
+        Mesh m;
+        MeshTools::readPLYlibr(fname, m);
+        if (isPBC)
+        {
+            m.setBoxLength(box); 
+        }
+        Meshs.push_back(m);
+    }
+
+    // initialize the points
+    std::vector<Real3> points;
+
+    // populate the points 
+    for (int i=0;i<n[0];i++)
+    {
+        for (int j=0;j<n[1];j++)
+        {
+            Real3 p = {{origin_pos, origin_pos, origin_pos}};
+            p[ProjectedIndex[0]] = (i+0.5) * d[0];
+            p[ProjectedIndex[1]] = (j+0.5) * d[1];
+
+            points.push_back(p);
+        }
+    }
+
+    // whether or not we hit the meshs
+    std::vector<bool> hitRefMesh(points.size(), false);
+
+    // see if any points hits any of the reference mesh 
+    for (auto& m : Meshs)
+    {
+        m.CalcVertexNormals();
+        const auto& refFace = m.gettriangles();
+        const auto& refverts= m.getvertices();
+        const auto& refNormal=m.getFaceNormals();
+
+        #pragma omp parallel for
+        for (int i=0;i<points.size();i++)
+        {
+            Real3 O = points[i];
+            for (int j=0;j<refFace.size();j++)
+            {
+                Real3 projectedD;
+                Real3 A, B, C;
+                A = refverts[refFace[j].triangleindices_[0]].position_;
+                B = refverts[refFace[j].triangleindices_[1]].position_;
+                C = refverts[refFace[j].triangleindices_[2]].position_;
+
+                Real t, u, v;
+
+                // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+                if (isPBC)
+                {
+                    MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
+                                                    const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
+                }
+
+                bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
+                                                    O, D, refNormal[j], \
+                                                    t, u ,v);
+                if (isIntersect)
+                {
+                    hitRefMesh[i] = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // start to output file
+    std::ofstream ofs(outputfname);
+    int index=0;
+    for (int i=0;i<n[0];i++)
+    {
+        for (int j=0;j<n[1];j++)
+        {
+            ofs << i << " " << j << " " << hitRefMesh[index] << "\n";
+            index++;
+        }
+    }
+
+    ofs.close();
+}
+
 void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 {
     using INT2 = std::array<int,2>;
 
+    // define input output file names 
     std::string inputfname, outputfname, fcfname;
+    std::vector<std::string> refMeshfname;
+
     // some large number 
     Real origin_pos=100.0;
     int colnum;
@@ -499,9 +619,12 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // read the inputs 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readArray("RayDirection", CommandLineArguments::Keys::Optional,D);
-    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
+    cmd.readArray("RayDirection", CommandLineArguments::Keys::Required,D);
     LinAlg3x3::normalize(D);
+    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
+
+    // reference mesh
+    cmd.readVector("refMesh", CommandLineArguments::Keys::Optional, refMeshfname);
 
     // the origin 
     cmd.readValue("origin", CommandLineArguments::Keys::Optional, origin_pos);
@@ -518,6 +641,20 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // read the input file and set up the mesh 
     Mesh mesh;
     MeshTools::readPLYlibr(inputfname, mesh);
+
+    // read the reference meshes
+    std::vector<Mesh> refMesh;
+    for (auto fname : refMeshfname)
+    {
+        Mesh ref;
+        MeshTools::readPLYlibr(fname, ref);
+        if (isPBC)
+        {
+            ref.setBoxLength(box); 
+        }
+        refMesh.push_back(ref);
+    }
+
     if (isPBC)
     {
         mesh.setBoxLength(box);
@@ -525,7 +662,6 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
     // initialize the points
     std::vector<Real3> points;
-    std::vector<Real> pointCurvature(n[0]*n[2]);
 
     // populate the points 
     for (int i=0;i<n[0];i++)
@@ -533,10 +669,56 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         for (int j=0;j<n[1];j++)
         {
             Real3 p = {{origin_pos, origin_pos, origin_pos}};
-            p[ProjectedIndex[0]] = i * d[0];
-            p[ProjectedIndex[1]] = j * d[1];
+            p[ProjectedIndex[0]] = (i+0.5) * d[0];
+            p[ProjectedIndex[1]] = (j+0.5) * d[1];
 
             points.push_back(p);
+        }
+    }
+
+    // points curvature
+    std::vector<Real> pointCurvature(points.size());
+    std::vector<bool> hitRefMesh(points.size(), false);
+
+
+    // see if any points hits any of the reference mesh 
+    for (auto& m : refMesh)
+    {
+        m.CalcVertexNormals();
+        const auto& refFace = m.gettriangles();
+        const auto& refverts= m.getvertices();
+        const auto& refNormal=m.getFaceNormals();
+
+        #pragma omp parallel for
+        for (int i=0;i<points.size();i++)
+        {
+            Real3 O = points[i];
+            for (int j=0;j<refFace.size();j++)
+            {
+                Real3 projectedD;
+                Real3 A, B, C;
+                A = refverts[refFace[j].triangleindices_[0]].position_;
+                B = refverts[refFace[j].triangleindices_[1]].position_;
+                C = refverts[refFace[j].triangleindices_[2]].position_;
+
+                Real t, u, v;
+
+                // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+                if (isPBC)
+                {
+                    MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
+                                                    const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
+                }
+
+                bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
+                                                    O, D, refNormal[j], \
+                                                    t, u ,v);
+                if (isIntersect)
+                {
+                    hitRefMesh[i] = true;
+                    break;
+                }
+            }
         }
     }
 
@@ -554,45 +736,50 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         std::vector<int> faceIndex;
         std::vector<Real> value;
 
-        for (int j=0;j<face.size();j++)
+        if (! hitRefMesh[i])
         {
-            Real3 projectedD;
-            Real3 A = verts[face[j].triangleindices_[0]].position_;
-            Real3 B, C;
-            Real t, u, v;
-
-            // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-            if (isPBC)
+            for (int j=0;j<face.size();j++)
             {
-                B = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[1]], verts[face[j].triangleindices_[0]]);
-                C = mesh.getShiftedVertexPosition(verts[face[j].triangleindices_[2]], verts[face[j].triangleindices_[0]]);
+                Real3 projectedD;
+                Real3 A, B, C;
+                Real t, u, v;
+
+                // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+                if (isPBC)
+                {
+                    MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
+                                                    const_cast<INT3&>(face[j].triangleindices_), box, A, B, C);
+                }
+                else
+                {
+                    A = verts[face[j].triangleindices_[0]].position_;
+                    B = verts[face[j].triangleindices_[1]].position_;
+                    C = verts[face[j].triangleindices_[2]].position_;
+                }
+                bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
+                                                    O, D, faceNormal[j], \
+                                                    t, u ,v);
+                if (isIntersect)
+                {
+                    faceIndex.push_back(j);
+                    value.push_back(t);
+                }
+            }
+            if (value.size() != 0)
+            {
+                // find the min element of value
+                auto it = std::min_element(value.begin(), value.end());
+                int minIndex = it - value.begin();
+                pointCurvature[i] = fc[faceIndex[minIndex]];
             }
             else
             {
-                B = verts[face[j].triangleindices_[1]].position_;
-                C = verts[face[j].triangleindices_[2]].position_;
+                pointCurvature[i] = -100;
             }
-
-            bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
-                                                O, D, faceNormal[j], \
-                                                t, u ,v);
-            if (isIntersect)
-            {
-                faceIndex.push_back(j);
-                value.push_back(t);
-            }
-        }
-
-        if (value.size() != 0)
-        {
-            // find the min element of value
-            auto it = std::min_element(value.begin(), value.end());
-            int minIndex = it - value.begin();
-            pointCurvature[i] = fc[faceIndex[minIndex]];
         }
         else
         {
-            pointCurvature[i] = 0;
+            pointCurvature[i] = -100;
         }
     }
 
@@ -888,5 +1075,35 @@ void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
     }
 
     ofs.close();
+}
 
+void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="boundary.out";
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    std::map<INT2, std::vector<int>> MapEdgeToFace;
+    std::vector<std::vector<INT2>> MapVertexToEdge;
+    std::vector<bool> BoundaryIndicator;
+
+    MeshTools::MapEdgeToFace(mesh,MapEdgeToFace, MapVertexToEdge);
+    MeshTools::CalculateBoundaryVertices(mesh, MapEdgeToFace,BoundaryIndicator);
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+
+    for (int i=0;i<BoundaryIndicator.size();i++)
+    {
+        if (BoundaryIndicator[i])
+        {
+            ofs << i << " ";
+        }
+    }
+
+    ofs.close();
 }
