@@ -38,3 +38,10 @@ std::string FileSystem::joinPath(const std::string& path1, const std::string& pa
 
     return joinedPath;
 }
+
+std::string FileSystem::FileNameFromPath(const std::string& path)
+{
+    std::string base_filename = path.substr(path.find_last_of("/")+1);
+
+    return base_filename;
+}

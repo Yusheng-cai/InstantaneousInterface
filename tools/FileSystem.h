@@ -10,4 +10,6 @@ namespace FileSystem
     std::string getCurrentPath(); 
 
     std::string joinPath(const std::string& path1, const std::string& path2);
+
+    std::string FileNameFromPath(const std::string& path);
 };
