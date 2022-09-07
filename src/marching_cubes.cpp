@@ -146,7 +146,7 @@ std::vector<std::vector<Point>> MarchingCubes::triangulate_cell(GridCell &cell, 
     return triangles;
 }
 
-void MarchingCubes::FixCellGridIndex(index3& index)
+void MarchingCubes::FixCellGridIndex(INT3& index)
 {
     for (int i=0;i<3;i++)
     {
@@ -165,7 +165,7 @@ void MarchingCubes::FixCellGridIndex(index3& index)
     }
 }
 
-int MarchingCubes::ConvertCellGridIndex(index3& index)
+int MarchingCubes::ConvertCellGridIndex(INT3& index)
 {
     if (! pbc_)
     {
@@ -188,7 +188,7 @@ int MarchingCubes::ConvertCellGridIndex(index3& index)
     return it -> second;
 }
 
-void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initialV, std::vector<Point>& neighborV)
+void MarchingCubes::VerticesForGridCell(INT3& index, std::vector<Point>& initialV, std::vector<Point>& neighborV)
 {
     int intIndex = ConvertCellGridIndex(index);
     for (auto tri : triangles_[intIndex])
@@ -200,9 +200,9 @@ void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initi
     }
 
     // if we are performing with periodic boundary condition
-    for (index3 off : offsets_)
+    for (INT3 off : offsets_)
     {
-        index3 updated;
+        INT3 updated;
         for (int m=0;m<3;m++)
         {
             updated[m] = index[m] + off[m];
@@ -227,7 +227,7 @@ void MarchingCubes::VerticesForGridCell(index3& index, std::vector<Point>& initi
         if (valid)
         {
             int ind = ConvertCellGridIndex(updated);
-            index3 neighborInd = MapFromIndexToCellGridIndex_.find(ind)->second;
+            INT3 neighborInd = MapFromIndexToCellGridIndex_.find(ind)->second;
 
             // ind = -1 happens when we are converting cell grid with no pbc but ended up outside of grid 
             if (ind != -1)
@@ -254,7 +254,7 @@ void MarchingCubes::initializeGridSearch()
         {
             for (int k=-1;k<=1;k++)
             {
-                index3 ind = {{i,j,k}};
+                INT3 ind = {{i,j,k}};
                 offsets_.push_back(ind);
             }
         }
@@ -279,31 +279,30 @@ void MarchingCubes::CorrectPBCposition(Point& p)
 
 void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, bool pbc)
 {
+    // field does the following thing * * * | --> 3 lattice points and 3 segments
+
+    // whether or not we are performing periodic mesh
     pbc_ = pbc;
+
+    // number of lattice points in the field
     N_ = field.getN();
+
+    // spacing of lattice points in the field 
     spacing_= field.getSpacing();
+    tol_ = {{1e-4,1e-4,1e-4}};
     for (int i =0;i<3;i++)
     {
         end_[i] = N_[i];
-        tol_[i] = 1e-4;
     }
 
     // Find where the end points are  --> that constructs the pbc box too
-    Real spaceX=spacing_[0];
-    Real spaceY=spacing_[1];
-    Real spaceZ=spacing_[2];
+    Real spaceX = spacing_[0];
+    Real spaceY = spacing_[1];
+    Real spaceZ = spacing_[2];
 
     /// Whether we are performing pbc or not
-    if (pbc)
-    {
-        inc_ = 0;
-        iinc_ = 1;
-    }
-    else
-    {
-        inc_ = 1;
-        iinc_ = 0;
-    }
+    if (pbc) {inc_ = 0;}else {inc_=1;}
+    
 
     // Perform the marching cubes 
     int idx=0;
@@ -313,15 +312,14 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
         {
             for (int k = 0; k + inc_ < N_[2]; k++)
             {
-                int x = i + iinc_, y = j + iinc_, z = k + iinc_;
-                index3 CellGridIndex = {{x%N_[0], y%N_[1], z%N_[2]}};
+                int x = i, y = j, z = k;
+                INT3 CellGridIndex = {{x%N_[0], y%N_[1], z%N_[2]}};
                 int xplus, yplus, zplus;
 
                 // Correct for the positions 
                 xplus = (x+1) % N_[0];
                 yplus = (y+1) % N_[1];
                 zplus = (z+1) % N_[2];
-
 
                 // cell ordered according to convention in referenced website
                 GridCell cell = 
@@ -354,12 +352,12 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     ASSERT((triangles_.size() == Size), "The size of the cell grid must be " << Size << " while it is " << triangles_.size());
 
     // index all vertices 
-    std::map<int,index3> MapVertexIndexToCellGridIndex;
+    std::map<int,INT3> MapVertexIndexToCellGridIndex;
     int index =0;
     int triangleSize=0;
     for (int i=0;i<triangles_.size();i++)
     {
-        index3 CellGridIndex = MapFromIndexToCellGridIndex_.find(i) -> second;
+        INT3 CellGridIndex = MapFromIndexToCellGridIndex_.find(i) -> second;
         for (auto& tri : triangles_[i])
         {
             triangleSize ++;
@@ -383,7 +381,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
     std::vector<Real3> AllVertices;
     for (auto& a : MapFromCellGridIndexToIndex_)
     {
-        index3 initialIndex=a.first;
+        INT3 initialIndex=a.first;
         std::vector<Point> NeighborV;
         std::vector<Point> initialV;
         VerticesForGridCell(initialIndex, initialV, NeighborV); 

@@ -64,7 +64,7 @@ class MarchingCubes
     public:
         // YC EDIT 
         using Real3 = CommonTypes::Real3;
-        using index3= CommonTypes::index3;
+        using INT3  = CommonTypes::index3;
         using Real  = CommonTypes::Real;
         // END YC EDIT
     
@@ -405,16 +405,16 @@ class MarchingCubes
         Real3 getPBCDistance(Real3& v1, Real3& v2);
 
         // Fix Cell Grid index 
-        void FixCellGridIndex(index3& index);
+        void FixCellGridIndex(INT3& index);
 
         // correct pbc position
         void CorrectPBCposition(Point& p);
 
         // Convert Cell Grid index
-        int ConvertCellGridIndex(index3& index);
+        int ConvertCellGridIndex(INT3& index);
 
         // Get Vertices for a certain gridCell
-        void VerticesForGridCell(index3& index, std::vector<Point>& initialV, std::vector<Point>& neighborV);
+        void VerticesForGridCell(INT3& index, std::vector<Point>& initialV, std::vector<Point>& neighborV);
 
         // initialize offsets for grid search
         void initializeGridSearch();
@@ -423,16 +423,16 @@ class MarchingCubes
         Real3 end_;
         Real3 center_;
         Real3 spacing_;
-        index3 N_;
+        INT3 N_;
         Real3 tol_;
         int inc_=1;
         int inc2_=2;
         int iinc_;
         int INITIAL_=-9999;
         bool pbc_;
-        std::map<index3, int> MapFromCellGridIndexToIndex_;
-        std::map<int, index3> MapFromIndexToCellGridIndex_;
+        std::map<INT3, int> MapFromCellGridIndexToIndex_;
+        std::map<int, INT3> MapFromIndexToCellGridIndex_;
         std::vector<std::vector<std::vector<Point>>> triangles_;
-        std::vector<index3> offsets_;
+        std::vector<INT3> offsets_;
 };  
 #endif
