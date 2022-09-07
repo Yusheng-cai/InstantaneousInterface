@@ -1,6 +1,5 @@
 #pragma once
-#ifndef XDR_WRAPPER_
-#define XDR_WRAPPER_
+
 #include "libxdr/xdrfile_trr.h"
 #include "libxdr/xdrfile_xtc.h"
 #include "libxdr/xdrfile.h"
@@ -11,10 +10,13 @@
 #include "tools/InputParser.h"
 #include "GroFile.h"
 #include "tools/FileSystem.h"
+#include "tools/CommonOperations.h"
 
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
+
 
 struct XdrInput
 {
@@ -49,7 +51,8 @@ class XdrWrapper
         int getNumAtoms() const {return natoms_;}
 
         // write check point file
-        void writeCheckPoint(std::string filename, std::vector<int>& offsets);
+        void writeCheckPoint(std::string path, std::vector<int64_t>& offsets);
+        void readCheckPoint(std::string filename, std::vector<int64_t>& offsets);
         std::string CheckPointFileName(std::string filename);
 
         virtual void readFrame(int FrameNum) = 0;
@@ -93,4 +96,3 @@ namespace XdrFiles
     template<class D>
     using registry_ = RegisterInFactory<Base, D, Key, const XdrInput&>;
 };
-#endif

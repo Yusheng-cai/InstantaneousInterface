@@ -19,9 +19,9 @@ XdrWrapper::XdrWrapper(std::string filename, std::string mode)
 {
 }
 
-void XdrWrapper::writeCheckPoint(std::string filename, std::vector<int>& offsets)
+void XdrWrapper::writeCheckPoint(std::string path, std::vector<int64_t>& offsets)
 {
-    std::string newOffsetName = CheckPointFileName(filename);
+    std::string newOffsetName = CheckPointFileName(path);
 
     std::ofstream ofs;
     ofs.open(newOffsetName);
@@ -33,8 +33,34 @@ void XdrWrapper::writeCheckPoint(std::string filename, std::vector<int>& offsets
     ofs.close();
 }
 
-std::string XdrWrapper::CheckPointFileName(std::string filename)
+void XdrWrapper::readCheckPoint(std::string path, std::vector<int64_t>& offsets)
 {
+    std::string OffsetName = CheckPointFileName(path);
+    std::stringstream ss;
+
+    offsets.clear();
+    std::ifstream ifs;
+    ifs.open(OffsetName);
+    std::string sentence;
+
+    ASSERT((ifs.is_open()), "The file " << path << " is not opened.");
+
+    while(std::getline(ifs, sentence))
+    {
+        std::stringstream ss;
+        ss.str(sentence);
+
+        int64_t number;
+        while (ss >> number)
+        {
+            offsets.push_back(number);
+        }
+    }
+}
+
+std::string XdrWrapper::CheckPointFileName(std::string path)
+{
+    std::string filename = FileSystem::FileNameFromPath(path);
     std::string::size_type pos = filename.find(".");
     ASSERT((pos != std::string::npos), "The filename " << filename << " does not contain .");
     std::string xdrName = filename.substr(0, pos);
