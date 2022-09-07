@@ -45,3 +45,16 @@ std::string FileSystem::FileNameFromPath(const std::string& path)
 
     return base_filename;
 }
+
+bool FileSystem::FileExist(const std::string& path)
+{
+    std::ifstream ifs;
+    ifs.open(path);
+
+    if (ifs)
+    {
+        return true;
+    }
+
+    return false;
+}

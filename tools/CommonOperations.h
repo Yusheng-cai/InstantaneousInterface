@@ -17,6 +17,17 @@ inline std::ostream& operator<<(std::ostream &out, const std::array<Real,dim>& v
     return out;
 }
 
+template <typename T>
+inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& v)
+{
+    for (int i=0;i<v.size();i++)
+    {
+        out << v[i] << " ";
+    }
+
+    return out;
+}
+
 template <std::size_t dim>
 inline std::array<Real,dim> operator+(const std::array<Real,dim>& v1, const std::array<Real,dim>& v2)
 {

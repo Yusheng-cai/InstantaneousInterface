@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string>
+#include <fstream>
 
 namespace FileSystem
 {
@@ -12,4 +13,6 @@ namespace FileSystem
     std::string joinPath(const std::string& path1, const std::string& path2);
 
     std::string FileNameFromPath(const std::string& path);
+
+    bool FileExist(const std::string& path);
 };
