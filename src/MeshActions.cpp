@@ -1219,11 +1219,13 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     // read the input file and set up the mesh 
-    Mesh m;
+    Mesh m, refm;
     MeshTools::readPLYlibr(inputfname, m);
+    MeshTools::readPLYlibr(reffname, refm);
     if (isPBC)
     {
         m.setBoxLength(box);
+        refm.setBoxLength(box);
     }
 
     // initialize the points
