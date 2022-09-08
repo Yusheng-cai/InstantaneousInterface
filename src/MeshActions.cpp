@@ -1186,3 +1186,130 @@ void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd)
 
     ofs.close();
 }
+
+void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
+{
+    using INT2 = std::array<int,2>;
+
+    // define input output file names 
+    std::string inputfname, reffname;
+    std::string outputfname;
+    std::string normalMapfname;
+
+    // some large number 
+    Real origin_pos=100.0;
+    int colnum;
+    Real2 L, n, d, ProjectedIndex;
+    std::vector<Real> fc;
+    Real3 box, D;
+
+    // read the inputs 
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("ref", CommandLineArguments::Keys::Required, reffname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("RayDirection", CommandLineArguments::Keys::Required,D);
+    LinAlg3x3::normalize(D);
+    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
+
+    // the origin 
+    cmd.readValue("height", CommandLineArguments::Keys::Optional, origin_pos);
+    cmd.readArray("L", CommandLineArguments::Keys::Required, L);
+    cmd.readArray("n", CommandLineArguments::Keys::Required, n);
+    d = L/n;
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // read the input file and set up the mesh 
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (isPBC)
+    {
+        m.setBoxLength(box);
+    }
+
+    // initialize the points
+    std::vector<Real3> points;
+
+    // populate the points 
+    for (int i=0;i<n[0];i++)
+    {
+        for (int j=0;j<n[1];j++)
+        {
+            Real3 p = {{origin_pos, origin_pos, origin_pos}};
+            p[ProjectedIndex[0]] = (i+0.5) * d[0];
+            p[ProjectedIndex[1]] = (j+0.5) * d[1];
+
+            points.push_back(p);
+        }
+    }
+
+    // whether or not we hit the meshs
+    std::vector<bool> hitRefMesh(points.size(), false);
+    std::vector<Real3> hitNormal(points.size());
+
+    // see if any points hits any of the reference mesh 
+    m.CalcVertexNormals();
+    const auto& refFace = m.gettriangles();
+    const auto& refverts= m.getvertices();
+    const auto& refNormal=m.getFaceNormals();
+
+    // fix the triangles
+    std::vector<std::array<Real3,3>> fixed_tri_pbc(refFace.size());
+    #pragma omp parallel for
+    for (int i=0;i<refFace.size();i++)
+    {
+        std::array<Real3,3> t;
+        Real3 A, B, C;
+        A = refverts[refFace[i].triangleindices_[0]].position_;
+        B = refverts[refFace[i].triangleindices_[1]].position_;
+        C = refverts[refFace[i].triangleindices_[2]].position_;
+
+        // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+        if (isPBC)
+        {
+            MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
+                                            const_cast<INT3&>(refFace[i].triangleindices_), box, A, B, C);
+        }
+
+        fixed_tri_pbc[i] = {{A,B,C}};
+    }
+
+    #pragma omp parallel for
+    for (int i=0;i<points.size();i++)
+    {
+        Real3 O = points[i];
+        for (int j=0;j<refFace.size();j++)
+        {
+            Real3 projectedD;
+            std::array<Real3,3> tri = fixed_tri_pbc[j];
+            Real3 A, B, C;
+            Real t, u ,v;
+            A = tri[0];
+            B = tri[1];
+            C = tri[2];
+
+            bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
+                                                O, D, t, u ,v);
+
+            if (isIntersect)
+            {
+                hitRefMesh[i] = true;
+                hitNormal[i]  = refNormal[j];
+                break;
+            }
+        }
+    }
+
+    // start to output file
+    std::ofstream ofs(outputfname);
+    int index=0;
+    for (int i=0;i<n[0];i++)
+    {
+        for (int j=0;j<n[1];j++)
+        {
+            ofs << i << " " << j << " " << hitRefMesh[index] << "\n";
+            index++;
+        }
+    }
+
+    ofs.close();
+}

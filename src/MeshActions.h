@@ -86,4 +86,7 @@ namespace MeshActions
 
     // find the 2d projection of a 3d mesh viewed from a certain angle 
     void Project3dMesh(CommandLineArguments& cmd);
+
+    // cut overlapped regions of 2 proteins based on Ray triangle intersection
+    void CutOverlappedRegion(CommandLineArguments& cmd);
 };
