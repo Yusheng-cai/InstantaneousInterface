@@ -139,6 +139,7 @@ void MeshActions::TensorFit(CommandLineArguments& cmd)
 void MeshActions::JetFit(CommandLineArguments& cmd)
 {
     std::string inputfname, outputfname="jetfit.out", faceCfname="jetfit_faceC.out", neighbors, degree, MongeCoefficient;
+    std::string pdir_fname="pdir.out";
     std::string monge;
     Real3 box;
 
@@ -153,6 +154,7 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     bool fcread = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
     bool MongeRead = cmd.readString("mongeFile", CommandLineArguments::Keys::Optional, monge);
+    bool pdirRead  = cmd.readString("pdirFile", CommandLineArguments::Keys::Optional, pdir_fname);
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
     cmd.readString("degree", CommandLineArguments::Keys::Required, degree);
     cmd.readString("MongeCoefficient", CommandLineArguments::Keys::Required, MongeCoefficient);
@@ -189,6 +191,11 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
         CurvatureJetFit* jetfit = dynamic_cast<CurvatureJetFit*>(curve.get());
         ASSERT((jetfit != nullptr), "Something went wrong in jetfit.");
         jetfit->printCoefficientPerVertex(monge);
+    }
+
+    if (pdirRead)
+    {
+        curve -> printPrincipalDir(pdir_fname);
     }
 }
 
@@ -491,6 +498,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     // define input output file names 
     std::vector<std::string> inputfname;
     std::string outputfname;
+    std::string normalMapfname;
 
     // some large number 
     Real origin_pos=100.0;
@@ -505,6 +513,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     cmd.readArray("RayDirection", CommandLineArguments::Keys::Required,D);
     LinAlg3x3::normalize(D);
     cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
+    bool normalMap = cmd.readValue("normalMapOutput", CommandLineArguments::Keys::Optional, normalMapfname);
 
     // the origin 
     cmd.readValue("height", CommandLineArguments::Keys::Optional, origin_pos);
@@ -544,6 +553,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
 
     // whether or not we hit the meshs
     std::vector<bool> hitRefMesh(points.size(), false);
+    std::vector<Real3> hitNormal(points.size());
 
     // see if any points hits any of the reference mesh 
     for (auto& m : Meshs)
@@ -553,6 +563,27 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
         const auto& refverts= m.getvertices();
         const auto& refNormal=m.getFaceNormals();
 
+        // fix the triangles
+        std::vector<std::array<Real3,3>> fixed_tri_pbc(refFace.size());
+        #pragma omp parallel for
+        for (int i=0;i<refFace.size();i++)
+        {
+            std::array<Real3,3> t;
+            Real3 A, B, C;
+            A = refverts[refFace[i].triangleindices_[0]].position_;
+            B = refverts[refFace[i].triangleindices_[1]].position_;
+            C = refverts[refFace[i].triangleindices_[2]].position_;
+
+            // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+            if (isPBC)
+            {
+                MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
+                                                const_cast<INT3&>(refFace[i].triangleindices_), box, A, B, C);
+            }
+
+            fixed_tri_pbc[i] = {{A,B,C}};
+        }
+
         #pragma omp parallel for
         for (int i=0;i<points.size();i++)
         {
@@ -560,26 +591,20 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
             for (int j=0;j<refFace.size();j++)
             {
                 Real3 projectedD;
+                std::array<Real3,3> tri = fixed_tri_pbc[j];
                 Real3 A, B, C;
-                A = refverts[refFace[j].triangleindices_[0]].position_;
-                B = refverts[refFace[j].triangleindices_[1]].position_;
-                C = refverts[refFace[j].triangleindices_[2]].position_;
-
-                Real t, u, v;
-
-                // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-                if (isPBC)
-                {
-                    MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
-                                                    const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
-                }
+                Real t, u ,v;
+                A = tri[0];
+                B = tri[1];
+                C = tri[2];
 
                 bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
-                                                    O, D, refNormal[j], \
-                                                    t, u ,v);
+                                                    O, D, t, u ,v);
+
                 if (isIntersect)
                 {
                     hitRefMesh[i] = true;
+                    hitNormal[i]  = refNormal[j];
                     break;
                 }
             }
@@ -599,6 +624,29 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     }
 
     ofs.close();
+
+    // if we are doing normal mapping 
+    if (normalMap)
+    {
+        std::ofstream ofs;
+        ofs.open(normalMapfname);
+        int index=0;
+        for (int i=0;i<n[0];i++)
+        {
+            for (int j=0;j<n[1];j++)
+            {
+                Real3 normal = hitNormal[index];
+                Real R = (normal[ProjectedIndex[0]] + 1)/2;
+                Real G = (normal[ProjectedIndex[1]] + 1)/2;
+                Real B = (normal[0] + 1)/2;
+
+                ofs << i << " " << j << " " << R << " " << G << " " << B << "\n";
+
+                index++;
+            }
+        }
+        ofs.close();
+    }
 }
 
 void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
@@ -655,15 +703,14 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         refMesh.push_back(ref);
     }
 
+    // read the current mesh 
     if (isPBC)
     {
         mesh.setBoxLength(box);
     }
 
-    // initialize the points
+    // initialize and populate the lattice points
     std::vector<Real3> points;
-
-    // populate the points 
     for (int i=0;i<n[0];i++)
     {
         for (int j=0;j<n[1];j++)
@@ -679,12 +726,16 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // points curvature
     std::vector<Real> pointCurvature(points.size());
     std::vector<bool> hitRefMesh(points.size(), false);
-
+    std::vector<Real> hitRefMeshHeightMin(points.size(), 1e10);
+    std::vector<std::vector<Real>> hitRefMeshHeightTotal(points.size());
 
     // see if any points hits any of the reference mesh 
     for (auto& m : refMesh)
     {
+        // for each reference mesh --> calculate vertex normal
         m.CalcVertexNormals();
+
+        // get the properties of the mesh
         const auto& refFace = m.gettriangles();
         const auto& refverts= m.getvertices();
         const auto& refNormal=m.getFaceNormals();
@@ -692,6 +743,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         #pragma omp parallel for
         for (int i=0;i<points.size();i++)
         {
+            // define the origin points
             Real3 O = points[i];
             for (int j=0;j<refFace.size();j++)
             {
@@ -710,15 +762,21 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
                                                     const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
                 }
 
-                bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
-                                                    O, D, refNormal[j], \
-                                                    t, u ,v);
-                if (isIntersect)
+                // hit ref mesh height
+                if (MeshTools::MTRayTriangleIntersection(A, B, C, O, D, t, u, v))
                 {
-                    hitRefMesh[i] = true;
-                    break;
+                    hitRefMeshHeightTotal[i].push_back(t);
                 }
             }
+        }
+    }
+
+    #pragma omp parallel for
+    for (int i=0;i<points.size();i++)
+    {
+        if (hitRefMeshHeightTotal[i].size() != 0)
+        {
+            hitRefMeshHeightMin[i] = Algorithm::min(hitRefMeshHeightTotal[i]);
         }
     }
 
@@ -728,6 +786,29 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     const auto& verts= mesh.getvertices();
     const auto& faceNormal = mesh.getFaceNormals();
 
+    // shift the face
+    std::vector<std::array<Real3,3>> shiftedTriangle(face.size());
+
+    #pragma omp parallel for 
+    for (int i=0;i<face.size();i++)
+    {
+        Real3 A, B, C;
+        // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+        if (isPBC)
+        {
+            MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
+                                            const_cast<INT3&>(face[i].triangleindices_), box, A, B, C);
+        }
+        else
+        {
+            A = verts[face[i].triangleindices_[0]].position_;
+            B = verts[face[i].triangleindices_[1]].position_;
+            C = verts[face[i].triangleindices_[2]].position_;
+        }
+
+        shiftedTriangle[i] = {{A,B,C}};
+    }
+
     // iterate over the points 
     #pragma omp parallel for 
     for (int i=0;i<points.size();i++)
@@ -736,43 +817,30 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         std::vector<int> faceIndex;
         std::vector<Real> value;
 
-        if (! hitRefMesh[i])
+        for (int j=0;j<face.size();j++)
         {
-            for (int j=0;j<face.size();j++)
-            {
-                Real3 projectedD;
-                Real3 A, B, C;
-                Real t, u, v;
+            Real3 projectedD;
+            Real t, u, v;
+            Real3 A=shiftedTriangle[j][0], B = shiftedTriangle[j][1], C=shiftedTriangle[j][2];
 
-                // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-                if (isPBC)
-                {
-                    MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
-                                                    const_cast<INT3&>(face[j].triangleindices_), box, A, B, C);
-                }
-                else
-                {
-                    A = verts[face[j].triangleindices_[0]].position_;
-                    B = verts[face[j].triangleindices_[1]].position_;
-                    C = verts[face[j].triangleindices_[2]].position_;
-                }
-                bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
-                                                    O, D, faceNormal[j], \
-                                                    t, u ,v);
-                if (isIntersect)
-                {
-                    faceIndex.push_back(j);
-                    value.push_back(t);
-                }
-            }
-            if (value.size() != 0)
+            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v))
             {
-                // find the min element of value
-                auto it = std::min_element(value.begin(), value.end());
-                int minIndex = it - value.begin();
-                pointCurvature[i] = fc[faceIndex[minIndex]];
+                faceIndex.push_back(j);
+                value.push_back(t);
             }
-            else
+        }
+
+        // value size = 0 means that this particular Ray did not hit any of the triangles
+        if (value.size() != 0)
+        {
+            // find the min element index of t --> the shorted the t, the closer it is to the viewing point
+            int minIndex = Algorithm::argmin(value);
+            if (value[minIndex] < hitRefMeshHeightMin[i])
+            {
+                int fcIndex = faceIndex[minIndex];
+                pointCurvature[i] = fc[fcIndex];
+            }
+            else 
             {
                 pointCurvature[i] = -100;
             }
@@ -810,12 +878,15 @@ void MeshActions::MeshDistanceCutoff(CommandLineArguments& cmd)
     // distance index
     std::vector<int> distanceIndex = {{0,1,2}};
 
+    bool writePBC=true;
+
     // read the inputs 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readValue("ref", CommandLineArguments::Keys::Required, reffname);
     cmd.readValue("cutoff", CommandLineArguments::Keys::Required, cutoff);
     cmd.readVector("distanceIndex", CommandLineArguments::Keys::Optional, distanceIndex);
+    cmd.readBool("writePBC", CommandLineArguments::Keys::Optional, writePBC);
     bool indread = cmd.readValue("ind", CommandLineArguments::Keys::Optional, indfname);
     cutoffsq = cutoff * cutoff;
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional,box);
@@ -903,8 +974,16 @@ void MeshActions::MeshDistanceCutoff(CommandLineArguments& cmd)
             {
                 newT[j] = MapOldIndicesToNew[ind[j]];
             }
-
-            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), const_cast<INT3&>(f[i].triangleindices_), box))
+            
+            if (! writePBC)
+            {
+                if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), const_cast<INT3&>(f[i].triangleindices_), box))
+                {
+                    NewTIndices.push_back(i);
+                    newF.push_back(newT);
+                }
+            }
+            else
             {
                 NewTIndices.push_back(i);
                 newF.push_back(newT);
