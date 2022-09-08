@@ -65,7 +65,7 @@ void Curvature::printFaceCurvature(std::string name)
     ofs << "# TriangleIndex  MeanCurvature  GaussCurvature\n";
     for (int i=0;i<FaceCurvature_.size();i++)
     {
-        ofs << i+1 << " " << FaceCurvature_[i][0] << " " << FaceCurvature_[i][1] << "\n";
+        ofs << i+1 << " " << FaceCurvature_[i] << "\n";
     }
     ofs.close();
 }
@@ -101,7 +101,8 @@ void Curvature::printPrincipalDir(std::string name)
 
 void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, \
                                                    const std::vector<Real>& VertexGaussCurvature,\
-                                                   std::vector<Real2>& FaceCurvature)
+                                                   const std::vector<Real2>& CurvaturePerVertex, \
+                                                   std::vector<std::array<Real,4>>& FaceCurvature)
 {
     const auto& triangle = mesh.gettriangles();
     const auto& vertices = mesh.getvertices();
@@ -115,17 +116,25 @@ void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& Vert
         auto& t = triangle[i].triangleindices_;
         Real FaceMeanC = 0.0;
         Real FaceGaussC= 0.0;
+        Real FaceMeank1= 0.0;
+        Real FaceMeank2= 0.0;
 
         for (int j=0;j<3;j++)
         {
             FaceMeanC += VertexCurvature[t[j]];
             FaceGaussC+= VertexGaussCurvature[t[j]];
+            FaceMeank1+= CurvaturePerVertex[t[j]][0];
+            FaceMeank2+= CurvaturePerVertex[t[j]][1];
         }
 
         FaceMeanC = FaceMeanC / 3.0;
         FaceGaussC= FaceGaussC / 3.0;
+        FaceMeank1= FaceMeank1 / 3.0;
+        FaceMeank2= FaceMeank2 / 3.0;
 
         FaceCurvature[i][0] = FaceMeanC;
         FaceCurvature[i][1] = FaceGaussC;
+        FaceCurvature[i][2] = FaceMeank1;
+        FaceCurvature[i][3] = FaceMeank2;
     }
 }

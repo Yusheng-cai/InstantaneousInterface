@@ -34,7 +34,8 @@ class Curvature
         virtual void calculate(Mesh& mesh) = 0;
         void CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexMeanCurvature, \
                                                 const std::vector<Real>& VertexGaussCurvature, \
-                                                std::vector<Real2>& FaceCurvature);
+                                                const std::vector<Real2>& CurvaturePerVertex, \
+                                                std::vector<std::array<Real,4>>& FaceCurvature);
 
         virtual void printOutput();
         virtual void printCurvature(std::string name);
@@ -47,7 +48,7 @@ class Curvature
 
         const std::vector<Real>& getAvgCurvaturePerVertex() {return avgCurvaturePerVertex_;}
         const std::vector<Real>& getGaussCurvaturePerVertex() {return GaussCurvaturePerVertex_;}
-        const std::vector<Real2>& getFaceCurvature() {return FaceCurvature_;}
+        const std::vector<std::array<Real,4>>& getFaceCurvature() {return FaceCurvature_;}
 
     protected:
         ParameterPack& pack_;
@@ -59,6 +60,7 @@ class Curvature
 
         std::vector<Real> avgCurvaturePerVertex_;
         std::vector<Real> GaussCurvaturePerVertex_;
+
         std::vector<Real2> CurvaturePerVertex_;
 
         std::vector<std::string> OutputNames_;
@@ -69,7 +71,7 @@ class Curvature
         std::vector<Real3> principalDir2_;
 
         // the curvature for each triangle --> avgMeanCurvature , avgGaussCurvature
-        std::vector<Real2> FaceCurvature_;
+        std::vector<std::array<Real,4>> FaceCurvature_;
 };
 
 
