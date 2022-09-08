@@ -1355,7 +1355,7 @@ void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, 
 	}
 }
 
-bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real3 FaceNormal, Real& t, Real& u, Real& v)
+bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real& t, Real& u, Real& v)
 {
     Real epsilon = 1e-8;
     

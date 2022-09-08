@@ -228,7 +228,7 @@ namespace MeshTools
     void CutMesh(Mesh& mesh, std::vector<INT3>& face, std::vector<Real3>& vertices, Real3 volume);
 
     // Moller Trumbore Ray-Triangle intersection method 
-    bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real3 FaceNormal, Real& t, Real& u, Real& v);
+    bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real& t, Real& u, Real& v);
 
     // check degenerate triangles 
     void CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndices);
