@@ -133,4 +133,8 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                     -n n1 n2 -RayDirection -ProjectedIndex ind1 ind2 -height h -box[optional] x y z",\
                                     [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dMesh(cmd);}, \
                                     mapF, mapU);
+    RegisterAction("CutOverlappedRegion", "-op CutOverlappedRegion -i input.ply -ref ref.ply -o output.ply -L L1 L2 -n n1 n2 -RayDirection \
+                                           -ProjectionIndex ind1 ind2 -height h -box[optional] x y z", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CutOverlappedRegion(cmd);}, \
+                                           mapF, mapU);
 }
