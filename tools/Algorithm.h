@@ -39,6 +39,9 @@ namespace Algorithm
 
     template <typename T>
     bool contain(std::vector<T>& vec, T num);
+
+    template <typename T>
+    void unique(std::vector<T>& vec); 
 };
 
 template<typename T>
@@ -114,4 +117,12 @@ template <typename T>
 bool Algorithm::contain(std::vector<T>& vec, T num)
 {
     return (std::find(vec.begin(), vec.end(), num) != vec.end());
+}
+
+template <typename T>
+void Algorithm::unique(std::vector<T>& vec)
+{
+    std::sort(vec.begin(), vec.end());
+    typename std::vector<T>::iterator it = std::unique(vec.begin(), vec.end());
+    vec.resize(std::distance(vec.begin(), it));
 }
