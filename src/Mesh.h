@@ -235,4 +235,7 @@ namespace MeshTools
 
     // decimate degenerate triangles
     bool decimateDegenerateTriangle(Mesh& mesh);
+
+    // calculate barycenter of all the boundary vertices 
+    void CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& boundaryIndicator, Real3& barycenter);
 };

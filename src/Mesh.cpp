@@ -1530,3 +1530,24 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
 
     return false;
 }
+
+void MeshTools::CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& boundary_indicator, Real3& barycenter)
+{
+    // shift all boundary vertices wrt to the first vertex
+    const auto& verts = mesh.getvertices();
+    barycenter=verts[0].position_;
+
+    for (int i=1;i<verts.size();i++)
+    {
+        Real3 newpos = mesh.getShiftedVertexPosition(verts[i], verts[0]);
+        barycenter = barycenter + newpos;
+    }
+
+    // average
+    barycenter = barycenter * 1.0/verts.size();
+
+    // shift into box
+    Real3 shift = mesh.getShiftIntoBox(barycenter);
+
+    barycenter = barycenter + shift;
+}
