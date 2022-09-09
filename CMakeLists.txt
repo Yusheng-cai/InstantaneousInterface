@@ -22,6 +22,20 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+# Requires OpenGL
+find_package(OpenGL REQUIRED)
+if (OpenGL_FOUND)
+    message("OpenGL found")
+    message("lib = ${OPENGL_LIBRARIES}")
+endif()
+
+# Requires glut
+find_package(GLUT REQUIRED)
+if (GLUT_FOUND)
+    message("GLUT FOUND")
+    message("lib = ${GLUT_LIBRARIES}")
+endif()
+
 #set( BOOST_ROOT "" CACHE PATH "Boost library path" )
 #set( Boost_NO_SYSTEM_PATHS on CACHE BOOL "Do not search system for Boost" )
 #find_package(Boost REQUIRED)
@@ -52,19 +66,20 @@ add_subdirectory(test)
 add_executable(InstantaneousInterface main.cpp)
 add_executable(mesh_gen mesh_gen.cpp)
 add_executable(mesh_op mesh_op.cpp)
+add_executable(display display.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
-#target_include_directories(Curve PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_gen PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
+target_include_directories(display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLU_INCLUDE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
-#target_link_libraries(Curve PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_gen PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel)
+target_link_libraries(display PUBLIC IIxdr IIsrc IItools IIparallel GL GLU  glut)
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
-#install(TARGETS Curve DESTINATION bin)
 install(TARGETS mesh_gen DESTINATION bin)
 install(TARGETS mesh_op DESTINATION bin)
+install(TARGETS display DESTINATION bin)
