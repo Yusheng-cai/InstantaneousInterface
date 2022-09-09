@@ -1192,9 +1192,7 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     using INT2 = std::array<int,2>;
 
     // define input output file names 
-    std::string inputfname, reffname;
-    std::string outputfname;
-    std::string normalMapfname;
+    std::string inputfname, reffname, normalMapfname, outputfname;
 
     // some large number 
     Real origin_pos=100.0;
@@ -1209,13 +1207,6 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readArray("RayDirection", CommandLineArguments::Keys::Required,D);
     LinAlg3x3::normalize(D);
-    cmd.readArray("ProjectedIndex", CommandLineArguments::Keys::Required, ProjectedIndex);
-
-    // the origin 
-    cmd.readValue("height", CommandLineArguments::Keys::Optional, origin_pos);
-    cmd.readArray("L", CommandLineArguments::Keys::Required, L);
-    cmd.readArray("n", CommandLineArguments::Keys::Required, n);
-    d = L/n;
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     // read the input file and set up the mesh 
@@ -1244,18 +1235,35 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
         }
     }
 
-    // whether or not we hit the meshs
-    std::vector<bool> hitRefMesh(points.size(), false);
-    std::vector<Real3> hitNormal(points.size());
-
     // see if any points hits any of the reference mesh 
-    m.CalcVertexNormals();
-    const auto& refFace = m.gettriangles();
-    const auto& refverts= m.getvertices();
-    const auto& refNormal=m.getFaceNormals();
+    const auto& Face = m.gettriangles();
+    const auto& verts= m.getvertices();
+    const auto& refFace = refm.gettriangles();
+    const auto& refverts= refm.getvertices();
 
     // fix the triangles
-    std::vector<std::array<Real3,3>> fixed_tri_pbc(refFace.size());
+    std::vector<std::array<Real3,3>> fixed_tri_pbc(Face.size());
+    std::vector<std::array<Real3,3>> fixed_reftri_pbc(refFace.size());
+
+    #pragma omp parallel for
+    for (int i=0;i<Face.size();i++)
+    {
+        std::array<Real3,3> t;
+        Real3 A, B, C;
+        A = verts[Face[i].triangleindices_[0]].position_;
+        B = verts[Face[i].triangleindices_[1]].position_;
+        C = verts[Face[i].triangleindices_[2]].position_;
+
+        // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
+        if (isPBC)
+        {
+            MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
+                                            const_cast<INT3&>(Face[i].triangleindices_), box, A, B, C);
+        }
+
+        fixed_tri_pbc[i] = {{A,B,C}};
+    }
+
     #pragma omp parallel for
     for (int i=0;i<refFace.size();i++)
     {
@@ -1272,46 +1280,77 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
                                             const_cast<INT3&>(refFace[i].triangleindices_), box, A, B, C);
         }
 
-        fixed_tri_pbc[i] = {{A,B,C}};
+        fixed_reftri_pbc[i] = {{A,B,C}};
     }
 
+    std::vector<bool> keeptri(fixed_tri_pbc.size(), true);
     #pragma omp parallel for
-    for (int i=0;i<points.size();i++)
+    for (int i=0;i<fixed_tri_pbc.size();i++)
     {
-        Real3 O = points[i];
-        for (int j=0;j<refFace.size();j++)
+        Real3 O = (fixed_tri_pbc[i][0] + fixed_tri_pbc[i][1] + fixed_tri_pbc[i][2]) * 1.0/3.0;
+        for (int j=0;j<fixed_reftri_pbc.size();j++)
         {
-            Real3 projectedD;
-            std::array<Real3,3> tri = fixed_tri_pbc[j];
-            Real3 A, B, C;
+            Real3 A,B,C;
+            A = fixed_reftri_pbc[j][0], B=fixed_reftri_pbc[j][1], C=fixed_reftri_pbc[j][2];
             Real t, u ,v;
-            A = tri[0];
-            B = tri[1];
-            C = tri[2];
 
-            bool isIntersect = MeshTools::MTRayTriangleIntersection(A, B, C, \
-                                                O, D, t, u ,v);
-
-            if (isIntersect)
+            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v))
             {
-                hitRefMesh[i] = true;
-                hitNormal[i]  = refNormal[j];
+                keeptri[i] = false;
                 break;
             }
         }
     }
 
-    // start to output file
-    std::ofstream ofs(outputfname);
-    int index=0;
-    for (int i=0;i<n[0];i++)
+    Mesh newMesh;
+    auto& newF = newMesh.accesstriangles();
+    auto& newV = newMesh.accessvertices();
+
+    for (int i=0;i<Face.size();i++)
     {
-        for (int j=0;j<n[1];j++)
+        if (keeptri[i])
         {
-            ofs << i << " " << j << " " << hitRefMesh[index] << "\n";
+            newF.push_back(Face[i]);
+        }
+    }
+
+    for (int i=0;i<verts.size();i++)
+    {
+        newV.push_back(verts[i]);
+    }
+    std::vector<std::vector<int>> neighborIndex;
+    MeshTools::CalculateVertexNeighbors(newMesh, neighborIndex);
+
+    int index=0;
+    std::vector<int> MapOldToNewIndex(newV.size(),-1);
+    for (int i=0;i<neighborIndex.size();i++)
+    {
+        if (neighborIndex[i].size() != 0)
+        {
+            MapOldToNewIndex[i] = index;            
             index++;
         }
     }
 
-    ofs.close();
+    std::vector<INT3> newFace;
+    std::vector<Real3> newVerts;
+    for (int i=0;i<newF.size();i++)
+    {
+        INT3 ind;
+        for (int j=0;j<3;j++)
+        {
+            ind[j] = MapOldToNewIndex[newF[i].triangleindices_[j]];
+        }
+        newFace.push_back(ind);
+    }
+
+    for (int i=0;i<newV.size();i++)
+    {
+        if (neighborIndex[i].size() != 0)
+        {
+            newVerts.push_back(verts[i].position_);
+        }
+    }
+
+    MeshTools::writePLY(outputfname, newVerts, newFace);
 }
