@@ -189,8 +189,7 @@ void MeshCurvatureflow::refineImplicitStep()
     #pragma omp parallel for
     for(int i = 0; i < numVerts_; ++i)
     {
-        // if mesh is not periodic and we are not doing virtual site
-        // then we must scale the rhs by Lfactors_ as in (xj - xi + L)
+        // we must scale the rhs by Lfactors_ as in (xj - xi + L)
         rhs_[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
         rhs_[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
         rhs_[2][i] = lambdadt_ * Lfactors_[i][2] + vertices[i].position_[2];
