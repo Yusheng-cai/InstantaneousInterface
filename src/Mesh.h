@@ -231,7 +231,9 @@ namespace MeshTools
     bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real& t, Real& u, Real& v);
 
     // check degenerate triangles 
-    void CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndices);
+    void CheckDegenerateTriangle(Mesh& mesh, \
+                                             std::vector<int>& MergeFaces,\
+                                             std::vector<INT2>& MergeVertices);
 
     // decimate degenerate triangles
     bool decimateDegenerateTriangle(Mesh& mesh);
