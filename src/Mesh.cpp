@@ -109,6 +109,7 @@ void Mesh::scaleVertices(Real num)
 
 void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist)
 {
+    distVec.fill(0);
     distVec = v1 - v2;
 
     if (isPeriodic())
@@ -1491,14 +1492,21 @@ void MeshTools::CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndice
 
         // obtain the side length
         Real3 vec;
+        Real3 triangle_length;
         Real AB, BC, CA;
         mesh.getVertexDistance(A, B, vec, AB);
         mesh.getVertexDistance(B, C, vec, BC);
         mesh.getVertexDistance(C, A, vec, CA);
 
-        // check if AB+BC=CA, if so, then the triangle is degenerate
-        Real diff = CA - AB - BC;
-        if (std::abs(diff) < epsilon)
+        // AB + BC > CA
+        // BC + CA > AB
+        // CA + AB > BC
+        Real diff1 = AB + BC - CA;
+        Real diff2 = BC + CA - AB;
+        Real diff3 = CA + AB - BC;
+
+        ASSERT((diff1 >= 0 && diff2 >= 0 && diff3 >= 0), "Something weird with triangles.");
+        if (std::abs(diff1) < epsilon || std::abs(diff2) < epsilon || std::abs(diff3) < epsilon)
         {
             faceIndices.push_back(i);
         }
@@ -1529,6 +1537,15 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
     }
 
     return false;
+}
+
+void MeshTools::CorrectMesh(Mesh& mesh, std::vector<int>& FaceIndices)
+{
+    auto& triangles = mesh.accesstriangles();
+    auto& vertices  = mesh.accessvertices();
+
+    // declare the new triangles 
+    std::vector<triangle> newT;
 }
 
 void MeshTools::CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& boundary_indicator, Real3& barycenter)

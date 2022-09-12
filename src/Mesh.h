@@ -238,4 +238,8 @@ namespace MeshTools
 
     // calculate barycenter of all the boundary vertices 
     void CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& boundaryIndicator, Real3& barycenter);
+
+    // correct  Mesh --> Many times, we need to cut certain triangles out for certain reasons
+    // this function takes care of rearranging the mesh vertices and triangles
+    void CorrectMesh(Mesh& mesh, std::vector<int>& FaceIndices);
 };
