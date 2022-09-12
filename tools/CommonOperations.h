@@ -8,8 +8,8 @@ using Real3  = CommonTypes::Real3;
 using Real   = CommonTypes::Real;
 using Matrix = CommonTypes::Matrix;
 
-template <std::size_t dim>
-inline std::ostream& operator<<(std::ostream &out, const std::array<Real,dim>& v) {
+template <typename T, std::size_t dim>
+inline std::ostream& operator<<(std::ostream &out, const std::array<T,dim>& v) {
     for (int i=0;i<dim;i++)
     {
         out << v[i] << " ";
@@ -28,10 +28,10 @@ inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& v)
     return out;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator+(const std::array<Real,dim>& v1, const std::array<Real,dim>& v2)
+template <typename T, std::size_t dim>
+inline std::array<T,dim> operator+(const std::array<T,dim>& v1, const std::array<T,dim>& v2)
 {
-    std::array<Real,dim> ret;
+    std::array<T,dim> ret;
     for (int i=0;i<dim;i++)
     {
         ret[i] = v1[i] + v2[i];
