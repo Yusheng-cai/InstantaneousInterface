@@ -1508,25 +1508,22 @@ void MeshTools::CheckDegenerateTriangle(Mesh& mesh, \
         Real diff1 = AB + BC - CA;
         Real diff2 = BC + CA - AB;
         Real diff3 = CA + AB - BC;
+ 
+        //ASSERT((diff1 >= 0 && diff2 >= 0 && diff3 >= 0), "Something weird with triangles.");
 
-        ASSERT((diff1 >= 0 && diff2 >= 0 && diff3 >= 0), "Something weird with triangles.");
-
-        if ((AB < merge_epsilon) ^ (BC < merge_epsilon) ^ (CA < merge_epsilon))
+        if ((AB < merge_epsilon) || (BC < merge_epsilon) || (CA < merge_epsilon))
         {
             MergeFaces.push_back(i);
             INT2 verts_ind1, verts_ind2,  verts_ind3;
-            std::cout << "AB = " << AB << "\n";
-            std::cout << "BC = " << BC << "\n";
-            std::cout << "CA = " << CA << "\n";
 
             verts_ind1 = {{indices[0], indices[1]}};
             verts_ind2 = {{indices[1], indices[2]}};
             verts_ind3 = {{indices[2], indices[0]}};
             Algorithm::sort(verts_ind1); Algorithm::sort(verts_ind2); Algorithm::sort(verts_ind3);
 
-            if (! Algorithm::contain(MergeVertices, verts_ind1)){MergeVertices.push_back(verts_ind1);}
-            if (! Algorithm::contain(MergeVertices, verts_ind2)){MergeVertices.push_back(verts_ind2);}
-            if (! Algorithm::contain(MergeVertices, verts_ind3)){MergeVertices.push_back(verts_ind3);}
+            if ((! Algorithm::contain(MergeVertices, verts_ind1)) && (AB<merge_epsilon)){MergeVertices.push_back(verts_ind1);}
+            if ((! Algorithm::contain(MergeVertices, verts_ind2)) && (BC<merge_epsilon)){MergeVertices.push_back(verts_ind2);}
+            if ((! Algorithm::contain(MergeVertices, verts_ind3)) && (CA<merge_epsilon)){MergeVertices.push_back(verts_ind3);}
         }
     }
 }
@@ -1536,6 +1533,7 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
     std::vector<int> MergeFaceIndices;
     std::vector<INT2> MergeVerts;
     CheckDegenerateTriangle(mesh, MergeFaceIndices, MergeVerts);
+    std::cout << "MergeFace Indices = " << MergeFaceIndices << "\n";
 
     if (MergeFaceIndices.size() != 0)
     {
@@ -1558,9 +1556,8 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
             Min[i] = MergeVerts[i][0];
             Max[i] = MergeVerts[i][1];
         }
-
-        std::cout << "min = " << Min << '\n';
-        std::cout << "max = " << Max << "\n";
+        std::cout << "Min = " << Min << "\n";
+        std::cout << "Max = " << Max << '\n';
 
         int index=0;
         for (int i=0;i<nv ;i++)
@@ -1573,10 +1570,10 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
             else
             {
                 MapOldIndicesToNew[i] = index;
+                newV.push_back(verts[i]);
                 index ++;
             }
         }
-        std::cout << "Map = " << MapOldIndicesToNew << "\n";
 
         // obtain the new triangle indices 
         for (int i=0;i<triangles.size();i++)
@@ -1586,12 +1583,17 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
                 triangle t;
                 auto ind  = triangles[i].triangleindices_;
                 t.triangleindices_ = {{MapOldIndicesToNew[ind[0]], MapOldIndicesToNew[ind[1]], MapOldIndicesToNew[ind[2]]}};
-                newT.push_back(t);
+                if (Algorithm::is_unique(t.triangleindices_))
+                {
+                    newT.push_back(t);
+                }
             }
         }
 
         triangles.clear();
         triangles = newT;
+        verts.clear();
+        verts = newV;
 
         return true;
     }
