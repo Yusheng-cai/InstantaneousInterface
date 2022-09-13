@@ -59,6 +59,7 @@ void MeshCurvatureflow::refine(Mesh& mesh)
         // every iteration, decimate the degenerate triangles
         if (MeshTools::decimateDegenerateTriangle(*mesh_))
         {
+            std::cout << "Dcimated." << '\n';
             // obtain map from edge index {minIndex, maxIndex} to the face index 
             // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
             MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);

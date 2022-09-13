@@ -44,7 +44,13 @@ namespace Algorithm
     bool contain(std::vector<T>& vec, T num);
 
     template <typename T>
+    bool contain(std::vector<T>& vec, T num, int& index);
+
+    template <typename T>
     void unique(std::vector<T>& vec); 
+
+    template <typename T, std::size_t dim>
+    void sort(std::array<T, dim>& arr);
 };
 
 template<typename T>
@@ -131,9 +137,32 @@ bool Algorithm::contain(std::vector<T>& vec, T num)
 }
 
 template <typename T>
+bool Algorithm::contain(std::vector<T>& vec, T num, int& index)
+{
+    typename std::vector<T>::iterator it = std::find(vec.begin(), vec.end(), num);
+
+    if (it == vec.end())
+    {
+        index = -1;
+        return false;
+    }
+    else
+    {
+        index = it - vec.begin();
+        return true;
+    }
+}
+
+template <typename T>
 void Algorithm::unique(std::vector<T>& vec)
 {
     std::sort(vec.begin(), vec.end());
     typename std::vector<T>::iterator it = std::unique(vec.begin(), vec.end());
     vec.resize(std::distance(vec.begin(), it));
+}
+
+template <typename T, std::size_t dim>
+void Algorithm::sort(std::array<T,dim>& arr)
+{
+    std::sort(arr.begin(), arr.end());
 }

@@ -1473,12 +1473,16 @@ void MeshTools::writeCuttedMesh(std::string filename, Mesh& mesh, Real3& volume)
 }
 
 
-void MeshTools::CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndices)
+
+void MeshTools::CheckDegenerateTriangle(Mesh& mesh, \
+                                                    std::vector<int>& MergeFaces, \
+                                                    std::vector<INT2>& MergeVertices)
 {
     const auto& f = mesh.gettriangles();
     const auto& v = mesh.getvertices();
-    faceIndices.clear();
+    MergeFaces.clear();
     Real epsilon=1e-8;
+    Real merge_epsilon=1e-4;
 
     // what we check is if one side is whether or not a + b = c 
     for (int i=0;i<f.size();i++)
@@ -1506,30 +1510,86 @@ void MeshTools::CheckDegenerateTriangle(Mesh& mesh, std::vector<int>& faceIndice
         Real diff3 = CA + AB - BC;
 
         ASSERT((diff1 >= 0 && diff2 >= 0 && diff3 >= 0), "Something weird with triangles.");
-        if (std::abs(diff1) < epsilon || std::abs(diff2) < epsilon || std::abs(diff3) < epsilon)
+
+        if ((AB < merge_epsilon) ^ (BC < merge_epsilon) ^ (CA < merge_epsilon))
         {
-            faceIndices.push_back(i);
+            MergeFaces.push_back(i);
+            INT2 verts_ind1, verts_ind2,  verts_ind3;
+            std::cout << "AB = " << AB << "\n";
+            std::cout << "BC = " << BC << "\n";
+            std::cout << "CA = " << CA << "\n";
+
+            verts_ind1 = {{indices[0], indices[1]}};
+            verts_ind2 = {{indices[1], indices[2]}};
+            verts_ind3 = {{indices[2], indices[0]}};
+            Algorithm::sort(verts_ind1); Algorithm::sort(verts_ind2); Algorithm::sort(verts_ind3);
+
+            if (! Algorithm::contain(MergeVertices, verts_ind1)){MergeVertices.push_back(verts_ind1);}
+            if (! Algorithm::contain(MergeVertices, verts_ind2)){MergeVertices.push_back(verts_ind2);}
+            if (! Algorithm::contain(MergeVertices, verts_ind3)){MergeVertices.push_back(verts_ind3);}
         }
     }
 }
 
 bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
 {
-    std::vector<int> faceIndices;
-    CheckDegenerateTriangle(mesh, faceIndices);
+    std::vector<int> MergeFaceIndices;
+    std::vector<INT2> MergeVerts;
+    CheckDegenerateTriangle(mesh, MergeFaceIndices, MergeVerts);
 
-    if (faceIndices.size() != 0)
+    if (MergeFaceIndices.size() != 0)
     {
         auto& triangles = mesh.accesstriangles();
-        std::vector<triangle> newT;
+        auto& verts     = mesh.accessvertices();
 
-        for (int i=0;i<triangles.size();i++)
+        // declare new triangles and vertices
+        std::vector<triangle> newT;
+        std::vector<vertex>   newV;
+
+        int nv = verts.size();
+        int nf = triangles.size();
+
+        std::vector<int> MapOldIndicesToNew = Algorithm::arange(0,nv,1);
+        std::vector<int> Min(MergeVerts.size());
+        std::vector<int> Max(MergeVerts.size());
+
+        for (int i=0;i<MergeVerts.size();i++)
         {
-            if (! Algorithm::contain(faceIndices,i))
+            Min[i] = MergeVerts[i][0];
+            Max[i] = MergeVerts[i][1];
+        }
+
+        std::cout << "min = " << Min << '\n';
+        std::cout << "max = " << Max << "\n";
+
+        int index=0;
+        for (int i=0;i<nv ;i++)
+        {
+            int ind;
+            if (Algorithm::contain(Max, i, ind))
             {
-                newT.push_back(triangles[i]);
+                MapOldIndicesToNew[i] = MapOldIndicesToNew[Min[ind]];
+            }
+            else
+            {
+                MapOldIndicesToNew[i] = index;
+                index ++;
             }
         }
+        std::cout << "Map = " << MapOldIndicesToNew << "\n";
+
+        // obtain the new triangle indices 
+        for (int i=0;i<triangles.size();i++)
+        {
+            if (! Algorithm::contain(MergeFaceIndices,i))
+            {
+                triangle t;
+                auto ind  = triangles[i].triangleindices_;
+                t.triangleindices_ = {{MapOldIndicesToNew[ind[0]], MapOldIndicesToNew[ind[1]], MapOldIndicesToNew[ind[2]]}};
+                newT.push_back(t);
+            }
+        }
+
         triangles.clear();
         triangles = newT;
 
