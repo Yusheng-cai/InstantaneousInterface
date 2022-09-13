@@ -89,4 +89,10 @@ namespace MeshActions
 
     // cut overlapped regions of 2 proteins based on Ray triangle intersection
     void CutOverlappedRegion(CommandLineArguments& cmd);
+
+    // function that decimates degenerate triangles 
+    void DecimateDegenerateTriangles(CommandLineArguments& cmd);
+
+    // curvature evolution --> only use curvefit
+    void CurvatureEvolution(CommandLineArguments& cmd);
 };

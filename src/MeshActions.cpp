@@ -246,25 +246,22 @@ void MeshActions::CurveEvolution(CommandLineArguments& cmd)
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 {
     refineptr refine;
-    std::string inputfname;
-    std::string outputfname="CurvatureFlow.ply";
-    std::string iterations;
-    std::string lambdadt="1";
+    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt;
     Real3 box;
     ParameterPack pack;
-    bool nonpbc = true;
+    bool pbcOutput = false, decimate=true;
     Mesh mesh;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readString("iteration", CommandLineArguments::Keys::Required, iterations);
     cmd.readString("lambdadt", CommandLineArguments::Keys::Optional, lambdadt);
-    cmd.readBool("nonpbc", CommandLineArguments::Keys::Optional, nonpbc);
+    cmd.readBool("pbcOutput", CommandLineArguments::Keys::Optional, pbcOutput);
+    cmd.readBool("Decimate", CommandLineArguments::Keys::Optional, decimate);
+
+    // check if the mesh is periodic 
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
-    if (pbcMesh)
-    {
-        mesh.setBoxLength(box);
-    }
+    if (pbcMesh){mesh.setBoxLength(box);}
 
     // read the mesh
     MeshTools::readPLYlibr(inputfname, mesh);
@@ -273,20 +270,14 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     pack.insert("iterations", iterations);
     pack.insert("lambdadt", lambdadt);
     pack.insert("name", "temp");
-
     MeshRefineStrategyInput input = {{pack}};
     refine = refineptr(MeshRefineStrategyFactory::Factory::instance().create("curvatureflow", input));
 
+    // refine the mesh
     refine -> refine(mesh);
 
-    if (nonpbc)
-    {
-        MeshTools::writeNonPBCMesh(outputfname, mesh);
-    }
-    else
-    {
-        MeshTools::writePLY(outputfname, mesh);
-    }
+    if (pbcOutput){ MeshTools::writeNonPBCMesh(outputfname, mesh);}
+    else{MeshTools::writePLY(outputfname, mesh);}
 }
 
 
@@ -501,7 +492,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     std::string normalMapfname;
 
     // some large number 
-    Real origin_pos=100.0;
+    Real height_pos=100.0;
     int colnum;
     Real2 L, n, d, ProjectedIndex;
     std::vector<Real> fc;
@@ -516,7 +507,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     bool normalMap = cmd.readValue("normalMapOutput", CommandLineArguments::Keys::Optional, normalMapfname);
 
     // the origin 
-    cmd.readValue("height", CommandLineArguments::Keys::Optional, origin_pos);
+    cmd.readValue("height", CommandLineArguments::Keys::Optional, height_pos);
     cmd.readArray("L", CommandLineArguments::Keys::Required, L);
     cmd.readArray("n", CommandLineArguments::Keys::Required, n);
     d = L/n;
@@ -543,7 +534,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     {
         for (int j=0;j<n[1];j++)
         {
-            Real3 p = {{origin_pos, origin_pos, origin_pos}};
+            Real3 p = {{height_pos, height_pos, height_pos}};
             p[ProjectedIndex[0]] = (i+0.5) * d[0];
             p[ProjectedIndex[1]] = (j+0.5) * d[1];
 
@@ -659,9 +650,8 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
     // some large number 
     Real origin_pos=100.0;
-    int colnum;
     Real2 L, n, d, ProjectedIndex;
-    std::vector<Real> fc;
+    std::vector<std::vector<Real>> fc;
     Real3 box, D;
 
     // read the inputs 
@@ -680,11 +670,11 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     cmd.readArray("n", CommandLineArguments::Keys::Required, n);
     d = L/n;
     cmd.readValue("FaceCurvatureFile", CommandLineArguments::Keys::Required, fcfname);
-    cmd.readValue("FileColumn", CommandLineArguments::Keys::Required, colnum);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     // read the tabulated data for curvature
-    StringTools::ReadTabulatedData(fcfname, colnum,fc);
+    StringTools::ReadTabulatedData(fcfname, fc);
+    int colsize = fc[0].size();
 
     // read the input file and set up the mesh 
     Mesh mesh;
@@ -724,7 +714,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     }
 
     // points curvature
-    std::vector<Real> pointCurvature(points.size());
+    std::vector<std::vector<Real>> pointCurvature(points.size());
     std::vector<bool> hitRefMesh(points.size(), false);
     std::vector<Real> hitRefMeshHeightMin(points.size(), 1e10);
     std::vector<std::vector<Real>> hitRefMeshHeightTotal(points.size());
@@ -831,6 +821,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         }
 
         // value size = 0 means that this particular Ray did not hit any of the triangles
+        std::vector<Real> temp(colsize,-100);
         if (value.size() != 0)
         {
             // find the min element index of t --> the shorted the t, the closer it is to the viewing point
@@ -842,12 +833,12 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
             }
             else 
             {
-                pointCurvature[i] = -100;
+                pointCurvature[i] = temp;
             }
         }
         else
         {
-            pointCurvature[i] = -100;
+            pointCurvature[i] = temp;
         }
     }
 
@@ -1353,4 +1344,26 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     }
 
     MeshTools::writePLY(outputfname, newVerts, newFace);
+}
+
+void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="out.ply";
+    Real3 box;
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    if (isPBC)
+    {
+        m.setBoxLength(box);
+    }
+
+    MeshTools::decimateDegenerateTriangle(m);
+
+    MeshTools::writePLY(outputfname, m);
 }
