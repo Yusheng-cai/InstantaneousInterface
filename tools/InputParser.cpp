@@ -1,37 +1,5 @@
 #include "InputParser.h"
 
-void StringTools::ReadTabulatedData(std::string filename, int col, std::vector<Real>& data)
-{
-    data.clear();
-
-    // read the filename 
-    std::ifstream ifs;
-    ifs.open(filename);
-
-    ASSERT((ifs.is_open()), "The file with name " << filename << " is not opened.");
-
-    std::string sentence;
-    while(std::getline(ifs, sentence))
-    {
-        if (sentence.find("#") == std::string::npos)
-        {
-            std::stringstream ss;
-            ss.str(sentence);
-
-            std::vector<Real> vecNum;
-            Real number;
-            while (ss >> number)
-            {
-                vecNum.push_back(number);
-            }
-
-            ASSERT((vecNum.size() >= col+1), "Index out of range.");
-
-            data.push_back(vecNum[col]);
-        }
-    }
-}
-
 void StringTools::to_lower(std::string& str)
 {
     std::for_each(str.begin(), str.end(), [](char& c){c = std::tolower(c);});

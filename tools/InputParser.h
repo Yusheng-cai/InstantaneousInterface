@@ -34,7 +34,12 @@ namespace StringTools
     void RemoveBlankInString(std::string& str);
 
     // Function that reads tabulated data by specified column
-    void ReadTabulatedData(std::string filename, int col, std::vector<Real>& data);
+    template <typename T>
+    void ReadTabulatedData(std::string filename, int col, std::vector<T>& data);
+
+    // Function that reads tabulated data 
+    template <typename T>
+    void ReadTabulatedData(std::string filename, std::vector<std::vector<T>>& data);
 }
 
 
@@ -296,5 +301,52 @@ bool ParameterPack::ReadArrayNumber(const std::string& key, const ParameterPack:
     else
     {
         return false;
+    }
+}
+
+
+template <typename T>
+void StringTools::ReadTabulatedData(std::string filename, int col, std::vector<T>& data)
+{
+    std::vector<std::vector<T>> total_data;
+    ReadTabulatedData(filename, total_data);
+
+    data.clear();
+    data.resize(total_data.size());
+    for (int i=0;i<total_data.size();i++)
+    {
+        data[i] = total_data[i][col];
+    }
+}
+
+
+template <typename T>
+void StringTools::ReadTabulatedData(std::string filename, std::vector<std::vector<T>>& data)
+{
+    data.clear();
+
+    // read the filename 
+    std::ifstream ifs;
+    ifs.open(filename);
+
+    ASSERT((ifs.is_open()), "The file with name " << filename << " is not opened.");
+
+    std::string sentence;
+    while(std::getline(ifs, sentence))
+    {
+        if (sentence.find("#") == std::string::npos)
+        {
+            std::stringstream ss;
+            ss.str(sentence);
+
+            std::vector<T> vecNum;
+            T number;
+            while (ss >> number)
+            {
+                vecNum.push_back(number);
+            }
+
+            data.push_back(vecNum);
+        }
     }
 }
