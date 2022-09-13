@@ -74,4 +74,7 @@ class MeshCurvatureflow : public MeshRefineStrategy
         // rhs of the equation as well as the solved results 
         std::vector<Eigen::VectorXf> rhs_;
         std::vector<Eigen::VectorXf> xyz_;
+
+        // whether or not to decimate
+        bool decimate_=true;
 };

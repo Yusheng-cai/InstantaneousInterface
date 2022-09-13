@@ -11,6 +11,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("iterations", ParameterPack::KeyType::Required, numIterations_);
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
+    input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
 
     // set Eigen to be using the correct number of threads 
     Eigen::initParallel();
@@ -43,38 +44,43 @@ void MeshCurvatureflow::refine(Mesh& mesh)
         initialVolume_ = mesh_->calculateVolume();
     }
 
-    // find number of vertices 
-    const auto& v = mesh_->getvertices();
-    numVerts_ = v.size();
-    newVertices_.resize(numVerts_);
-    TotalArea_.resize(numVerts_);
-
-    // obtain the rhs of the equation to be solved 
-    rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
-    xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
 
     // start refining 
     for (int i=0;i<numIterations_;i++)
     {
-        // every iteration, decimate the degenerate triangles
-        if (MeshTools::decimateDegenerateTriangle(*mesh_))
+        // every iteration, decimate the degenerate triangles if necessary
+        if (decimate_)
         {
-            std::cout << "Dcimated." << '\n';
-            // obtain map from edge index {minIndex, maxIndex} to the face index 
-            // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
-            MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+            if (MeshTools::decimateDegenerateTriangle(*mesh_))
+            {
+                // obtain map from edge index {minIndex, maxIndex} to the face index 
+                // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
+                MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
 
-            // Calculate the boundary vertices --> vertices which that has an edge shared by only 1 face
-            MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+                // Calculate the boundary vertices --> vertices which that has an edge shared by only 1 face
+                MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
-            // Calculate the vertex neighbors
-            MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
+                // Calculate the vertex neighbors
+                MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
 
-            // Map from vertex indices to face indices 
-            MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
+                // Map from vertex indices to face indices 
+                MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
 
-            // Map from edges to their opposing vertex indices 
-            MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
+                // Map from edges to their opposing vertex indices 
+                MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
+
+                // find number of vertices 
+                const auto& v = mesh_->getvertices();
+                numVerts_ = v.size();
+                newVertices_.resize(numVerts_);
+                TotalArea_.resize(numVerts_);
+
+                // obtain the rhs of the equation to be solved 
+                rhs_.clear();
+                xyz_.clear();
+                rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+                xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+            }
         }
 
         std::cout << "Iteration " << i << std::endl;
