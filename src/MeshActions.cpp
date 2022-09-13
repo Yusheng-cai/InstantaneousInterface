@@ -1367,3 +1367,12 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
 
     MeshTools::writePLY(outputfname, m);
 }
+
+void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="evolved.ply";
+
+    // read input output
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+}
