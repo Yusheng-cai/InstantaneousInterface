@@ -203,7 +203,7 @@ void DensityField::findAtomsIndicesInBoundingBox()
     AtomIndicesInside_.clear();
     for (auto ag : atomGroupNames_)
     {
-        auto atomgroup = getAtomGroup(ag);
+        const auto& atomgroup = getAtomGroup(ag);
         auto& atoms = atomgroup.getAtoms();
 
         std::vector<int> indices_ag;
@@ -249,7 +249,7 @@ void DensityField::CalculateInstantaneousField()
     for (int i=0;i<atomGroupNames_.size();i++)
     {
         std::string ag = atomGroupNames_[i];
-        auto atomgroup = getAtomGroup(ag);
+        const auto& atomgroup = getAtomGroup(ag);
         auto& atoms = atomgroup.getAtoms();
 
         #pragma omp parallel
