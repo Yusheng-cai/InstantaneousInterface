@@ -91,7 +91,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("FDMfit", "-op FDMfit -box[optional] x y z -i input.ply -o FDMfit.out -fc FDMfit_faceC.out", \
                               [](CommandLineArguments& cmd)->void {return MeshActions::FDMFit(cmd);}, \
                               mapF, mapU);
-    RegisterAction("curvatureflow", "-op curvatureflow -box[optional] x y z -i input.ply -o output.ply -nonpbc true/yes/TRUE -iteration number[int] -lambdadt number[float]", \
+    RegisterAction("curvatureflow", "-op curvatureflow -box[optional] x y z -i input.ply -o output.ply -pbcOutput[optional] true/false -decimate[optional] true -iteration number[int] -lambdadt number[float]", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::CurvatureFlow(cmd);}, \
                     mapF, mapU);
     RegisterAction("NonPBCFace", "-op NonPBCFace -box[required] x y z -i input.ply -o NonPBC.out",\
@@ -106,9 +106,8 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("scale", "-op scale -scale[float] num -i input.ply -o scaled.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
                     mapF, mapU);
-    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -ProjectedIndex[array2] dim1 dim2 \
-                                        -origin[float] num -n n1 n2 -L L1 L2 -FaceCurvatureFile[required] fc.out \
-                                        -FileColumn[int] col -box[optional] x y z", 
+    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -ProjectedIndex[array2] dim1 dim2 -height[float] num -n n1 n2 -L L1 L2 -FaceCurvatureFile[required] fc.out \
+                                        -box[optional] x y z", 
                                         [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dCurvature(cmd);}, 
                                         mapF, mapU);
     RegisterAction("DistanceCutoff", "-op DistanceCutoff -i input.ply -ref ref.ply -o[optional] cut.ply -cutoff[float] distance \
@@ -136,5 +135,8 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("CutOverlappedRegion", "-op CutOverlappedRegion -i input.ply -ref ref.ply -o output.ply -L L1 L2 -n n1 n2 -RayDirection \
                                            -ProjectionIndex ind1 ind2 -height h -box[optional] x y z", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::CutOverlappedRegion(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("DecimateDegenTriangle", "-op DecimateDegenTriangle -i input.ply -box[optional] x y z -o output.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::DecimateDegenerateTriangles(cmd);}, \
                                            mapF, mapU);
 }
