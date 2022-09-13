@@ -1370,9 +1370,50 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
 
 void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
 {
-    std::string inputfname, outputfname="evolved.ply";
+    std::string inputfname, outputfname="evolved.ply", neighbors, stepsize, k0, maxstep="1e5", tolerance;
+    Real3 box;
+
+    // initialize curve ptr
+    refineptr r;
+    ParameterPack EvolutionPack;
+    ParameterPack curvePack;
 
     // read input output
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    // use curve fit 
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+    cmd.readString("stepsize", CommandLineArguments::Keys::Required, stepsize);
+    cmd.readString("k0", CommandLineArguments::Keys::Required, k0);
+    cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
+    cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
+    
+    // fill parameter pack
+    curvePack.insert("neighbors", neighbors);
+    curvePack.insert("type", "curvefit");
+    curvePack.insert("name", "temp");
+    EvolutionPack.insert("Curvature", curvePack);
+    EvolutionPack.insert("name", "refine");
+    EvolutionPack.insert("stepsize", stepsize);
+    EvolutionPack.insert("k0", k0);
+    EvolutionPack.insert("maxstep", maxstep);
+    EvolutionPack.insert("tolerance", tolerance);
+
+    // refine pointer 
+    MeshRefineStrategyInput input = {{EvolutionPack}};
+    r = refineptr(MeshRefineStrategyFactory::Factory::instance().create("CurvatureEvolution", input));
+
+    // read input mesh 
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    if (isPBC){m.setBoxLength(box);}
+
+    // refine the mesh
+    r->refine(m);
+
+    // output the mesh
+    MeshTools::writePLY(outputfname, m);
 }
