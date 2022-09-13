@@ -13,11 +13,11 @@ namespace Algorithm
     void Permutation(int max, int numSamples, int numTimes, std::vector<std::vector<int>>& samples);
     void Permutation(int max, int numSamples, std::vector<int>& samples);
 
-    template <std::size_t dim>
-    int argmin(std::array<Real,dim>& arr);
+    template <typename T, std::size_t dim>
+    int argmin(std::array<T,dim>& arr);
 
-    template <std::size_t dim>
-    int argmax(std::array<Real,dim>& arr);
+    template <typename T, std::size_t dim>
+    int argmax(std::array<T,dim>& arr);
 
     template <typename T>
     int argmin(std::vector<T>& vec);
@@ -37,6 +37,9 @@ namespace Algorithm
     template <typename T>
     T min(std::vector<T>& vec);
 
+    template <typename T, std::size_t dim>
+    T max(std::array<T,dim>& arr);
+
     template <typename T>
     bool contain(std::vector<T>& vec, T num);
 
@@ -52,18 +55,18 @@ std::vector<T> Algorithm::arange(T start, T stop, T step) {
     return values;
 }
 
-template <std::size_t dim>
-int Algorithm::argmin(std::array<Real,dim>& arr)
+template <typename T, std::size_t dim>
+int Algorithm::argmin(std::array<T,dim>& arr)
 {
-    typename std::array<Real,dim>::iterator it = std::min_element(arr.begin(), arr.end());
+    typename std::array<T,dim>::iterator it = std::min_element(arr.begin(), arr.end());
 
     return it - arr.begin();
 }
 
-template <std::size_t dim>
-int Algorithm::argmax(std::array<Real,dim>& arr)
+template <typename T, std::size_t dim>
+int Algorithm::argmax(std::array<T,dim>& arr)
 {
-    typename std::array<Real,dim>::iterator it = std::max_element(arr.begin(), arr.end());
+    typename std::array<T,dim>::iterator it = std::max_element(arr.begin(), arr.end());
 
     return it - arr.begin();
 }
@@ -101,6 +104,14 @@ template <typename T>
 T Algorithm::max(std::vector<T>& vec)
 {
     typename std::vector<T>::iterator max_element = std::max_element(vec.begin(), vec.end());
+
+    return *max_element;
+}
+
+template <typename T, std::size_t dim>
+T Algorithm::max(std::array<T,dim>& arr)
+{
+    typename std::array<T,dim>::iterator max_element = std::max_element(arr.begin(), arr.end());
 
     return *max_element;
 }
