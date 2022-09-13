@@ -50,6 +50,9 @@ namespace Algorithm
     void unique(std::vector<T>& vec); 
 
     template <typename T, std::size_t dim>
+    bool is_unique(std::array<T,dim>& arr);
+
+    template <typename T, std::size_t dim>
     void sort(std::array<T, dim>& arr);
 };
 
@@ -159,6 +162,22 @@ void Algorithm::unique(std::vector<T>& vec)
     std::sort(vec.begin(), vec.end());
     typename std::vector<T>::iterator it = std::unique(vec.begin(), vec.end());
     vec.resize(std::distance(vec.begin(), it));
+}
+
+template <typename T, std::size_t dim>
+bool Algorithm::is_unique(std::array<T,dim>& arr)
+{
+    std::array<T,dim> temp = arr;
+    std::sort(temp.begin(), temp.end());
+    typename std::array<T,dim>::iterator pos = std::adjacent_find(std::begin(temp), std::end(temp));
+    if (pos != std::end(temp))
+    {
+        return false;
+    }
+    else
+    {
+        return true;
+    }
 }
 
 template <typename T, std::size_t dim>
