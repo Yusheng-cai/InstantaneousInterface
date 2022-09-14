@@ -98,6 +98,12 @@ inline std::array<Real,dim> operator*(const std::array<Real,dim>& v1, Real value
 }
 
 template <std::size_t dim>
+inline std::array<Real,dim> operator*(Real value, const std::array<Real,dim>& v1)
+{
+    return v1 * value;
+}
+
+template <std::size_t dim>
 inline std::array<Real,dim> operator/(const std::array<Real,dim>& v1, Real value)
 {
     std::array<Real,dim> ret;
