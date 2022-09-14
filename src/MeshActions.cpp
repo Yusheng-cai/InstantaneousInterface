@@ -246,10 +246,10 @@ void MeshActions::CurveEvolution(CommandLineArguments& cmd)
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 {
     refineptr refine;
-    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt;
+    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt, decimate="true";
     Real3 box;
     ParameterPack pack;
-    bool pbcOutput = false, decimate=true;
+    bool pbcOutput = false;
     Mesh mesh;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
@@ -257,7 +257,7 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     cmd.readString("iteration", CommandLineArguments::Keys::Required, iterations);
     cmd.readString("lambdadt", CommandLineArguments::Keys::Optional, lambdadt);
     cmd.readBool("pbcOutput", CommandLineArguments::Keys::Optional, pbcOutput);
-    cmd.readBool("Decimate", CommandLineArguments::Keys::Optional, decimate);
+    cmd.readString("Decimate", CommandLineArguments::Keys::Optional, decimate);
 
     // check if the mesh is periodic 
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
@@ -270,13 +270,19 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     pack.insert("iterations", iterations);
     pack.insert("lambdadt", lambdadt);
     pack.insert("name", "temp");
+    pack.insert("Decimate", decimate);
     MeshRefineStrategyInput input = {{pack}};
     refine = refineptr(MeshRefineStrategyFactory::Factory::instance().create("curvatureflow", input));
 
     // refine the mesh
     refine -> refine(mesh);
 
-    if (pbcOutput){ MeshTools::writeNonPBCMesh(outputfname, mesh);}
+    if (pbcMesh){
+        if (pbcOutput){
+            MeshTools::writePLY(outputfname, mesh);
+        }
+        else {MeshTools::writeNonPBCMesh(outputfname, mesh);}
+    }
     else{MeshTools::writePLY(outputfname, mesh);}
 }
 
@@ -1358,10 +1364,7 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
     Mesh m;
     MeshTools::readPLYlibr(inputfname, m);
 
-    if (isPBC)
-    {
-        m.setBoxLength(box);
-    }
+    if (isPBC){m.setBoxLength(box);}
 
     MeshTools::decimateDegenerateTriangle(m);
 
@@ -1375,8 +1378,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
 
     // initialize curve ptr
     refineptr r;
-    ParameterPack EvolutionPack;
-    ParameterPack curvePack;
+    ParameterPack EvolutionPack, curvePack;
 
     // read input output
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
@@ -1409,6 +1411,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     Mesh m;
     MeshTools::readPLYlibr(inputfname, m);
 
+    // set box length for mesh
     if (isPBC){m.setBoxLength(box);}
 
     // refine the mesh

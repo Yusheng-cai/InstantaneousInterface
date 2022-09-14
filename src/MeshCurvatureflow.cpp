@@ -38,12 +38,19 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     // Map from edges to their opposing vertex indices 
     MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
 
-    // if we are scaling, we need to calculate the volume
-    if (scale_)
-    {
-        initialVolume_ = mesh_->calculateVolume();
-    }
+    // find number of vertices 
+    const auto& v = mesh_->getvertices();
+    numVerts_ = v.size();
+    newVertices_.resize(numVerts_);
+    TotalArea_.resize(numVerts_);
 
+    // obtain the rhs of the equation to be solved 
+    rhs_.clear();xyz_.clear();
+    rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+    xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+
+    // if we are scaling, we need to calculate the volume
+    if (scale_){initialVolume_ = mesh_->calculateVolume();}
 
     // start refining 
     for (int i=0;i<numIterations_;i++)
@@ -51,8 +58,7 @@ void MeshCurvatureflow::refine(Mesh& mesh)
         // every iteration, decimate the degenerate triangles if necessary
         if (decimate_)
         {
-            if (MeshTools::decimateDegenerateTriangle(*mesh_))
-            {
+            if (MeshTools::decimateDegenerateTriangle(*mesh_)){
                 // obtain map from edge index {minIndex, maxIndex} to the face index 
                 // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
                 MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
@@ -76,8 +82,7 @@ void MeshCurvatureflow::refine(Mesh& mesh)
                 TotalArea_.resize(numVerts_);
 
                 // obtain the rhs of the equation to be solved 
-                rhs_.clear();
-                xyz_.clear();
+                rhs_.clear();xyz_.clear();
                 rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
                 xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
             }
@@ -111,14 +116,14 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
         INT2 edge = MeshTools::makeEdge(i,neighbors[j]);
 
         // map this edge to the faces that it corresponds to 
-        auto it = MapEdgeToFace_.find(edge);
-        ASSERT((it != MapEdgeToFace_.end()), "The edge " << edge[0] << " " << edge[1] << " is not found.");
-        std::vector<int> faces  = it -> second;
+        std::vector<int> faces;
+        bool FoundEdge = Algorithm::FindInMap(MapEdgeToFace_, edge, faces);
+        ASSERT(FoundEdge, "The edge " << edge[0] << " " << edge[1] << " is not found.");
 
         // map this edge to the opposing vertices indices 
-        auto it2 = MapEdgeToOpposingVerts_.find(edge);
-        ASSERT((it2 != MapEdgeToOpposingVerts_.end()), "The edge " << edge[0] << " " << edge[1] << " is not found.");
-        std::vector<int> OpposingVerts  = it2 -> second;
+        std::vector<int> OpposingVerts;
+        bool FoundVerts = Algorithm::FindInMap(MapEdgeToOpposingVerts_, edge, OpposingVerts);
+        ASSERT(FoundVerts, "The edge " << edge[0] << " " << edge[1] << " is not found.");
 
         // factor here is cot(\alpha) + cot(\beta) --> where \alpha and \beta are the opposing angles shared by an edge 
         Real cotOpposingAnglesSum = 0.0;
@@ -140,10 +145,7 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
             Real sin2theta = 1 - costheta*costheta;
 
             // if sin2theta is too close to 0 or even less than 0 then we just return false 
-            if (sin2theta < epsilon_)
-            {
-                return false;
-            }
+            if (sin2theta < epsilon_){return false;}
 
             Real sintheta = std::sqrt(sin2theta);
             cotOpposingAnglesSum += costheta/sintheta;

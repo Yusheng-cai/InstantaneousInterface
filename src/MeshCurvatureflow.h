@@ -11,6 +11,7 @@
 #include "Eigen/SparseLU"
 #include "parallel/OpenMP_buffer.h"
 #include "Eigen/SparseCholesky"
+#include "tools/Algorithm.h"
 
 #include <vector>
 #include <array>

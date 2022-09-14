@@ -292,11 +292,7 @@ void Mesh::CalcVertexNormals()
     for (int i=0;i<getNumVertices();i++)
     {
         Real norm = LinAlg3x3::norm(VertNorms[i]);
-
-        for (int j=0;j<3;j++)
-        {
-            vertices_[i].normals_[j] = VertNorms[i][j]/norm;
-        }
+        vertices_[i].normals_ = VertNorms[i]/norm;
     }
 }
 
@@ -871,6 +867,7 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
     Normals.resize(triangles.size());
 
     // calculate the area of the triangles as well as the normals of the faces of triangles
+    #pragma omp parallel for
     for (int i=0;i<triangles.size();i++)
     {
         auto& t = triangles[i];
@@ -891,12 +888,7 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
         Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
         Real norm = LinAlg3x3::norm(crossProduct);
         Real a    = norm*0.5;
-
-        Real3 n;
-        for (int j=0;j<3;j++)
-        {
-            n[j] = crossProduct[j]/norm;
-        }
+        Real3 n   = crossProduct/norm;
 
         Normals[i] = n;
         Areas[i]   = a;

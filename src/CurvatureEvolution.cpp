@@ -70,6 +70,7 @@ void CurvatureEvolution::refine(Mesh& mesh)
         {
             Real e=maxerr;
             Real avgElocal = 0.0;
+
             #pragma omp for
             for (int j=0;j<VertexIndices_.size();j++)
             {
@@ -81,15 +82,10 @@ void CurvatureEvolution::refine(Mesh& mesh)
                 // add to local average error
                 avgElocal += std::abs(diffkappa);
 
-                if (std::abs(diffkappa) > e)
-                {
-                    e = std::abs(diffkappa);
-                }
+                if (std::abs(diffkappa) > e){e = std::abs(diffkappa);}
 
-                for (int k=0;k<3;k++)
-                {
-                    vertices[index].position_[k] += StepSize_ * vertices[index].normals_[k] * diffkappa;
-                }
+                // update the vertex positions 
+                vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa;
             }
 
             #pragma omp critical
@@ -106,14 +102,8 @@ void CurvatureEvolution::refine(Mesh& mesh)
 
         avgE = avgE / vertices.size();
 
-        if (meanCurvature_ == 0)
-        {
-            err_ = 0;
-        }
-        else
-        {
-            err_ = maxerr / meanCurvature_;
-        }
+        if (meanCurvature_ == 0){err_ = maxerr;}
+        else{err_ = maxerr / meanCurvature_;}
 
         std::cout << "Max error is " << err_ << std::endl;
         std::cout << "average error is " << avgE << "\n";
