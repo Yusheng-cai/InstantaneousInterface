@@ -3,6 +3,7 @@
 #include "CommonTypes.h"
 
 #include <algorithm>
+#include <map>
 #include <numeric>
 #include <vector>
 #include <random>
@@ -54,6 +55,9 @@ namespace Algorithm
 
     template <typename T, std::size_t dim>
     void sort(std::array<T, dim>& arr);
+
+    template <typename key, typename value>
+    bool FindInMap(const std::map<key,value>& map, const key& k, value& v);
 };
 
 template<typename T>
@@ -170,18 +174,20 @@ bool Algorithm::is_unique(std::array<T,dim>& arr)
     std::array<T,dim> temp = arr;
     std::sort(temp.begin(), temp.end());
     typename std::array<T,dim>::iterator pos = std::adjacent_find(std::begin(temp), std::end(temp));
-    if (pos != std::end(temp))
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
+    if (pos != std::end(temp)){return false;}
+    else{return true;}
 }
 
 template <typename T, std::size_t dim>
 void Algorithm::sort(std::array<T,dim>& arr)
 {
     std::sort(arr.begin(), arr.end());
+}
+
+template <typename key, typename value>
+bool Algorithm::FindInMap(const std::map<key,value>& map, const key& k, value& v)
+{
+    typename std::map<key,value>::const_iterator it = map.find(k);
+    if (it != map.end()){v=it->second;return true;}
+    else{return false;}
 }
