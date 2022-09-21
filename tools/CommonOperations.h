@@ -8,6 +8,7 @@ using Real3  = CommonTypes::Real3;
 using Real   = CommonTypes::Real;
 using Matrix = CommonTypes::Matrix;
 
+// printing statements 
 template <typename T, std::size_t dim>
 inline std::ostream& operator<<(std::ostream &out, const std::array<T,dim>& v) {
     for (int i=0;i<dim;i++)
@@ -28,53 +29,67 @@ inline std::ostream& operator<<(std::ostream& out, const std::vector<T>& v)
     return out;
 }
 
+
+// std::array
 template <typename T, std::size_t dim>
-inline std::array<T,dim> operator+(const std::array<T,dim>& v1, const std::array<T,dim>& v2)
-{
+inline std::array<T,dim> operator+(const std::array<T,dim>& v1, const std::array<T,dim>& v2){
     std::array<T,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] + v2[i];
     }
 
     return ret;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator-(const std::array<Real,dim>& v1, const std::array<Real,dim>& v2)
-{
-    std::array<Real,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+template <typename T, std::size_t dim>
+inline std::array<T,dim> operator-(const std::array<T,dim>& v1, const std::array<T,dim>& v2){
+    std::array<T,dim> ret;
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] - v2[i];
     }
 
     return ret;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator*(const std::array<Real,dim>& v1, const std::array<Real,dim>& v2)
+template <typename T, std::size_t dim>
+inline std::array<T,dim> operator*(const std::array<T,dim>& v1, const std::array<T,dim>& v2)
 {
-    std::array<Real,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+    std::array<T,dim> ret;
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] * v2[i];
     }
     return ret;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator/(const std::array<Real,dim>& v1, const std::array<Real,dim>& v2)
+template <typename T1, typename T2>
+inline std::vector<T1> operator*(const std::vector<T1>& v1, const T2& f)
 {
-    std::array<Real,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+    ASSERT((v1.size() !=0), "Multiply an empty std::vector.");
+    std::vector<T1> ret(v1.size());
+    for (int i=0;i<v1.size();i++){
+        ret[i] = v1[i] * f;
+    }
+    return ret;
+}
+
+template <typename T1, typename T2>
+inline std::vector<T1> operator/(const std::vector<T1>& v1, const T2& f)
+{
+    T2 factor = 1.0/f;
+    return v1 * factor;
+}
+
+template <typename T, std::size_t dim>
+inline std::array<T,dim> operator/(const std::array<T,dim>& v1, const std::array<T,dim>& v2)
+{
+    std::array<T,dim> ret;
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] / v2[i];
     }
     return ret;
 }
 
-template <std::size_t dim>
+template <typename T, std::size_t dim>
 inline std::array<Real,dim> operator+(const std::array<Real,dim>& v1, Real value)
 {
     std::array<Real,dim> ret;
@@ -85,30 +100,28 @@ inline std::array<Real,dim> operator+(const std::array<Real,dim>& v1, Real value
     return ret;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator*(const std::array<Real,dim>& v1, Real value)
+template <typename T1, typename T2, std::size_t dim>
+inline std::array<T1,dim> operator*(const std::array<T1,dim>& v1, T2 value)
 {
-    std::array<Real,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+    std::array<T1,dim> ret;
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] * value;
     }
 
     return ret;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator*(Real value, const std::array<Real,dim>& v1)
+template <typename T1, typename T2, std::size_t dim>
+inline std::array<T1,dim> operator*(T2 value, const std::array<T1,dim>& v1)
 {
     return v1 * value;
 }
 
-template <std::size_t dim>
-inline std::array<Real,dim> operator/(const std::array<Real,dim>& v1, Real value)
+template <typename T1, typename T2, std::size_t dim>
+inline std::array<T1,dim> operator/(const std::array<T1,dim>& v1, T2 value)
 {
-    std::array<Real,dim> ret;
-    for (int i=0;i<dim;i++)
-    {
+    std::array<T1,dim> ret;
+    for (int i=0;i<dim;i++){
         ret[i] = v1[i] / value;
     }
 

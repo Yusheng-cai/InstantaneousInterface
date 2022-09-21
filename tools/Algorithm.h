@@ -58,6 +58,10 @@ namespace Algorithm
 
     template <typename key, typename value>
     bool FindInMap(const std::map<key,value>& map, const key& k, value& v);
+
+    // insert something into map --> this value needs to not exist in the map previously
+    template <typename key, typename value>
+    bool InsertInMap(const std::map<key,value>& map, const key& k, const value& v);
 };
 
 template<typename T>
@@ -190,4 +194,14 @@ bool Algorithm::FindInMap(const std::map<key,value>& map, const key& k, value& v
     typename std::map<key,value>::const_iterator it = map.find(k);
     if (it != map.end()){v=it->second;return true;}
     else{return false;}
+}
+
+
+template <typename key, typename value>
+bool Algorithm::InsertInMap(const std::map<key,value>& map, const key& k, const value& v){
+    typename std::map<key,value>::const_iterator it = map.find(k);  
+    if (it != map.end()){map.insert(std::make_pair(k,v));}
+    else{return false;}
+
+    return true;
 }
