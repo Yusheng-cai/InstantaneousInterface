@@ -106,8 +106,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("scale", "-op scale -scale[float] num -i input.ply -o scaled.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
                     mapF, mapU);
-    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -ProjectedIndex[array2] dim1 dim2 -height[float] num -n n1 n2 -L L1 L2 -FaceCurvatureFile[required] fc.out \
-                                        -box[optional] x y z", 
+    RegisterAction("ProjectCurvature", "-op ProjectCurvature -i input.ply -o curvature.out -ProjectedIndex[array2] dim1 dim2 -height[float] num -n n1 n2 -L L1 L2 -FaceCurvatureFile[required] fc.out -box[optional] x y z -RayDirection x y z", 
                                         [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dCurvature(cmd);}, 
                                         mapF, mapU);
     RegisterAction("DistanceCutoff", "-op DistanceCutoff -i input.ply -ref ref.ply -o[optional] cut.ply -cutoff[float] distance \
@@ -128,12 +127,10 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("BoundaryVertices", "-op BoundaryVertices -i input.ply -o boundary.out",\
                                     [](CommandLineArguments& cmd) -> void {return MeshActions::FindBoundaryVertices(cmd);},\
                                     mapF, mapU);
-    RegisterAction("ProjectMesh", "-op ProjectMesh -i[vector] a.ply b.ply .. -L L1 L2 \
-                                    -n n1 n2 -RayDirection -ProjectedIndex ind1 ind2 -height h -box[optional] x y z",\
+    RegisterAction("ProjectMesh", "-op ProjectMesh -i[vector] a.ply b.ply .. -L L1 L2 -n n1 n2 -RayDirection -ProjectedIndex ind1 ind2 -height h -box[optional] x y z",\
                                     [](CommandLineArguments& cmd)-> void {return MeshActions::Project3dMesh(cmd);}, \
                                     mapF, mapU);
-    RegisterAction("CutOverlappedRegion", "-op CutOverlappedRegion -i input.ply -ref ref.ply -o output.ply -L L1 L2 -n n1 n2 -RayDirection \
-                                           -ProjectionIndex ind1 ind2 -height h -box[optional] x y z", \
+    RegisterAction("CutOverlappedRegion", "-op CutOverlappedRegion -i input.ply -ref ref.ply -o output.ply -RayDirection -box[optional] x y z", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::CutOverlappedRegion(cmd);}, \
                                            mapF, mapU);
     RegisterAction("DecimateDegenTriangle", "-op DecimateDegenTriangle -i input.ply -box[optional] x y z -o output.ply", \
@@ -141,5 +138,11 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            mapF, mapU);
     RegisterAction("CurvatureEvolution", "-op CurvatureEvolution -i input.ply -box[optional] x y z -o output.ply -k0 kappa -stepsize size -maxiter max -neighbors[int] -tol tolerance", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::CurvatureEvolution(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("FindIsolatedFace", "-op FindIsolatedFace -i input.ply -o isolated.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::FindIsolatedFace(cmd);},\
+                                           mapF, mapU);
+    RegisterAction("CutTeethlikeFace", "-op CutTeethlikeFace -i input.ply -o cut.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CutTeethlikeFace(cmd);},\
                                            mapF, mapU);
 }

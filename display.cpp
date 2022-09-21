@@ -1,168 +1,177 @@
 #include "src/Mesh.h"
-#include "tools/CommandLineArguments.h"
-#include "tools/CommonTypes.h"
+#include "ModelViewer/Shader.h"
+#include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
 
-#include <GL/glut.h>
-# include <GL/freeglut.h>
-# include <GL/gl.h>
-#include <vector>
-#include <array>
+// to define things like glGenBuffer
+#include "ModelViewer/glad.h"
+#include <GLFW/glfw3.h>
+#include <string>
+#include <iostream>
 
-#  define GLUT_WHEEL_UP   3
-#  define GLUT_WHEEL_DOWN 4
+// helper functions 
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
+void processInput(GLFWwindow *window);
 
-using Real3 = CommonTypes::Real3;
-using INT3  = CommonTypes::index3;
+// settings
+const unsigned int SCR_WIDTH = 800;
+const unsigned int SCR_HEIGHT = 600;
 
-Mesh m;
-float _table_angle = 0.0f;
-bool _3d_view = true;
-static int _win_number;
-
-
-void draw_mesh(Mesh& mesh);
-void display();
-void key_stroke (unsigned char c, int mouseX, int mouseY);
-void mouse_keys (int button, int state, int x, int y);
-
-
-int main(int argc, char** argv)
+int main()
 {
-    std::string fname = argv[1];
-    MeshTools::readPLYlibr(fname, m);
+    std::string vertexCode="vertex.glsl";
+    std::string fragmentCode="fragment.glsl";
 
-    glutInit (&argc, argv);
-    glutInitDisplayMode (GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-    glutInitWindowSize (900, 900);
-    glutInitWindowPosition (240, 212);
-    _win_number = glutCreateWindow (argv[0]);
+    // glfw: initialize and configure
+    // ------------------------------
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_NORMALIZE);
-    glEnable(GL_LIGHTING);
-    glEnable(GL_LIGHT0);
-    glLineWidth(2.2f);
-    //glEnable(GL_LINE_SMOOTH);
-    //glLightfv(GL_LIGHT0, GL_AMBIENT,  {});
-    //glLightfv(GL_LIGHT0, GL_DIFFUSE,  Global::_light0_diffuse);
-    //GLfloat lightp[] = {1.0f,1.0f,1.0f,1.0f};
-    //glLightfv(GL_LIGHT0, GL_SPECULAR, lightp);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
-    glutKeyboardFunc(key_stroke);
-    glutMouseFunc(mouse_keys);
-    glutDisplayFunc(display);
-    glutMainLoop();
+    // glfw window creation
+    // --------------------
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    if (window == NULL){
+        std::cout << "Failed to create GLFW window" << std::endl;
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+    // glad: load all OpenGL function pointers
+    // ---------------------------------------
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)){
+        std::cout << "Failed to initialize GLAD" << std::endl;
+        return -1;
+    }
+
+    Shader s(vertexCode, fragmentCode);
+
+    // set up vertex data (and buffer(s)) and configure vertex attributes
+    // ------------------------------------------------------------------
+    float vertices[] = {
+        -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, // left  
+         0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, // right 
+         0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f // top   
+    }; 
+
+    unsigned int VBO, VAO;
+
+    glGenVertexArrays(1, &VAO);
+
+    /*
+    With the vertex data defined we'd like to send it as input to the first process of the graphics pipeline: the vertex shader. 
+    This is done by creating memory on the GPU where we store the vertex data, 
+    configure how OpenGL should interpret the memory and specify how to send the data to the graphics card. 
+    The vertex shader then processes as much vertices as we tell it to from its memory.
+    We manage this memory via so called vertex buffer objects (VBO) that can store a large number of vertices in the GPU's memory.
+    */
+    glGenBuffers(1, &VBO);
+
+    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
+    glBindVertexArray(VAO);
+
+    /*
+    OpenGL has many types of buffer objects and the buffer type of a vertex buffer object is GL_ARRAY_BUFFER. 
+    OpenGL allows us to bind to several buffers at once as long as they have a different buffer type. 
+    We can bind the newly created buffer to the GL_ARRAY_BUFFER target with the glBindBuffer function:
+    */
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    /*
+    From that point on any buffer calls we make (on the GL_ARRAY_BUFFER target) 
+    will be used to configure the currently bound buffer, which is VBO. 
+    Then we can make a call to the glBufferData function that copies the previously defined vertex data into the buffer's memory:
+    */
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    /* 1. which vertex attribute 
+       2. size of vertex attribute
+       3. type of data
+       4. whether to normalize?
+       5. stride 
+       6. offset from first position
+    */
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
+    glBindBuffer(GL_ARRAY_BUFFER, 0); 
+
+    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
+    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
+    glBindVertexArray(0); 
+
+
+    // uncomment this call to draw in wireframe polygons.
+    // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+    // render loop
+    // -----------
+    while (!glfwWindowShouldClose(window))
+    {
+        // input
+        // -----
+        processInput(window);
+
+        // render
+        // ------
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        // draw our first triangle
+        s.use();
+
+        // camera/view transformation
+        glm::mat4 view = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
+        float radius = 10.0f;
+        float camX = static_cast<float>(sin(glfwGetTime()) * radius);
+        float camZ = static_cast<float>(cos(glfwGetTime()) * radius);
+        view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glBindVertexArray(VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        // glBindVertexArray(0); // no need to unbind it every time 
+ 
+        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
+        // -------------------------------------------------------------------------------
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // optional: de-allocate all resources once they've outlived their purpose:
+    // ------------------------------------------------------------------------
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    s.del();
+
+    // glfw: terminate, clearing all previously allocated GLFW resources.
+    // ------------------------------------------------------------------
+    glfwTerminate();
     return 0;
 }
 
-
-void draw_mesh(Mesh& mesh) 
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void processInput(GLFWwindow *window)
 {
-    glEnable(GL_COLOR_MATERIAL);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-
-    glEnableClientState(GL_VERTEX_ARRAY);
-    glEnableClientState(GL_NORMAL_ARRAY);
-    glEnableClientState(GL_COLOR_ARRAY);
-
-    mesh.CalcVertexNormals();
-    const auto& v = mesh.getvertices();
-    const auto& t = mesh.gettriangles();
-    std::vector<Real3> verts(v.size());
-    std::vector<INT3>  tris(t.size());
-    std::vector<Real3> norms(v.size());
-
-    for (int i=0;i<v.size();i++)
-    {
-        verts[i] = v[i].position_;
-        norms[i] = v[i].normals_;
-    }
-
-    for (int i=0;i<t.size();i++)
-    {
-        tris[i] = t[i].triangleindices_;
-    }
-
-    glVertexPointer(3, GL_FLOAT, 0, verts.data());
-    glNormalPointer(GL_FLOAT, 0, norms.data());
-    //glColorPointer(3, GL_FLOAT, 0, mesh._colors.data());
-    glDrawElements(GL_TRIANGLES, tris.size()*3, GL_UNSIGNED_INT, tris.data());
-
-    glDisableClientState(GL_VERTEX_ARRAY);
-    glDisableClientState(GL_NORMAL_ARRAY);
-    glDisableClientState(GL_COLOR_ARRAY);
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
 }
 
-void display()
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
-    glClearColor ( 0.93,  0.93,  0.93,  0.93);
-    glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-    glViewport(0,0,900,900);
-
-    glMatrixMode (GL_PROJECTION);
-    glLoadIdentity();
-    gluPerspective(60., 1., 0.5, 100.);
-
-    glMatrixMode (GL_MODELVIEW);
-    glLoadIdentity ();
-
-    if(_3d_view){
-        GLfloat lightPos0[] = {0.0f, 0.0f, 0.0f, 1.0f};
-        glLightfv(GL_LIGHT0, GL_POSITION, lightPos0);
-
-        glTranslatef(0.0, 0.0, -1.5);
-        glRotatef(45.0f, -1.0f, 0.0f, 0.0f);
-        glRotatef(_table_angle, -1.0f, 0.0f, 0.0f);
-
-        static float angle = 0.0f;
-        angle = fmodf(angle+0.3f, 360.f);
-        //glRotatef(angle, 1.0f, 0.0f, 0.0f);
-        glRotatef(angle, 0.0f, 0.0f, 1.0f);
-        glutPostRedisplay();
-    }
-    else
-        glTranslatef(0.0, 0.0, -1.0);
-    float s = 0.5f;
-    glScalef(s, s, s);
-
-    draw_mesh(m);
-
-    glutSwapBuffers();
-    glFlush ();
-}
-
-void key_stroke (unsigned char c, int mouseX, int mouseY) {
-    static bool wires  = false;
-
-    switch (c) {
-    case 27 :
-        glFinish();
-        glutDestroyWindow(_win_number);
-        exit (0);
-        break;
-    case 'w' :
-        if(!wires) {
-            glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-            glDisable(GL_LIGHTING);
-            glutPostRedisplay();
-            wires = true;
-        }else {
-            glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
-            glEnable(GL_LIGHTING);
-            glutPostRedisplay();
-            wires = false;
-        }
-        break;
-    }
-}
-
-
-void mouse_keys (int button, int state, int x, int y)
-{
-    if(button == GLUT_WHEEL_UP)
-        _table_angle += 1.0f;
-    if(button == GLUT_WHEEL_DOWN)
-        _table_angle -= 1.0f;
+    // make sure the viewport matches the new window dimensions; note that width and 
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
 }
