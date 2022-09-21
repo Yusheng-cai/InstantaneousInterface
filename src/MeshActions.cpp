@@ -246,31 +246,33 @@ void MeshActions::CurveEvolution(CommandLineArguments& cmd)
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 {
     refineptr refine;
-    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt, decimate="true";
+    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt, decimate="true", numBoundarySmooth="0";
     Real3 box;
     ParameterPack pack;
     bool pbcOutput = false;
-    Mesh mesh;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readString("iteration", CommandLineArguments::Keys::Required, iterations);
-    cmd.readString("lambdadt", CommandLineArguments::Keys::Optional, lambdadt);
+    cmd.readString("lambdadt", CommandLineArguments::Keys::Required, lambdadt);
     cmd.readBool("pbcOutput", CommandLineArguments::Keys::Optional, pbcOutput);
     cmd.readString("Decimate", CommandLineArguments::Keys::Optional, decimate);
-
+    cmd.readString("NumBoundarySmoothing", CommandLineArguments::Keys::Optional, numBoundarySmooth);
     // check if the mesh is periodic 
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
-    if (pbcMesh){mesh.setBoxLength(box);}
 
     // read the mesh
+    Mesh mesh;
     MeshTools::readPLYlibr(inputfname, mesh);
+    if (pbcMesh){mesh.setBoxLength(box);}
 
     // insert the values into parameter pack
     pack.insert("iterations", iterations);
     pack.insert("lambdadt", lambdadt);
     pack.insert("name", "temp");
     pack.insert("Decimate", decimate);
+    pack.insert("NumBoundarySmoothing",numBoundarySmooth);
+
     MeshRefineStrategyInput input = {{pack}};
     refine = refineptr(MeshRefineStrategyFactory::Factory::instance().create("curvatureflow", input));
 
@@ -521,12 +523,10 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
 
     // read the input file and set up the mesh 
     std::vector<Mesh> Meshs;
-    for (auto fname : inputfname)
-    {
+    for (auto fname : inputfname){
         Mesh m;
         MeshTools::readPLYlibr(fname, m);
-        if (isPBC)
-        {
+        if (isPBC){
             m.setBoxLength(box); 
         }
         Meshs.push_back(m);
@@ -685,49 +685,38 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // read the input file and set up the mesh 
     Mesh mesh;
     MeshTools::readPLYlibr(inputfname, mesh);
+    if (isPBC){mesh.setBoxLength(box);}
 
     // read the reference meshes
     std::vector<Mesh> refMesh;
-    for (auto fname : refMeshfname)
-    {
+    for (auto fname : refMeshfname){
         Mesh ref;
         MeshTools::readPLYlibr(fname, ref);
-        if (isPBC)
-        {
-            ref.setBoxLength(box); 
-        }
+        if (isPBC){ref.setBoxLength(box); }
         refMesh.push_back(ref);
     }
 
-    // read the current mesh 
-    if (isPBC)
-    {
-        mesh.setBoxLength(box);
-    }
 
     // initialize and populate the lattice points
-    std::vector<Real3> points;
-    for (int i=0;i<n[0];i++)
-    {
-        for (int j=0;j<n[1];j++)
-        {
+    std::vector<Real3> lattice;
+    for (int i=0;i<n[0];i++){
+        for (int j=0;j<n[1];j++){
             Real3 p = {{origin_pos, origin_pos, origin_pos}};
             p[ProjectedIndex[0]] = (i+0.5) * d[0];
             p[ProjectedIndex[1]] = (j+0.5) * d[1];
 
-            points.push_back(p);
+            lattice.push_back(p);
         }
     }
 
     // points curvature
-    std::vector<std::vector<Real>> pointCurvature(points.size());
-    std::vector<bool> hitRefMesh(points.size(), false);
-    std::vector<Real> hitRefMeshHeightMin(points.size(), 1e10);
-    std::vector<std::vector<Real>> hitRefMeshHeightTotal(points.size());
+    std::vector<std::vector<Real>> pointCurvature(lattice.size());
+    std::vector<bool> hitRefMesh(lattice.size(), false);
+    std::vector<Real> hitRefMeshHeightMin(lattice.size(), 1e10);
+    std::vector<std::vector<Real>> hitRefMeshHeightTotal(lattice.size());
 
     // see if any points hits any of the reference mesh 
-    for (auto& m : refMesh)
-    {
+    for (auto& m : refMesh){
         // for each reference mesh --> calculate vertex normal
         m.CalcVertexNormals();
 
@@ -737,12 +726,10 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         const auto& refNormal=m.getFaceNormals();
 
         #pragma omp parallel for
-        for (int i=0;i<points.size();i++)
-        {
+        for (int i=0;i<lattice.size();i++){
             // define the origin points
-            Real3 O = points[i];
-            for (int j=0;j<refFace.size();j++)
-            {
+            Real3 O = lattice[i];
+            for (int j=0;j<refFace.size();j++){
                 Real3 projectedD;
                 Real3 A, B, C;
                 A = refverts[refFace[j].triangleindices_[0]].position_;
@@ -752,15 +739,13 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
                 Real t, u, v;
 
                 // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-                if (isPBC)
-                {
+                if (isPBC){
                     MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
                                                     const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
                 }
 
                 // hit ref mesh height
-                if (MeshTools::MTRayTriangleIntersection(A, B, C, O, D, t, u, v))
-                {
+                if (MeshTools::MTRayTriangleIntersection(A, B, C, O, D, t, u, v)){
                     hitRefMeshHeightTotal[i].push_back(t);
                 }
             }
@@ -768,7 +753,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     }
 
     #pragma omp parallel for
-    for (int i=0;i<points.size();i++)
+    for (int i=0;i<lattice.size();i++)
     {
         if (hitRefMeshHeightTotal[i].size() != 0)
         {
@@ -790,13 +775,11 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     {
         Real3 A, B, C;
         // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-        if (isPBC)
-        {
+        if (isPBC){
             MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
                                             const_cast<INT3&>(face[i].triangleindices_), box, A, B, C);
         }
-        else
-        {
+        else{
             A = verts[face[i].triangleindices_[0]].position_;
             B = verts[face[i].triangleindices_[1]].position_;
             C = verts[face[i].triangleindices_[2]].position_;
@@ -807,20 +790,17 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
     // iterate over the points 
     #pragma omp parallel for 
-    for (int i=0;i<points.size();i++)
-    {
-        Real3 O = points[i];
+    for (int i=0;i<lattice.size();i++){
+        Real3 O = lattice[i];
         std::vector<int> faceIndex;
         std::vector<Real> value;
 
-        for (int j=0;j<face.size();j++)
-        {
+        for (int j=0;j<face.size();j++){
             Real3 projectedD;
             Real t, u, v;
             Real3 A=shiftedTriangle[j][0], B = shiftedTriangle[j][1], C=shiftedTriangle[j][2];
 
-            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v))
-            {
+            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v)){
                 faceIndex.push_back(j);
                 value.push_back(t);
             }
@@ -828,22 +808,18 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
 
         // value size = 0 means that this particular Ray did not hit any of the triangles
         std::vector<Real> temp(colsize,-100);
-        if (value.size() != 0)
-        {
+        if (value.size() != 0){
             // find the min element index of t --> the shorted the t, the closer it is to the viewing point
             int minIndex = Algorithm::argmin(value);
-            if (value[minIndex] < hitRefMeshHeightMin[i])
-            {
+            if (value[minIndex] < hitRefMeshHeightMin[i]){
                 int fcIndex = faceIndex[minIndex];
                 pointCurvature[i] = fc[fcIndex];
             }
-            else 
-            {
+            else {
                 pointCurvature[i] = temp;
             }
         }
-        else
-        {
+        else{
             pointCurvature[i] = temp;
         }
     }
@@ -851,10 +827,8 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     // start to output file
     std::ofstream ofs(outputfname);
     int index=0;
-    for (int i=0;i<n[0];i++)
-    {
-        for (int j=0;j<n[1];j++)
-        {
+    for (int i=0;i<n[0];i++){
+        for (int j=0;j<n[1];j++){
             ofs << i << " " << j << " " << pointCurvature[index] << "\n";
             index++;
         }
@@ -1021,6 +995,9 @@ void MeshActions::MinimumMeshDistance(CommandLineArguments& cmd)
     Mesh mesh, refmesh;
     MeshTools::readPLYlibr(inputfname, mesh);
     MeshTools::readPLYlibr(reffname, refmesh);
+    if (isPBC){
+        mesh.setBoxLength(box);refmesh.setBoxLength(box);
+    }
 
     const auto& v = mesh.getvertices();
     const auto& refv = refmesh.getvertices();
@@ -1031,24 +1008,19 @@ void MeshActions::MinimumMeshDistance(CommandLineArguments& cmd)
     for (int i=0;i<v.size();i++)
     {
         std::vector<Real> distance(refv.size(),0.0);
-        for (int j=0;j<refv.size();j++)
-        {
+        for (int j=0;j<refv.size();j++){
             Real distsq=0.0;
-            if (isPBC)
-            {
+            if (isPBC){
                 Real3 r;
                 MeshTools::calculateDistance(v[i].position_, refv[j].position_, box, r, distsq);
                 distsq = 0.0;
 
-                for (int k=0;k<DistanceIndices.size();k++)
-                {
+                for (int k=0;k<DistanceIndices.size();k++){
                     distsq += r[DistanceIndices[k]] * r[DistanceIndices[k]];
                 }
             }
-            else
-            {
-                for (int k=0;k<DistanceIndices.size();k++)
-                {
+            else{
+                for (int k=0;k<DistanceIndices.size();k++){
                     distsq += std::pow((v[i].position_[DistanceIndices[k]]-refv[j].position_[DistanceIndices[k]]),2.0);
                 }
             }
@@ -1061,8 +1033,7 @@ void MeshActions::MinimumMeshDistance(CommandLineArguments& cmd)
 
     std::ofstream ofs;
     ofs.open(outputfname);
-    for (int i=0;i<v.size();i++)
-    {
+    for (int i=0;i<v.size();i++){
         ofs << i << " " << minDist[i] << "\n";
     }
     ofs.close();
@@ -1091,13 +1062,11 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
     const auto& f = mesh.gettriangles();
 
     // copy the data to mesh plane intersection code 
-    for (int i=0;i<v.size();i++)
-    {
+    for (int i=0;i<v.size();i++){
         vertices.push_back(v[i].position_);
     }
 
-    for (int i=0;i<f.size();i++)
-    {
+    for (int i=0;i<f.size();i++){
         faces.push_back(f[i].triangleindices_);
     }
 
@@ -1111,10 +1080,8 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
 
     std::ofstream ofs;
     ofs.open(outputfname);
-    for (int i=0;i<result[0].points.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
+    for (int i=0;i<result[0].points.size();i++){
+        for (int j=0;j<3;j++){
             ofs << result[0].points[i][j] << " ";
         }
         ofs << "\n";
@@ -1173,10 +1140,8 @@ void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd)
     std::ofstream ofs;
     ofs.open(outputfname);
 
-    for (int i=0;i<BoundaryIndicator.size();i++)
-    {
-        if (BoundaryIndicator[i])
-        {
+    for (int i=0;i<BoundaryIndicator.size();i++){
+        if (BoundaryIndicator[i]){
             ofs << i << " ";
         }
     }
@@ -1210,26 +1175,9 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     Mesh m, refm;
     MeshTools::readPLYlibr(inputfname, m);
     MeshTools::readPLYlibr(reffname, refm);
-    if (isPBC)
-    {
+    if (isPBC){
         m.setBoxLength(box);
         refm.setBoxLength(box);
-    }
-
-    // initialize the points
-    std::vector<Real3> points;
-
-    // populate the points 
-    for (int i=0;i<n[0];i++)
-    {
-        for (int j=0;j<n[1];j++)
-        {
-            Real3 p = {{origin_pos, origin_pos, origin_pos}};
-            p[ProjectedIndex[0]] = (i+0.5) * d[0];
-            p[ProjectedIndex[1]] = (j+0.5) * d[1];
-
-            points.push_back(p);
-        }
     }
 
     // see if any points hits any of the reference mesh 
@@ -1252,8 +1200,7 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
         C = verts[Face[i].triangleindices_[2]].position_;
 
         // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-        if (isPBC)
-        {
+        if (isPBC){
             MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(verts), \
                                             const_cast<INT3&>(Face[i].triangleindices_), box, A, B, C);
         }
@@ -1271,8 +1218,7 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
         C = refverts[refFace[i].triangleindices_[2]].position_;
 
         // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-        if (isPBC)
-        {
+        if (isPBC){
             MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
                                             const_cast<INT3&>(refFace[i].triangleindices_), box, A, B, C);
         }
@@ -1291,8 +1237,7 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
             A = fixed_reftri_pbc[j][0], B=fixed_reftri_pbc[j][1], C=fixed_reftri_pbc[j][2];
             Real t, u ,v;
 
-            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v))
-            {
+            if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v)){
                 keeptri[i] = false;
                 break;
             }
@@ -1303,16 +1248,13 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
     auto& newF = newMesh.accesstriangles();
     auto& newV = newMesh.accessvertices();
 
-    for (int i=0;i<Face.size();i++)
-    {
-        if (keeptri[i])
-        {
+    for (int i=0;i<Face.size();i++){
+        if (keeptri[i]){
             newF.push_back(Face[i]);
         }
     }
 
-    for (int i=0;i<verts.size();i++)
-    {
+    for (int i=0;i<verts.size();i++){
         newV.push_back(verts[i]);
     }
     std::vector<std::vector<int>> neighborIndex;
@@ -1320,10 +1262,8 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
 
     int index=0;
     std::vector<int> MapOldToNewIndex(newV.size(),-1);
-    for (int i=0;i<neighborIndex.size();i++)
-    {
-        if (neighborIndex[i].size() != 0)
-        {
+    for (int i=0;i<neighborIndex.size();i++){
+        if (neighborIndex[i].size() != 0){
             MapOldToNewIndex[i] = index;            
             index++;
         }
@@ -1331,20 +1271,16 @@ void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
 
     std::vector<INT3> newFace;
     std::vector<Real3> newVerts;
-    for (int i=0;i<newF.size();i++)
-    {
+    for (int i=0;i<newF.size();i++){
         INT3 ind;
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             ind[j] = MapOldToNewIndex[newF[i].triangleindices_[j]];
         }
         newFace.push_back(ind);
     }
 
-    for (int i=0;i<newV.size();i++)
-    {
-        if (neighborIndex[i].size() != 0)
-        {
+    for (int i=0;i<newV.size();i++){
+        if (neighborIndex[i].size() != 0){
             newVerts.push_back(verts[i].position_);
         }
     }
@@ -1418,5 +1354,91 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     r->refine(m);
 
     // output the mesh
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::FindIsolatedFace(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="isolated.out";
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    const auto& t = m.gettriangles();
+    int nf = t.size();
+    std::vector<INT3> IsolatedTriangles;
+    std::map<INT2, std::vector<int>> mapEdgeToFace;
+    std::vector<std::vector<INT2>> mapVertexToEdge;
+    MeshTools::MapEdgeToFace(m, mapEdgeToFace, mapVertexToEdge);
+
+    for (int i=0;i<nf;i++)
+    {
+        if (MeshTools::IsIsolatedFace(m, i, mapEdgeToFace)){
+            IsolatedTriangles.push_back(t[i].triangleindices_);
+        }
+    }
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    for (int i=0;i<IsolatedTriangles.size();i++)
+    {
+        ofs << IsolatedTriangles[i] << "\n";
+    }
+
+    ofs.close();
+}
+
+void MeshActions::CutTeethlikeFace(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="cut.ply";
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    bool teethlike = true;
+    int max = 5;
+    int iter=1;
+
+    while (teethlike){
+        const auto& t = m.gettriangles();
+        int nf = t.size();
+
+        std::vector<int> teethlikeTriangles;
+        std::map<INT2, std::vector<int>> mapEdgeToFace;
+        std::vector<std::vector<INT2>> mapVertexToEdge;
+        std::vector<triangle> newT;
+        MeshTools::MapEdgeToFace(m, mapEdgeToFace, mapVertexToEdge);
+
+        for (int i=0;i<nf;i++)
+        {
+            if (MeshTools::IsTeethlikeFace(m, i, mapEdgeToFace)){
+                teethlikeTriangles.push_back(i);
+            }
+            else{
+                newT.push_back(t[i]);
+            }
+        }
+
+        if (teethlikeTriangles.size() == 0){
+            teethlike = false;
+        }
+        else{
+            auto& oldT = m.accesstriangles();
+            oldT.clear();
+            oldT.insert(oldT.end(), newT.begin(), newT.end());
+        }
+
+        iter++;
+        if (iter > max){
+            std::cout << "exiting prematurely" << "\n";
+            break;
+        }
+    }
+
+    MeshTools::ReconstructMeshAfterFaceCut(m);
     MeshTools::writePLY(outputfname, m);
 }

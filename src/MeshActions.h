@@ -95,4 +95,10 @@ namespace MeshActions
 
     // curvature evolution --> only use curvefit
     void CurvatureEvolution(CommandLineArguments& cmd);
+
+    // find isolated triangle 
+    void FindIsolatedFace(CommandLineArguments& cmd);
+
+    // cut out teeth like faces
+    void CutTeethlikeFace(CommandLineArguments& cmd);
 };
