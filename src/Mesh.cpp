@@ -112,10 +112,8 @@ void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, R
     distVec.fill(0);
     distVec = v1 - v2;
 
-    if (isPeriodic())
-    {
-        for (int i=0;i<3;i++)
-        {
+    if (isPeriodic()){
+        for (int i=0;i<3;i++){
             if (distVec[i] > boxLength_[i] * 0.5) distVec[i] -= boxLength_[i];
             if (distVec[i] < -boxLength_[i] * 0.5) distVec[i] += boxLength_[i];
         }
@@ -903,23 +901,16 @@ void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int
     neighborIndices.clear();
     neighborIndices.resize(vertices.size());
 
-    for (int i=0;i<triangles.size();i++)
-    {
+    for (int i=0;i<triangles.size();i++){
         auto& t = triangles[i];
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             int index1 = t.triangleindices_[j];
-            for (int k=0;k<3;k++)
-            {
-                if (j != k)
-                {
+            for (int k=0;k<3;k++){
+                if (j != k){
                     int index2 = t.triangleindices_[k];
-
                     auto it = std::find(neighborIndices[index1].begin(), neighborIndices[index1].end(), index2);
-
-                    if (it == neighborIndices[index1].end())
-                    {
+                    if (it == neighborIndices[index1].end()){
                         neighborIndices[index1].push_back(index2);
                     }
                 }
@@ -928,48 +919,47 @@ void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int
     }
 }
 
-void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, \
-std::vector<std::vector<INT2>>& mapVertexToEdge)
+void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge)
 {
-    auto& triangles = mesh.gettriangles();
-    auto& vertices  = mesh.getvertices();
+    // get the triangles and vertices from mesh object
+    const auto& triangles = mesh.gettriangles();
+    const auto& vertices  = mesh.getvertices();
 
+    // clear the inputs 
     mapVertexToEdge.clear();
     mapVertexToEdge.resize(vertices.size());
     mapEdgeToFace.clear();
 
     // iterate over all the triangles
-    for (int i=0;i<triangles.size();i++)
-    {
+    for (int i=0;i<triangles.size();i++){
         // find the triangles indices
         auto& t = triangles[i];
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
+            // get the 2 adjacent indices
             int idx1 = t.triangleindices_[j];
             int idx2 = t.triangleindices_[(j+1)%3];
+
+            // find the min/max of the 2
             int minIndex = std::min(idx1, idx2);
             int maxIndex = std::max(idx1, idx2);
             INT2 arr = {{minIndex, maxIndex}};
 
+            // insert into map
             auto it = mapEdgeToFace.find(arr);
-
-            if (it == mapEdgeToFace.end())
-            {
+            if (it == mapEdgeToFace.end()){
                 std::vector<int> faceIndices;
                 faceIndices.push_back(i);
 
                 mapEdgeToFace.insert(std::make_pair(arr,faceIndices));
             }
-            else
-            {
+            else{
                 it -> second.push_back(i);
             }
         }
 
         // map vertex to edges 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             int idx1 = t.triangleindices_[j];
             int idx2 = t.triangleindices_[(j+1)%3];
             int minIdx = std::min(idx1, idx2);
@@ -992,10 +982,8 @@ std::vector<std::vector<INT2>>& mapVertexToEdge)
 
     // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
     int id = 0;
-    for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++)
-    {
-        if (it -> second.size() > 2)
-        {
+    for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++){
+        if (it -> second.size() > 2){
             std::cout << "This is for edge " << id << " consisting of vertex " << it ->first[0] <<" " << it->first[1] <<"\n";
             for (auto s : it -> second)
             {
@@ -1017,15 +1005,13 @@ void MeshTools::CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector
     boundaryIndicator.clear();
     boundaryIndicator.resize(vertices.size(), false);
 
-    for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++)
-    {
+    for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++){
         int size = it -> second.size();
         ASSERT(( size == 1 || size == 2), "An edge can only be shared by 1 or 2 faces.");
         INT2 arr = it -> first;
 
         // if the edge size == 1, then it is a boundary edge
-        if (size == 1)
-        {
+        if (size == 1){
             boundaryIndicator[arr[0]] = true;
             boundaryIndicator[arr[1]] = true;
         }
@@ -1040,32 +1026,27 @@ bool MeshTools::IsBoundary(int index, const std::vector<bool>& boundaryIndicator
 void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& triangles)
 {
     // if periodic, then do something, else do nothing 
-    if (mesh.isPeriodic())
-    {
+    if (mesh.isPeriodic()){
         auto MeshVertices = mesh.getvertices();
         auto MeshTriangles = mesh.gettriangles();
 
         // first let's copy all the vertices 
         vertices.clear();
-        for (auto& v : MeshVertices)
-        {
+        for (auto& v : MeshVertices){
             vertices.push_back(v.position_);
         }
 
         // check if triangle is periodic 
-        for (auto& t : MeshTriangles)
-        {
+        for (auto& t : MeshTriangles){
             // find all the edge lengths
             bool periodicTriangle = MeshTools::IsPeriodicTriangle(MeshVertices, t.triangleindices_, mesh.getBoxLength());
 
             // if this particular triangle is not periodic 
-            if (! periodicTriangle)
-            {
+            if (! periodicTriangle){
                 triangles.push_back(t.triangleindices_);
             }
             // if it's periodic triangle, then we push back 3 new vertices 
-            else
-            {
+            else{
                 Real3 verticesNew1;
                 Real3 verticesNew2, verticesDiff2;
                 Real distsq2;
@@ -1080,34 +1061,17 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
                 mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
 
                 // get the new vertices --> with respect to position 1
-                for (int j=0;j<3;j++)
-                {
-                    verticesNew2[j] = MeshVertices[idx1].position_[j] + verticesDiff2[j];
-                    verticesNew3[j] = MeshVertices[idx1].position_[j] + verticesDiff3[j];
-                }
+                verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
+                verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
 
                 // Find approximately the center of the triangle
-                Real3 center_of_triangle = {};
-                for (int j=0;j<3;j++)
-                {
-                    center_of_triangle[j] += MeshVertices[idx1].position_[j];
-                    center_of_triangle[j] += verticesNew2[j];
-                    center_of_triangle[j] += verticesNew3[j];
-                }
-
-                for (int j=0;j<3;j++)
-                {
-                    center_of_triangle[j] *= 1.0/3.0;
-                }
-
+                Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
                 Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
 
-                for (int j=0;j<3;j++)
-                {
-                    verticesNew1[j] = MeshVertices[idx1].position_[j] + shift[j];
-                    verticesNew2[j] = verticesNew2[j] + shift[j];
-                    verticesNew3[j] = verticesNew3[j] + shift[j];
-                }
+                // update the vertices
+                verticesNew1 = MeshVertices[idx1].position_ + shift;
+                verticesNew2 = verticesNew2 + shift;
+                verticesNew3 = verticesNew3 + shift;
 
                 int NewIndex1 = vertices.size();
                 vertices.push_back(verticesNew1);
@@ -1126,17 +1090,14 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
 bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength)
 {
     bool IsPeriodic=false;
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         int index1 = face[i];
         int index2 = face[(i+1) % 3]; 
         Real3 diff;
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             diff[j] = Vertices[index1].position_[j] - Vertices[index2].position_[j];
 
-            if (std::abs(diff[j]) >= 0.5 * BoxLength[j])
-            {
+            if (std::abs(diff[j]) >= 0.5 * BoxLength[j]){
                 return true;
             }
         }
@@ -1188,8 +1149,7 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
     MapEdgeToOppoVertices.clear();
 
     // iterate over the edges 
-    for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++)
-    {
+    for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++){
         std::vector<int> faces = it -> second;
         INT2 edge = it -> first;
         std::vector<int> opposingPoints;
@@ -1197,20 +1157,16 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
         int numf = faces.size();
 
         // only perform calculation if we are working with non boundary edge --> (edges shared by 2 faces)
-        if (numf == 2)
-        {
+        if (numf == 2){
             // iterate over the 2 faces 
-            for (int f : faces)
-            {
+            for (int f : faces){
                 auto& TriIndices = tri[f].triangleindices_;
 
                 // iterate over the triangular indices of each of the face 
-                for (int id : TriIndices)
-                {
+                for (int id : TriIndices){
                     bool IsInEdge = std::find(edge.begin(), edge.end(), id) != edge.end();
 
-                    if ( ! IsInEdge)
-                    {
+                    if ( ! IsInEdge){
                         opposingPoints.push_back(id);
                     }
                 }
@@ -1232,11 +1188,9 @@ void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>
 
     int index=0;
     std::map<int,int> MapOldIndexToNew;
-    for (int i=0;i<verts.size();i++)
-    {
+    for (int i=0;i<verts.size();i++){
         auto& v = verts[i];
-        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2])
-        {
+        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
             int newindex = index;
             vertices.push_back(v.position_);
             MapOldIndexToNew.insert(std::make_pair(i, newindex));
@@ -1244,17 +1198,14 @@ void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>
         }
     }
 
-    for (auto& t : tri)
-    {
+    for (auto& t : tri){
         bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
         bool it2 = MapOldIndexToNew.find(t.triangleindices_[1]) != MapOldIndexToNew.end();
         bool it3 = MapOldIndexToNew.find(t.triangleindices_[2]) != MapOldIndexToNew.end();
 
-        if (it1 && it2 && it3)
-        {
+        if (it1 && it2 && it3){
             INT3 newt;
-            for (int i=0;i<3;i++)
-            {
+            for (int i=0;i<3;i++){
                 auto it = MapOldIndexToNew.find(t.triangleindices_[i]);
                 int newIndex = it -> second;
                 newt[i] = newIndex;
@@ -1322,18 +1273,15 @@ void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, 
 			CornerArea[i][2] = area - CornerArea[i][0] - CornerArea[i][1];
 		} else {
 			float scale = 0.5f * area / (bcw[0] + bcw[1] + bcw[2]);
-			for (int j = 0; j < 3; j++)
-            {
+			for (int j = 0; j < 3; j++){
                 int next = j - 1;
                 int nextnext = j -2;
 
-                if (next < 0)
-                {
+                if (next < 0){
                     next += 3;
                 }
 
-                if (nextnext < 0)
-                {
+                if (nextnext < 0){
                     nextnext += 3;
                 }
 
@@ -1364,8 +1312,7 @@ bool MeshTools::MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O
     det= LinAlg3x3::DotProduct(P, E1);
 
     // if det is close to 0, then the ray and triangle are parallel
-    if (std::abs(det) < epsilon)
-    {
+    if (std::abs(det) < epsilon){
         return false;
     }
 
@@ -1413,25 +1360,20 @@ void MeshTools::writeNonPeriodicTriangleIndices(std::string name, Mesh& mesh)
     const auto& f = mesh.gettriangles();
     const auto& v = mesh.getvertices();
 
-    if (mesh.isPeriodic())
-    {
-        for (int i =0;i<f.size();i++)
-        {
+    if (mesh.isPeriodic()){
+        for (int i =0;i<f.size();i++){
             auto t = f[i].triangleindices_;
-            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), t, mesh.getBoxLength()))
-            {
+            if (! MeshTools::IsPeriodicTriangle(const_cast<std::vector<vertex>&>(v), t, mesh.getBoxLength())){
                 NonPeriodicTriangleIndices.push_back(i);
             }
         }
     }
-    else
-    {
+    else{
         NonPeriodicTriangleIndices.resize(f.size());
         std::iota(NonPeriodicTriangleIndices.begin(), NonPeriodicTriangleIndices.end(),0);
     }
 
-    for (int index : NonPeriodicTriangleIndices)
-    {
+    for (int index : NonPeriodicTriangleIndices){
         ofs << index << " ";
     }
 
@@ -1448,8 +1390,7 @@ void MeshTools::writeMeshArea(std::string filename, Mesh& mesh)
     std::ofstream ofs;
     ofs.open(filename);
 
-    for (int i=0;i<triangleA.size();i++)
-    {
+    for (int i=0;i<triangleA.size();i++){
         ofs << triangleA[i] << "\n";
     }
 
@@ -1477,8 +1418,7 @@ void MeshTools::CheckDegenerateTriangle(Mesh& mesh, \
     Real merge_epsilon=1e-4;
 
     // what we check is if one side is whether or not a + b = c 
-    for (int i=0;i<f.size();i++)
-    {
+    for (int i=0;i<f.size();i++){
         INT3 indices = f[i].triangleindices_;
 
         // get all three vertices of the triangle
@@ -1503,8 +1443,7 @@ void MeshTools::CheckDegenerateTriangle(Mesh& mesh, \
  
         //ASSERT((diff1 >= 0 && diff2 >= 0 && diff3 >= 0), "Something weird with triangles.");
 
-        if ((AB < merge_epsilon) || (BC < merge_epsilon) || (CA < merge_epsilon))
-        {
+        if ((AB < merge_epsilon) || (BC < merge_epsilon) || (CA < merge_epsilon)){
             MergeFaces.push_back(i);
             INT2 verts_ind1, verts_ind2,  verts_ind3;
 
@@ -1525,10 +1464,9 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
     std::vector<int> MergeFaceIndices;
     std::vector<INT2> MergeVerts;
     CheckDegenerateTriangle(mesh, MergeFaceIndices, MergeVerts);
-    std::cout << "MergeFace Indices = " << MergeFaceIndices << "\n";
 
-    if (MergeFaceIndices.size() != 0)
-    {
+    if (MergeFaceIndices.size() != 0){
+        std::cout << "MergeFace Indices = " << MergeFaceIndices << "\n";
         auto& triangles = mesh.accesstriangles();
         auto& verts     = mesh.accessvertices();
 
@@ -1543,8 +1481,7 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
         std::vector<int> Min(MergeVerts.size());
         std::vector<int> Max(MergeVerts.size());
 
-        for (int i=0;i<MergeVerts.size();i++)
-        {
+        for (int i=0;i<MergeVerts.size();i++){
             Min[i] = MergeVerts[i][0];
             Max[i] = MergeVerts[i][1];
         }
@@ -1552,15 +1489,12 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
         std::cout << "Max = " << Max << '\n';
 
         int index=0;
-        for (int i=0;i<nv ;i++)
-        {
+        for (int i=0;i<nv ;i++){
             int ind;
-            if (Algorithm::contain(Max, i, ind))
-            {
+            if (Algorithm::contain(Max, i, ind)){
                 MapOldIndicesToNew[i] = MapOldIndicesToNew[Min[ind]];
             }
-            else
-            {
+            else{
                 MapOldIndicesToNew[i] = index;
                 newV.push_back(verts[i]);
                 index ++;
@@ -1568,10 +1502,8 @@ bool MeshTools::decimateDegenerateTriangle(Mesh& mesh)
         }
 
         // obtain the new triangle indices 
-        for (int i=0;i<triangles.size();i++)
-        {
-            if (! Algorithm::contain(MergeFaceIndices,i))
-            {
+        for (int i=0;i<triangles.size();i++){
+            if (! Algorithm::contain(MergeFaceIndices,i)){
                 triangle t;
                 auto ind  = triangles[i].triangleindices_;
                 t.triangleindices_ = {{MapOldIndicesToNew[ind[0]], MapOldIndicesToNew[ind[1]], MapOldIndicesToNew[ind[2]]}};
@@ -1608,8 +1540,7 @@ void MeshTools::CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& bound
     const auto& verts = mesh.getvertices();
     barycenter=verts[0].position_;
 
-    for (int i=1;i<verts.size();i++)
-    {
+    for (int i=1;i<verts.size();i++){
         Real3 newpos = mesh.getShiftedVertexPosition(verts[i], verts[0]);
         barycenter = barycenter + newpos;
     }
@@ -1621,4 +1552,93 @@ void MeshTools::CalculateBoundaryBarycenter(Mesh& mesh, std::vector<bool>& bound
     Real3 shift = mesh.getShiftIntoBox(barycenter);
 
     barycenter = barycenter + shift;
+}
+
+bool MeshTools::IsIsolatedFace(Mesh& mesh, int faceIndex, const std::map<INT2, std::vector<int>>& mapEdgeToFace){
+    const auto& faces = mesh.gettriangles();
+    INT3 vInd  = faces[faceIndex].triangleindices_;
+
+    int numBoundary=0;
+    for (int i=0;i<3;i++){
+        int next = (i+1) % 3;
+        INT2 edge = MeshTools::makeEdge(vInd[i],vInd[next]);
+        std::vector<int> faces;
+        bool found = Algorithm::FindInMap(mapEdgeToFace, edge, faces);
+        ASSERT((found), "The edge " << edge << " is not found.");
+
+        if (faces.size() == 1){
+            numBoundary += 1;
+        }
+    }
+
+    if (numBoundary == 3){
+        return true;
+    }
+
+    return false;
+}
+
+bool MeshTools::IsTeethlikeFace(Mesh& mesh, int faceIndex, const std::map<INT2, std::vector<int>>& mapEdgeToFace){
+    const auto& faces = mesh.gettriangles();
+    INT3 vInd  = faces[faceIndex].triangleindices_;
+
+    int numBoundary=0;
+    for (int i=0;i<3;i++){
+        int next = (i+1) % 3;
+        INT2 edge = MeshTools::makeEdge(vInd[i],vInd[next]);
+        std::vector<int> faces;
+        bool found = Algorithm::FindInMap(mapEdgeToFace, edge, faces);
+        ASSERT((found), "The edge " << edge << " is not found.");
+
+        if (faces.size() == 1){
+            numBoundary += 1;
+        }
+    }
+
+    if (numBoundary == 2){
+        return true;
+    }
+
+    return false;
+}
+
+void MeshTools::ReconstructMeshAfterFaceCut(Mesh& mesh)
+{
+    std::vector<std::vector<int>> neighborIndex;
+    MeshTools::CalculateVertexNeighbors(mesh, neighborIndex);
+
+    const auto& v = mesh.getvertices();
+    const auto& f = mesh.gettriangles();
+
+    int index=0;
+    std::vector<int> MapOldToNewIndex(v.size(),-1);
+    for (int i=0;i<neighborIndex.size();i++){
+        if (neighborIndex[i].size() != 0){
+            MapOldToNewIndex[i] = index;            
+            index++;
+        }
+    }
+
+    std::vector<triangle> newFace;
+    std::vector<vertex> newVerts;
+    for (int i=0;i<f.size();i++){
+        triangle t;
+        for (int j=0;j<3;j++){
+            int oldIndex = f[i].triangleindices_[j];
+            int newIndex = MapOldToNewIndex[oldIndex];
+            t.triangleindices_[j] = newIndex;        
+        }
+        newFace.push_back(t);
+    }
+
+    for (int i=0;i<v.size();i++){
+        if (neighborIndex[i].size() != 0){
+            newVerts.push_back(v[i]);
+        }
+    }
+
+    auto& oldT = mesh.accesstriangles();
+    auto& oldV = mesh.accessvertices();
+    oldT.clear(); oldT.insert(oldT.end(), newFace.begin(), newFace.end());
+    oldV.clear(); oldV.insert(oldV.end(), newVerts.begin(), newVerts.end());
 }

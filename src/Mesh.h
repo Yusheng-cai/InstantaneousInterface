@@ -244,4 +244,13 @@ namespace MeshTools
     // correct  Mesh --> Many times, we need to cut certain triangles out for certain reasons
     // this function takes care of rearranging the mesh vertices and triangles
     void CorrectMesh(Mesh& mesh, std::vector<int>& FaceIndices);
+
+    // check if a triangle is isolated --> all of its edges are boundaries
+    bool IsIsolatedFace(Mesh& mesh, int faceIndex, const std::map<INT2, std::vector<int>>& mapEdgeToFace);
+
+    // check if a triangle is teeth like --> 2 of its edges are boundaries
+    bool IsTeethlikeFace(Mesh& mesh, int faceIndex, const std::map<INT2, std::vector<int>>& mapEdgeToFace);
+
+    // regenerate mesh after some faces are cut
+    void ReconstructMeshAfterFaceCut(Mesh& mesh);
 };
