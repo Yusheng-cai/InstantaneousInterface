@@ -12,16 +12,15 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
+    pack_.ReadNumber("NumBoundarySmoothing", ParameterPack::KeyType::Optional, StopBoundarySmoothing_);
 
     // set Eigen to be using the correct number of threads 
     Eigen::initParallel();
     Eigen::setNbThreads(0);
 }
 
-void MeshCurvatureflow::refine(Mesh& mesh)
+void MeshCurvatureflow::updateMesh()
 {
-    mesh_ = &mesh;
-
     // obtain map from edge index {minIndex, maxIndex} to the face index 
     // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
@@ -41,54 +40,38 @@ void MeshCurvatureflow::refine(Mesh& mesh)
     // find number of vertices 
     const auto& v = mesh_->getvertices();
     numVerts_ = v.size();
-    newVertices_.resize(numVerts_);
-    TotalArea_.resize(numVerts_);
+    newVertices_.clear();newVertices_.resize(numVerts_);
+    TotalArea_.clear();TotalArea_.resize(numVerts_);
 
     // obtain the rhs of the equation to be solved 
     rhs_.clear();xyz_.clear();
     rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
     xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+}
+
+void MeshCurvatureflow::refine(Mesh& mesh)
+{
+    mesh_ = &mesh;
+
+    updateMesh();
 
     // if we are scaling, we need to calculate the volume
     if (scale_){initialVolume_ = mesh_->calculateVolume();}
 
     // start refining 
-    for (int i=0;i<numIterations_;i++)
+    for (int i=1;i<=numIterations_;i++)
     {
         // every iteration, decimate the degenerate triangles if necessary
-        if (decimate_)
-        {
+        if (decimate_){
             if (MeshTools::decimateDegenerateTriangle(*mesh_)){
-                // obtain map from edge index {minIndex, maxIndex} to the face index 
-                // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
-                MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
-
-                // Calculate the boundary vertices --> vertices which that has an edge shared by only 1 face
-                MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
-
-                // Calculate the vertex neighbors
-                MeshTools::CalculateVertexNeighbors(*mesh_, neighborIndices_);
-
-                // Map from vertex indices to face indices 
-                MeshTools::MapVerticesToFaces(*mesh_, MapVertexToFace_);
-
-                // Map from edges to their opposing vertex indices 
-                MeshTools::MapEdgeToOpposingVertices(*mesh_, MapEdgeToFace_, MapEdgeToOpposingVerts_);
-
-                // find number of vertices 
-                const auto& v = mesh_->getvertices();
-                numVerts_ = v.size();
-                newVertices_.resize(numVerts_);
-                TotalArea_.resize(numVerts_);
-
-                // obtain the rhs of the equation to be solved 
-                rhs_.clear();xyz_.clear();
-                rhs_.resize(3, Eigen::VectorXf::Zero(numVerts_));
-                xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
+                updateMesh();
             }
         }
 
         std::cout << "Iteration " << i << std::endl;
+        if (i > StopBoundarySmoothing_){
+            SmoothBoundary_=false;
+        }
         refineImplicitStep();
     }
 
@@ -110,8 +93,7 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
     const auto& vertices  = mesh_->getvertices();
 
     // iterate over the neighbor indices
-    for (int j=0;j<neighborSize;j++)
-    {
+    for (int j=0;j<neighborSize;j++){
         // make an edge between this vertex and its neighbor
         INT2 edge = MeshTools::makeEdge(i,neighbors[j]);
 
@@ -151,17 +133,13 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
             cotOpposingAnglesSum += costheta/sintheta;
         }
 
-        if (mesh_->isPeriodic())
-        {
+        if (mesh_->isPeriodic()){
             Real3 ShiftVec;
 
             // xj - xi 
             mesh_ -> CalculateShift(vertices[neighbors[j]].position_, vertices[i].position_,ShiftVec);
 
-            for (int k=0;k<3;k++)
-            {
-                Lfactor[k] += cotOpposingAnglesSum * ShiftVec[k];
-            }
+            Lfactor = Lfactor + cotOpposingAnglesSum * ShiftVec;
         }
 
         cotFactors.push_back(cotOpposingAnglesSum);
@@ -181,10 +159,8 @@ void MeshCurvatureflow::refineImplicitStep()
     std::fill(TotalArea_.begin(), TotalArea_.end(), 0.0);
 
     #pragma omp parallel for
-    for (int i=0;i<MapVertexToFace_.size();i++)
-    {
-        for (int j=0;j<MapVertexToFace_[i].size();j++)
-        {
+    for (int i=0;i<MapVertexToFace_.size();i++){
+        for (int j=0;j<MapVertexToFace_[i].size();j++){
             TotalArea_[i] += TriangleAreas_[MapVertexToFace_[i][j]];
         }
     }
@@ -192,12 +168,10 @@ void MeshCurvatureflow::refineImplicitStep()
     // obtain the implicit matrices
     L_  = CalculateImplicitMatrix();
 
-
     // populate the solved matrices 
     const auto& vertices = mesh_->getvertices();
     #pragma omp parallel for
-    for(int i = 0; i < numVerts_; ++i)
-    {
+    for(int i = 0; i < numVerts_; ++i){
         // we must scale the rhs by Lfactors_ as in (xj - xi + L)
         rhs_[0][i] = lambdadt_ * Lfactors_[i][0] + vertices[i].position_[0];
         rhs_[1][i] = lambdadt_ * Lfactors_[i][1] + vertices[i].position_[1];
@@ -208,18 +182,15 @@ void MeshCurvatureflow::refineImplicitStep()
     Sparse_LU sparsesolver;
     sparsesolver.compute(L_);
     ASSERT((sparsesolver.info() == Eigen::Success), "Compute step failed.");
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         xyz_[i] = sparsesolver.solve(rhs_[i]);
         ASSERT((sparsesolver.info() == Eigen::Success), "The solver failed.");
     }
 
     // copy over to new vertices data 
     #pragma omp parallel for
-    for (int i=0;i<numVerts_;i++)
-    {
-        for (int j=0;j<3;j++)
-        {
+    for (int i=0;i<numVerts_;i++){
+        for (int j=0;j<3;j++){
             newVertices_[i].position_[j] = xyz_[j][i];
         }
     }
@@ -230,8 +201,7 @@ void MeshCurvatureflow::refineImplicitStep()
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
 
     // calculate the volume if needed 
-    if (scale_)
-    {
+    if (scale_){
         Real vol = mesh_->calculateVolume();
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
 
@@ -251,12 +221,9 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
     #pragma omp parallel
     {
         std::vector<triplet> triplet_local;
-
         #pragma omp for
-        for (int i=0;i<vertices.size();i++)
-        {
-            if (! MeshTools::IsBoundary(i, boundaryIndicator_))
-            {
+        for (int i=0;i<vertices.size();i++){
+            if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
                 int numneighbors = neighborIndices_[i].size();
 
                 // get the weights of the neighbor indices 
@@ -268,25 +235,18 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
                 Real w = 0.0;
 
                 // Skip the calculation is Total area is 0 --> less than some threshold --> 1e-5
-                if (SUCCESS)
-                {
+                if (SUCCESS){
                     Real factor = 1.0/(4.0 * TotalArea_[i]);
 
-                    for (int j=0;j<numneighbors;j++)
-                    {
+                    for (int j=0;j<numneighbors;j++){
                         w += CotWeights[j];
                     }
 
-                    for (int j=0;j<numneighbors;j++)
-                    {
+                    for (int j=0;j<numneighbors;j++){
                         triplet_local.push_back(triplet(i, neighborIndices_[i][j], factor * CotWeights[j]));
                     }
 
-                    for (int j=0;j<3;j++)
-                    {
-                        Lfactors_[i][j] = Lfactor[j] * factor;
-                    }
-
+                    Lfactors_[i] = Lfactor * factor;
                     triplet_local.push_back(triplet(i,i, -factor * w));
                 }
             }
@@ -298,6 +258,13 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
         }
     }
 
+
+    // add boundary vertices to the triplets     
+    if (SmoothBoundary_){
+        std::cout << "Smoothing boundary" << "\n";
+        smoothBoundaryVertices();
+    }
+
     // set the L matrix 
     Eigen::SparseMatrix<Real> L;
     L.setZero();
@@ -307,4 +274,66 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
     L = I - lambdadt_*L;
 
     return L;
+}
+
+void MeshCurvatureflow::smoothBoundaryVertices()
+{
+    std::vector<int> boundaryIndices;
+    const auto& verts = mesh_->getvertices();
+
+    for (int i=0;i<numVerts_;i++){
+        if (MeshTools::IsBoundary(i, boundaryIndicator_)){
+            boundaryIndices.push_back(i);
+        }
+    }
+
+    for (int i=0;i<boundaryIndices.size();i++){
+        // boundary index 
+        int bindex = boundaryIndices[i];
+
+        // find its neighbors 
+        std::vector<int> neighbors = neighborIndices_[bindex];
+
+        // the neighbors of this boundary which also happens to be boundaries 
+        std::vector<int> bNeighbor;
+        for (int n : neighbors){
+            if (MeshTools::IsBoundary(n, boundaryIndicator_)){
+                bNeighbor.push_back(n);
+            }
+        }
+        ASSERT((bNeighbor.size() == 2), "Boundary vertices can at most be connected to 2 other boundary vertex while it is connected to " \
+                                        << bNeighbor.size());
+
+        // smoothing 
+        Real E=0;        
+        std::vector<Real> factor(bNeighbor.size());
+        Real factor_sum=0.0;
+        Real3 Lfactor = {};       
+        for (int j=0;j<bNeighbor.size();j++){
+            int n = bNeighbor[j];
+            Real3 distvec;
+            Real eij;
+            mesh_->getVertexDistance(verts[n].position_, verts[bindex].position_, distvec, eij);
+            E += eij;
+
+            if (mesh_->isPeriodic()){
+                Real3 shift;
+                mesh_->CalculateShift(verts[n].position_, verts[bindex].position_, shift);
+                Lfactor = Lfactor + shift * 2.0/eij;
+            }
+            factor[j] = 2.0/eij;
+            factor_sum += factor[j];
+        }
+        factor = factor / E;
+        Lfactor = Lfactor / E;
+
+        for (int j=0;j<bNeighbor.size();j++){
+            triplets_.push_back(triplet(bindex, bNeighbor[j], factor[j]));
+        }
+        triplets_.push_back(triplet(bindex, bindex, -factor_sum/E));
+
+        if (mesh_->isPeriodic()){
+            Lfactors_[bindex] = Lfactors_[bindex] + Lfactor;
+        }
+    }
 }

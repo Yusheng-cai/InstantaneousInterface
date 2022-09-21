@@ -3,6 +3,7 @@
 #include "MeshRefineStrategy.h"
 #include "tools/Assert.h"
 #include "tools/CommonTypes.h"
+#include "tools/CommonOperations.h"
 #include "Mesh.h"
 #include "Eigen/Core"
 #include "Eigen/Sparse"
@@ -27,12 +28,19 @@ class MeshCurvatureflow : public MeshRefineStrategy
         using Sparse_mat = Eigen::SparseMatrix<Real>;
         using Sparse_Chol= Eigen::SimplicialLLT<Sparse_mat>;
         using Sparse_LU = Eigen::SparseLU<Sparse_mat>;
+        using Real2   = CommonTypes::Real2;
 
         MeshCurvatureflow(MeshRefineStrategyInput& input);
 
         virtual void refine(Mesh& mesh) override;
 
         void refineImplicitStep();
+
+        // function that updates the connectivity of the mesh
+        void updateMesh();
+
+        // function that smooths the boundary vertices
+        void smoothBoundaryVertices();
 
         Eigen::SparseMatrix<Real> CalculateImplicitMatrix();
 
@@ -78,4 +86,8 @@ class MeshCurvatureflow : public MeshRefineStrategy
 
         // whether or not to decimate
         bool decimate_=true;
+
+        // when to stop boundary smoothing --> default to 0 as in it does not smooth boundary
+        int StopBoundarySmoothing_=0;
+        bool SmoothBoundary_=true;
 };
