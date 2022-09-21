@@ -51,8 +51,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         Eigen::Vector3d b   = Eigen::Vector3d::Zero();
 
         // Fitting equation to the form of b1*x^2 + b2 * y^2 + b3 * x * y
-        for (int j=0;j<neighbors.size();j++)
-        {
+        for (int j=0;j<neighbors.size();j++){
             int neighborId = neighbors[j];
             Real3 diff;
             Real diffsq;
@@ -94,8 +93,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
         // ff2
         Real3 ff2;
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             ff2[j] = ans[j];
         }
         ff2_parameter_[i] = {{2*ff2[0], ff2[1], 2*ff2[2]}};
@@ -110,8 +108,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         eigenvals[1] = eigenvalues[1];
         bool Switch=false;
 
-        if (eigenvals[0] < eigenvals[1])
-        {
+        if (eigenvals[0] < eigenvals[1]){
             Switch=true;
         }
 
@@ -135,24 +132,20 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         Real3 eigvec2Rot = LinAlg3x3::MatrixDotVector(revrotMat, eigvec2);
 
         // eigenvectors in real space
-        if (Switch)
-        {
+        if (Switch){
             principalDir1_[i] = eigvec2Rot;
             principalDir2_[i] = eigvec1Rot;
         }
-        else
-        {
+        else{
             principalDir1_[i] = eigvec1Rot;
             principalDir2_[i] = eigvec2Rot;
         }
     }
 
-    for (int i=0;i<CurvaturePerVertex_.size();i++)
-    {
+    for (int i=0;i<CurvaturePerVertex_.size();i++){
         Real avg = 0.0;
         Real gauss = 1.0;
-        for (int j=0;j<2;j++)
-        {
+        for (int j=0;j<2;j++){
             avg += CurvaturePerVertex_[i][j]/2.0;
             gauss *= CurvaturePerVertex_[i][j];
         }
@@ -171,8 +164,7 @@ void CurvatureCurveFit::printff2(std::string name)
 
     ofs << "# VertexNumber L M N\n";
 
-    for (int i=0;i<ff2_parameter_.size();i++)
-    {
+    for (int i=0;i<ff2_parameter_.size();i++){
         ofs << i << " " << ff2_parameter_[i][0] << " " << ff2_parameter_[i][1] << " " << ff2_parameter_[i][2] << "\n";
     }
 

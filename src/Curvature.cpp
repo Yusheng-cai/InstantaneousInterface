@@ -1,8 +1,7 @@
 #include "Curvature.h"
 
 Curvature::Curvature(CurvatureInput& input)
-:pack_(input.pack)
-{
+:pack_(input.pack){
     input.pack.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
     input.pack.ReadVectorString("outputNames", ParameterPack::KeyType::Optional, OutputFileNames_);
     input.pack.ReadString("name", ParameterPack::KeyType::Optional, name_);
@@ -14,8 +13,7 @@ Curvature::Curvature(CurvatureInput& input)
     ASSERT(( OutputNames_.size() == OutputFileNames_.size()), "The number of outputs does not agree with number of output files.");
 }
 
-void Curvature::initialize(Mesh& mesh)
-{
+void Curvature::initialize(Mesh& mesh){
     const auto& vertices = mesh.getvertices();
     int nv = vertices.size();
 
@@ -35,30 +33,25 @@ void Curvature::initialize(Mesh& mesh)
     principalDir2_.resize(nv);
 }
 
-void Curvature::printOutput()
-{
-    for (int i=0;i<OutputNames_.size();i++)
-    {
+void Curvature::printOutput(){
+    for (int i=0;i<OutputNames_.size();i++){
         outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
     }
 }
 
-void Curvature::printCurvature(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
+void Curvature::printCurvature(std::string name){
+    std::ofstream ofs;
+    ofs.open(name);
 
-    ofs_ << "# k1 k2 Average Gaussian" << "\n";
-    for(int i=0;i<CurvaturePerVertex_.size();i++)
-    {
-        ofs_ << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << " " << avgCurvaturePerVertex_[i] << " " \
+    ofs << "# k1 k2 Average Gaussian" << "\n";
+    for(int i=0;i<CurvaturePerVertex_.size();i++){
+        ofs << CurvaturePerVertex_[i][0] << " " << CurvaturePerVertex_[i][1] << " " << avgCurvaturePerVertex_[i] << " " \
         << GaussCurvaturePerVertex_[i] << "\n";
     }
-    ofs_.close();
+    ofs.close();
 }
 
-void Curvature::printFaceCurvature(std::string name)
-{
+void Curvature::printFaceCurvature(std::string name){
     std::ofstream ofs;
     ofs.open(name);
 
@@ -70,33 +63,27 @@ void Curvature::printFaceCurvature(std::string name)
     ofs.close();
 }
 
-void Curvature::printPrincipalDir(std::string name)
-{
-    std::ofstream ofs_;
-    ofs_.open(name);
+void Curvature::printPrincipalDir(std::string name){
+    std::ofstream ofs;
+    ofs.open(name);
 
-    ofs_ << "#p1x p1y p1z p2x p2y p2z\n";
+    ofs << "#p1x p1y p1z p2x p2y p2z\n";
 
-    for (int i=0;i<principalDir1_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            ofs_ << principalDir1_[i][j] << " ";
+    for (int i=0;i<principalDir1_.size();i++){
+        for (int j=0;j<3;j++){
+            ofs << principalDir1_[i][j] << " ";
         }
-        for (int j=0;j<3;j++)
-        {
-            if (j<2)
-            {
-                ofs_ << principalDir2_[i][j] << " ";
+        for (int j=0;j<3;j++){
+            if (j<2){
+                ofs << principalDir2_[i][j] << " ";
             }
-            else
-            {
-                ofs_ << principalDir2_[i][j] << "\n";
+            else{
+                ofs << principalDir2_[i][j] << "\n";
             }
         }
     }
 
-    ofs_.close();
+    ofs.close();
 }
 
 void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& VertexCurvature, \

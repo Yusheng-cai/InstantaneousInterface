@@ -51,13 +51,11 @@ void CurvatureJetFit::calculate(Mesh& mesh)
     const auto& vertices = mesh.getvertices();
     int nv = vertices.size();
 
-    if (foundnumneighrs_)
-    {
+    if (foundnumneighrs_){
         std::cout << "Using number of vertices." << std::endl;
         Graph::getNearbyIndicesNVertexAway(VertexNeighbors,numneighbors_,NeighborIndicesNVertex_);
     }
-    else
-    {
+    else{
         std::cout << "Using number of neighbors." << std::endl;
         Graph::getNNearbyIndices(VertexNeighbors,numpoints_-1,NeighborIndicesNVertex_);
     }
@@ -78,8 +76,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             Dpoint point(thisPos[0], thisPos[1], thisPos[2]);
             vec.push_back(point);
 
-            for (int j=0;j<NeighborIndicesNVertex_[i].size();j++)
-            {
+            for (int j=0;j<NeighborIndicesNVertex_[i].size();j++){
                 int neighborIndex = NeighborIndicesNVertex_[i][j];
                 Real3 vertpos;
 
@@ -93,10 +90,8 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             " which has to be at least " << numpoints_);
 
             auto mform = jetfitterLocal(vec.begin(), vec.end(), degree_, MongeCoefficient_);
-            for (int j=0;j<3;j++)
-            {
-                for (int k=0;k<3;k++)
-                {
+            for (int j=0;j<3;j++){
+                for (int k=0;k<3;k++){
                     PCAeigenvector_[i][j][k] = jetfitterLocal.pca_basis(j).second[k];
                 }
             }
@@ -107,8 +102,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             mform.comply_wrt_given_normal(norm);
 
             std::vector<Real> coeff;
-            for (int i=0;i<mform.coefficients().size();i++)
-            {
+            for (int i=0;i<mform.coefficients().size();i++){
                 coeff.push_back(mform.coefficients()[i]);
             }
 
@@ -121,8 +115,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
             Real3 v;
             Real3 v2;
 
-            for (int j=0;j<3;j++)
-            {
+            for (int j=0;j<3;j++){
                 v[j] = vec1[j];
                 v2[j] = vec2[j];
             }
@@ -135,8 +128,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
         {
             Real avg=0.0;
             Real gauss = 1.0;
-            for (int j=0;j<2;j++)
-            {
+            for (int j=0;j<2;j++){
                 gauss *= CurvaturePerVertex_[i][j];
                 avg   += CurvaturePerVertex_[i][j]/2.0;
             }
@@ -174,27 +166,23 @@ void CurvatureJetFit::printCoefficientPerVertex(std::string name)
     ofs_.open(name);
 
     ofs_ << "# ";
-    for (int i=0;i<coefficientsPerVertex_[0].size();i++)
-    {
+    for (int i=0;i<coefficientsPerVertex_[0].size();i++){
         ofs_ << "coefficient" << i+1 << " ";
     }
     ofs_ << "\n";
    
 
-    for (int i=0;i<coefficientsPerVertex_.size();i++)
-    {
+    for (int i=0;i<coefficientsPerVertex_.size();i++){
         int sizePerVertex = coefficientsPerVertex_[i].size();
-        for (int j=0;j<sizePerVertex;j++)
-        {
-            if (j != sizePerVertex-1)
-            {
+        for (int j=0;j<sizePerVertex;j++){
+            if (j != sizePerVertex-1){
                 ofs_ << coefficientsPerVertex_[i][j] << " ";
             }
-            else
-            {
+            else{
                 ofs_ << coefficientsPerVertex_[i][j] << "\n";
             }
         }
     }
+
     ofs_.close();
 }

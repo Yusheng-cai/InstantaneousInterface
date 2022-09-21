@@ -67,25 +67,13 @@ void CurvatureTensor::calculate(Mesh& mesh)
             A(0,1) += ejU*ejV;
             A(2,2) += ejV*ejV;
 
+            // convert ids.
             int id1 = j - 1;
-            if ( id1 < 0)
-            {
-                id1 += 3;
-            }
-
+            if ( id1 < 0){id1 += 3;}
             int id2 = j - 2;
-            if ( id2 < 0)
-            {
-                id2 += 3;
-            }
+            if ( id2 < 0){id2 += 3;}
 
-            Real3 diffN;
-
-            for (int k =0;k<3;k++)
-            {
-                diffN[k] = vertices[t[id1]].normals_[k] - vertices[t[id2]].normals_[k];
-            }
-
+            Real3 diffN = vertices[t[id1]].normals_ - vertices[t[id2]].normals_;
             Real diffNU = LinAlg3x3::DotProduct(diffN, U);
             Real diffNV = LinAlg3x3::DotProduct(diffN, V);
 

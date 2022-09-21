@@ -32,15 +32,10 @@ void CurvatureFDM::calculate(Mesh& mesh)
         { 
             auto& v2 = vertices[neighbors[j]];
 
-            Real3 diff = {};
-            Real3 diffn = {};
             Real curve_Val;
-            
-            for(int m=0;m<3;m++)
-            {
-                diff[m]  = v2.position_[m] - v1.position_[m];
-                diffn[m] = v2.normals_[m] - v1.normals_[m];
-            }
+            Real3 diff = v2.position_ - v1.position_;
+            Real3 diffn = v2.normals_ - v1.normals_;
+
 
             Real diffnnorm = LinAlg3x3::norm(diffn); 
             Real sq_diff   = LinAlg3x3::DotProduct(diff, diff);
@@ -53,8 +48,7 @@ void CurvatureFDM::calculate(Mesh& mesh)
         GaussCurvaturePerVertex_[i] = GaussCurve;
     }
 
-    for (int i=0;i<nv;i++)
-    { 
+    for (int i=0;i<nv;i++){ 
         int neighborSize = neighbor_indices_[i].size();
         avgCurvaturePerVertex_[i] = avgCurvaturePerVertex_[i]/neighborSize;
         GaussCurvaturePerVertex_[i] = std::pow(GaussCurvaturePerVertex_[i], 1.0/neighborSize);
@@ -63,14 +57,12 @@ void CurvatureFDM::calculate(Mesh& mesh)
     CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, GaussCurvaturePerVertex_, CurvaturePerVertex_,FaceCurvature_);
 }
 
-void CurvatureFDM::printCurvature(std::string name)
-{
+void CurvatureFDM::printCurvature(std::string name){
     std::ofstream ofs;
     ofs.open(name);
 
     ofs << "# Average Gaussian\n";
-    for (int i=0;i<avgCurvaturePerVertex_.size();i++)
-    {
+    for (int i=0;i<avgCurvaturePerVertex_.size();i++){
         ofs << avgCurvaturePerVertex_[i] << " " << GaussCurvaturePerVertex_[i] << "\n";
     }
     ofs.close();

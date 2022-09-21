@@ -29,10 +29,8 @@ void CurvatureEvolution::findVertices()
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
     MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
-    for (int i=0;i<vertices.size();i++)
-    {
-        if (! MeshTools::IsBoundary(i, boundaryIndicator_))
-        {
+    for (int i=0;i<vertices.size();i++){
+        if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
             VertexIndices_.push_back(i);
         }
     }
@@ -49,8 +47,7 @@ void CurvatureEvolution::refine(Mesh& mesh)
     err_ = 10000000;
     iteration_=1;
 
-    while (err_ >= tol_)
-    {
+    while (err_ >= tol_){
         // set max error to be some random negative number for now 
         Real maxerr = -1;
 
@@ -72,8 +69,7 @@ void CurvatureEvolution::refine(Mesh& mesh)
             Real avgElocal = 0.0;
 
             #pragma omp for
-            for (int j=0;j<VertexIndices_.size();j++)
-            {
+            for (int j=0;j<VertexIndices_.size();j++){
                 int index = VertexIndices_[j];
 
                 // find the difference in curvature 
@@ -100,7 +96,7 @@ void CurvatureEvolution::refine(Mesh& mesh)
             }
         }
 
-        avgE = avgE / vertices.size();
+        avgE = avgE / VertexIndices_.size();
 
         if (meanCurvature_ == 0){err_ = maxerr;}
         else{err_ = maxerr / meanCurvature_;}
@@ -115,8 +111,7 @@ void CurvatureEvolution::refine(Mesh& mesh)
         iteration_ ++;
 
         // break the calculation if iteration is already maxed out
-        if (iteration_ > maxStep)
-        {
+        if (iteration_ > maxStep){
             std::cout << "Evolution finished premature at iteration " << iteration_ << "\n";
             break;
         }
