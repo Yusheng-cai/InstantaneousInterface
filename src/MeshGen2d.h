@@ -29,7 +29,7 @@ class Mesh2d : public MeshGeneration
         using CDT      = CGAL::Constrained_Delaunay_triangulation_2<K, Tds>;
         using Criteria = CGAL::Delaunay_mesh_size_criteria_2<CDT>;
         using Vertex_handle = CDT::Vertex_handle;
-        using Point = CDT::Point;
+        using Point    = CDT::Point;
         
         Mesh2d(ParameterPack& pack);
         virtual void generate();
