@@ -533,8 +533,11 @@ void MeshTools::writePLYRGB(std::string filename, const std::vector<Real3>& vert
     ofs.close();
 }
 
-void MeshTools::writeSTL(std::string name, Mesh& mesh)
-{
+void MeshTools::writeSTL(std::string name, const std::vector<Real3>& vertices, const std::vector<INT3>& faces){
+
+}
+
+void MeshTools::writeSTL(std::string name, Mesh& mesh){
     std::ofstream ofs;
     ofs.open(name);
 
@@ -575,28 +578,22 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
 
     auto names = plydata.getElement("vertex").getPropertyNames();
     bool hasnormals=false;
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         hasProperty_[i] = std::find(names.begin(), names.end(), normalNames[i]) != names.end();
     }
 
-    if (hasProperty_[0] && hasProperty_[1] && hasProperty_[2])
-    {
+    if (hasProperty_[0] && hasProperty_[1] && hasProperty_[2]){
         hasnormals=true;
     }
 
     // do something when it does have normals
     if (hasnormals)
     {
-        for (int i=0;i<3;i++)
-        {
+        for (int i=0;i<3;i++){
             const auto& n = plydata.getElement("vertex").getProperty<double>(normalNames[i]);
             ASSERT((n.size() == vPos.size()), "The size of nx must equal to the number of vertices.");
 
-            for (int j=0;j<vPos.size();j++)
-            {
-                normals_[j][i] = n[j];
-            }
+            for (int j=0;j<vPos.size();j++){normals_[j][i] = n[j];}
         }
     }
 
@@ -612,28 +609,24 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
     for (int i=0;i<vertices.size();i++)
     {
         auto& v = vertices[i];
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             v.position_[j] = vPos[i][j];
             v.normals_[j]  = normals_[i][j];
         }
     }
 
-    for (int i=0;i<triangles.size();i++)
-    {
+    for (int i=0;i<triangles.size();i++){
         auto& t = triangles[i];
 
         ASSERT((fInd[i].size() == 3), "We are reading triangles here while the provided face is " << fInd[i].size());
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             t.triangleindices_[j] = fInd[i][j];
             t.vertices_[j] = vertices[fInd[i][j]];
         }
     }
 
-    if ( ! hasnormals)
-    {
+    if ( ! hasnormals){
         std::cout << "Calculating normals by myself." << std::endl;
         mesh.CalcVertexNormals();
 
@@ -655,45 +648,37 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh)
     std::stringstream ss;
     ifs.open(filename);
 
-    if (! ifs.is_open())
-    {
+    if (! ifs.is_open()){
         return false;
     }
 
     std::string sentence;
     int numfaces;
     int numvertex;
-    while (std::getline(ifs, sentence))
-    {
+    while (std::getline(ifs, sentence)){
         ss.str(sentence);
         std::string token;
 
         std::vector<std::string> vectorstring;
-        while (ss >> token)
-        {
+        while (ss >> token){
             vectorstring.push_back(token);
         }
 
-        if (vectorstring[0] == "end_header")
-        {
+        if (vectorstring[0] == "end_header"){
             break;
         }
 
-        if (vectorstring[0] == "format")
-        {
+        if (vectorstring[0] == "format"){
             ASSERT((vectorstring[1] == "ascii"), "Currently do not support non-ascii format ply files.");
         }
 
-        if (vectorstring[0] == "element")
-        {
+        if (vectorstring[0] == "element"){
             ASSERT((vectorstring.size() == 3), "The element can only have 3.");
-            if (vectorstring[1] == "vertex")
-            {
+            if (vectorstring[1] == "vertex"){
                 numvertex = StringTools::StringToType<int>(vectorstring[2]);
             }
 
-            if (vectorstring[1] == "face")
-            {
+            if (vectorstring[1] == "face"){
                 numfaces = StringTools::StringToType<int>(vectorstring[2]);
             }
         }
@@ -747,8 +732,7 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh)
         std::string data;
         std::vector<std::string> vectordata;
 
-        while (ss >> data)
-        {
+        while (ss >> data){
             vectordata.push_back(data);
         }
 
@@ -758,14 +742,10 @@ bool MeshTools::readPLY(std::string& filename, Mesh& mesh)
 
         INT3 faceid;
 
-        for (int j=0;j<3;j++)
-        {
-            faceid[j] = StringTools::StringToType<int>(vectordata[j+1]);
-        }
+        for (int j=0;j<3;j++){faceid[j] = StringTools::StringToType<int>(vectordata[j+1]);}
 
         t.triangleindices_ = faceid;
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             t.vertices_[j] = vertices[faceid[j]];
         }
 
@@ -810,23 +790,15 @@ void MeshTools::calculateDistance(const Real3& vec1, const Real3& vec2, const Re
 
 bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength)
 {
+    // calculate pbc shift b/t vec1 and vec2 in some box with boxlength
     Real3 diff = calculateShift(vec1, vec2, boxLength);
 
-    bool isPeriodic=false;
+    // shifted vector 
+    newarr = vec1 + diff;
 
-    newarr = {};
-    for (int i=0;i<3;i++)
-    {
-        newarr[i] = vec1[i] + diff[i];
-    }
-
-    Real3 vecdiff = {};
-    for (int i=0;i<3;i++)
-    {
-        vecdiff[i] = vec1[i] - vec2[i];
-
-        if (std::abs(vecdiff[i]) > (boxLength[i] * 0.5))
-        {
+    // check if this is periodic edge
+    for (int i=0;i<3;i++){
+        if (std::abs(diff[i]) > (boxLength[i] * 0.5)){
             return true;
         }
     }
@@ -1100,6 +1072,25 @@ bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Rea
             if (std::abs(diff[j]) >= 0.5 * BoxLength[j]){
                 return true;
             }
+        }
+    }
+
+    return false;
+}
+
+bool MeshTools::IsPeriodicTriangle(const Mesh& mesh, int faceIndex){
+    const auto& f = mesh.gettriangles();
+    const auto& v = mesh.getvertices();
+    Real3 boxLength = mesh.getBoxLength();
+    INT3 t = f[faceIndex].triangleindices_;
+    for (int i=0;i<3;i++){
+        int index1 = t[i];
+        int index2 = t[(i+1) % 3];
+        Real3 diff;
+        for (int j=0;j<3;j++){
+            diff[j] = v[index1].position_[j] - v[index2].position_[j];
+
+            if (std::abs(diff[j] >= 0.5 * boxLength[j])){return true;}
         }
     }
 

@@ -45,9 +45,6 @@ namespace MeshActions
     // calculate the curvature of a mesh using the method of FDM
     void FDMFit(CommandLineArguments& cmd);
 
-    // curvature evolution 
-    void CurveEvolution(CommandLineArguments& cmd);
-
     // smooth a mesh using curvature flow (implicit fairing)
     void CurvatureFlow(CommandLineArguments& cmd);
 
@@ -56,6 +53,9 @@ namespace MeshActions
 
     // cut the mesh 
     void CutMesh(CommandLineArguments& cmd);
+
+    // convert To STL file
+    void ConvertToStL(CommandLineArguments& cmd);
 
     // convert a pbc mesh to non pbc mesh
     void ConvertToNonPBCMesh(CommandLineArguments& cmd);
@@ -101,4 +101,7 @@ namespace MeshActions
 
     // cut out teeth like faces
     void CutTeethlikeFace(CommandLineArguments& cmd);
+
+    // replicate periodic mesh --> make it
+    void ReplicatePeriodicMesh(CommandLineArguments& cmd);
 };

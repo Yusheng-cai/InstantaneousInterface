@@ -81,7 +81,7 @@ class Mesh
         const std::vector<Real3>& getCornerAreas() const {return cornerArea_;}
         int getNumVertices() const {return vertices_.size();}
         int getNumTriangles() const {return triangles_.size();}
-        Real3 getBoxLength() {return boxLength_;}
+        Real3 getBoxLength() const {return boxLength_;}
         const std::map<INT2, std::vector<int>> getMapEdgeToFace() const {return MapEdgeToFace_;}
 
         // Scale all the vertices by a single number 
@@ -178,6 +178,7 @@ namespace MeshTools
 
     // write STL file
     void writeSTL(std::string filename, Mesh& mesh);
+    void writeSTL(std::string filename, const std::vector<Real3>& vertices, const std::vector<INT3>& faces);
 
     // calculate PBC distance
     Real3 calculateShift(const Real3& vec1, const Real3& vec2, const Real3& boxLength);
@@ -214,6 +215,7 @@ namespace MeshTools
 
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
+    bool IsPeriodicTriangle(const Mesh& mesh, int faceindex);
 
     // shift a triangle 
     void ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& faces, Real3 BoxLength, Real3& A, Real3& B, Real3& C);

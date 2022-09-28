@@ -66,8 +66,7 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     // insert the values into parameter pack
     pack.insert("neighbors", neighbors);
 
-    if (pbcMesh)
-    {
+    if (pbcMesh){
         mesh.setBoxLength(box);
     }
 
@@ -84,13 +83,11 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     // print the curvature 
     curve->printCurvature(outputfname);
 
-    if (fc_read)
-    {
+    if (fc_read){
         curve->printFaceCurvature(faceCfname);
     }
 
-    if (ff2_read)
-    {
+    if (ff2_read){
         CurvatureCurveFit* c = dynamic_cast<CurvatureCurveFit*>(curve.get());
         ASSERT((c != nullptr), "Something went wrong in curvefit mesh action.");
         c->printff2(ff2fname);
@@ -114,8 +111,7 @@ void MeshActions::TensorFit(CommandLineArguments& cmd)
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
     bool fcread  = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
-    if (pbcMesh)
-    {
+    if (pbcMesh){
         mesh.setBoxLength(box);
     }
 
@@ -130,8 +126,7 @@ void MeshActions::TensorFit(CommandLineArguments& cmd)
 
     curve->printCurvature(outputfname);
 
-    if (fcread)
-    {
+    if (fcread){
         curve->printFaceCurvature(faceCfname);
     }
 }
@@ -165,8 +160,7 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
     pack.insert("degree", degree);
     pack.insert("MongeCoefficient", MongeCoefficient);
 
-    if (pbcMesh)
-    {
+    if (pbcMesh){
         mesh.setBoxLength(box);
     }
 
@@ -181,20 +175,17 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
 
     curve->printCurvature(outputfname);
 
-    if (fcread)
-    {
+    if (fcread){
         curve->printFaceCurvature(faceCfname);
     }
 
-    if (MongeRead)
-    {
+    if (MongeRead){
         CurvatureJetFit* jetfit = dynamic_cast<CurvatureJetFit*>(curve.get());
         ASSERT((jetfit != nullptr), "Something went wrong in jetfit.");
         jetfit->printCoefficientPerVertex(monge);
     }
 
-    if (pdirRead)
-    {
+    if (pdirRead){
         curve -> printPrincipalDir(pdir_fname);
     }
 }
@@ -236,11 +227,6 @@ void MeshActions::FDMFit(CommandLineArguments& cmd)
     {
         curve->printFaceCurvature(faceCfname);
     }
-}
-
-void MeshActions::CurveEvolution(CommandLineArguments& cmd)
-{
-
 }
 
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
@@ -355,7 +341,9 @@ void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
     MeshTools::ConvertToNonPBCMesh(mesh, verts, face);
 
     // write the non pbc mesh 
-    MeshTools::writePLY(outputfname, verts, face);
+    std::string ext = StringTools::ReadFileExtension(outputfname);
+    if (ext == "ply"){MeshTools::writePLY(outputfname, verts, face);}
+    else if (ext == "stl"){MeshTools::writeSTL(outputfname, mesh);}
 }
 
 void MeshActions::ScaleMesh(CommandLineArguments& cmd)
@@ -379,20 +367,15 @@ void MeshActions::ScaleMesh(CommandLineArguments& cmd)
     const auto& meshVerts = mesh.getvertices();
     const auto& meshFaces = mesh.gettriangles();
 
-    for (int i=0;i<meshVerts.size();i++)
-    {
+    for (int i=0;i<meshVerts.size();i++){
         Real3 pos;
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             pos[j] = meshVerts[i].position_[j] * scale;
         }
         verts.push_back(pos);
     }
 
-    for (int i=0;i<meshFaces.size();i++)
-    {
-        face.push_back(meshFaces[i].triangleindices_);
-    }
+    for (int i=0;i<meshFaces.size();i++){face.push_back(meshFaces[i].triangleindices_);}
 
     // write to output
     MeshTools::writePLY(outputfname, verts, face);
@@ -1441,4 +1424,222 @@ void MeshActions::CutTeethlikeFace(CommandLineArguments& cmd){
 
     MeshTools::ReconstructMeshAfterFaceCut(m);
     MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::ConvertToStL(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="out.stl";
+    Mesh mesh;
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    MeshTools::readPLYlibr(inputfname, mesh);
+    MeshTools::writeSTL(outputfname, mesh);
+}
+
+void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
+    // box --> must provide
+    std::string inputfname, outputfname="output.ply";
+    Real3 box;
+    INT2 translate_index={{1,2}}, array_shape;
+    
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("box", CommandLineArguments::Keys::Required, box);
+    cmd.readArray("array_shape", CommandLineArguments::Keys::Required, array_shape);
+    cmd.readArray("replicate_dir_index", CommandLineArguments::Keys::Optional, translate_index);
+
+    // read mesh
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+    mesh.setBoxLength(box);
+
+    // total number of replicates --> (2,2) --> 4
+    int total_num_replicates = array_shape[0] * array_shape[1];
+
+    // mesh properties
+    auto& v = mesh.accessvertices();
+    auto& f = mesh.accesstriangles();
+
+    // check the periodic faces
+    std::vector<int> PeriodicFaceIndices;
+    std::vector<int> NonPeriodicFaceIndices;
+    std::vector<triangle> newTriangles;
+    for (int i=0;i<f.size();i++){
+        if (MeshTools::IsPeriodicTriangle(mesh, i)){
+            PeriodicFaceIndices.push_back(i);
+        }
+        else{
+            NonPeriodicFaceIndices.push_back(i);
+            newTriangles.push_back(f[i]);
+        }
+    }
+
+    // requires periodic meshes --> replicates meshes in the 2 directions
+    int t1= translate_index[0], t2=translate_index[1];
+    int nv = v.size();
+    std::vector<vertex> newVertices;
+    for (int i=0;i<array_shape[0];i++){
+        for (int j=0;j<array_shape[1];j++){
+            for (int k=0;k<nv;k++){
+                vertex newV = v[k];
+                newV.position_[t1] += i * box[t1];
+                newV.position_[t2] += j * box[t2];
+                newVertices.push_back(newV);
+            }
+        }
+    }
+
+    // do all the non periodic faces
+    for (int i=0;i<array_shape[0];i++){
+        for (int j=0;j<array_shape[1];j++){
+            int num = i * array_shape[1] + j;
+            for (int k=0;k<NonPeriodicFaceIndices.size();k++){
+                int index = NonPeriodicFaceIndices[k];
+                triangle newt = f[index];
+                newt.triangleindices_ = newt.triangleindices_ + num * nv;
+                newTriangles.push_back(newt);
+            }
+
+        }
+    }
+
+    // do all the periodic faces  --> rows 
+    for (int i=0;i<array_shape[0];i++){
+        for (int j=0;j<array_shape[1]-1;j++){
+            int num = i * array_shape[1] + j;
+            for (int faceIdx : PeriodicFaceIndices){
+                // define the new triangle  --> first copy everything from the old triangle
+                triangle newt = f[faceIdx];
+
+                // obtain the old triangle indices --> these are real vertex indices 
+                INT3 vertsIndex = f[faceIdx].triangleindices_;
+
+                // obtain positions --> in t2 dimension
+                Real3 pos = {{v[vertsIndex[0]].position_[t2], v[vertsIndex[1]].position_[t2], v[vertsIndex[2]].position_[t2]}};
+                int maxIndex = Algorithm::argmax(pos);
+                std::vector<int> OtherIndex;
+                for (int k=0;k<3;k++){
+                    if (k != maxIndex){OtherIndex.push_back(k);}
+                }
+                int OtherIndex1 = vertsIndex[OtherIndex[0]], OtherIndex2 = vertsIndex[OtherIndex[1]], max = vertsIndex[maxIndex];
+
+                // find all the edge length in this triangle 
+                Real3 diff1 = v[OtherIndex1].position_ - v[max].position_;
+                Real3 diff2 = v[OtherIndex2].position_ - v[max].position_;
+                Real3 diff3 = v[OtherIndex1].position_ - v[OtherIndex2].position_;
+
+                // check if either 1 of the edges is both periodic in t1 and t2
+                bool bothPeriodic1 = (std::abs(diff1[t1]) >= (0.5 * box[t1])) && (std::abs(diff1[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic2 = (std::abs(diff2[t1]) >= (0.5 * box[t1])) && (std::abs(diff2[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic3 = (std::abs(diff3[t1]) >= (0.5 * box[t1])) && (std::abs(diff3[t2]) >= (0.5 * box[t2]));
+
+                if ((! bothPeriodic1) && (! bothPeriodic2) && (! bothPeriodic3)){
+                    if (std::abs(diff1[t2]) >= (0.5 * box[t2]) || std::abs(diff2[t2]) >= (0.5 * box[t2])){
+                        newt.triangleindices_[maxIndex] += num * nv;
+                        if (std::abs(diff1[t2]) >= (0.5*box[t2])){newt.triangleindices_[OtherIndex[0]] += (num+1)*nv;}
+                        else{newt.triangleindices_[OtherIndex[0]] += num * nv;}
+                        if (std::abs(diff2[t2]) >= (0.5*box[t2])){newt.triangleindices_[OtherIndex[1]] += (num+1)*nv;}
+                        else{newt.triangleindices_[OtherIndex[1]] += num * nv;}
+                        newTriangles.push_back(newt);
+                    }
+                }
+            }
+        }
+    }
+
+    // do all the periodic faces  --> cols
+    for (int i=0;i<array_shape[1];i++){
+        for (int j=0;j<array_shape[0]-1;j++){
+            int num = j * array_shape[1] + i;
+            for (int faceIdx : PeriodicFaceIndices){
+                // define the new triangle  --> first copy everything from the old triangle
+                triangle newt = f[faceIdx];
+
+                // obtain the old triangle indices --> these are real vertex indices 
+                INT3 vertsIndex = f[faceIdx].triangleindices_;
+
+                // obtain positions --> in t2 dimension
+                Real3 pos = {{v[vertsIndex[0]].position_[t1], v[vertsIndex[1]].position_[t1], v[vertsIndex[2]].position_[t1]}};
+                int maxIndex = Algorithm::argmax(pos);
+                std::vector<int> OtherIndex;
+                for (int k=0;k<3;k++){
+                    if (k != maxIndex){OtherIndex.push_back(k);}
+                }
+                int OtherIndex1 = vertsIndex[OtherIndex[0]], OtherIndex2 = vertsIndex[OtherIndex[1]], max = vertsIndex[maxIndex];
+
+                // find all the edge length in this triangle 
+                Real3 diff1 = v[OtherIndex1].position_ - v[max].position_;
+                Real3 diff2 = v[OtherIndex2].position_ - v[max].position_;
+                Real3 diff3 = v[OtherIndex1].position_ - v[OtherIndex2].position_;
+
+                // check if either 1 of the edges is both periodic in t1 and t2
+                bool bothPeriodic1 = (std::abs(diff1[t1]) >= (0.5 * box[t1])) && (std::abs(diff1[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic2 = (std::abs(diff2[t1]) >= (0.5 * box[t1])) && (std::abs(diff2[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic3 = (std::abs(diff3[t1]) >= (0.5 * box[t1])) && (std::abs(diff3[t2]) >= (0.5 * box[t2]));
+
+                if ((! bothPeriodic1) && (! bothPeriodic2) && (! bothPeriodic3)){
+                    if (std::abs(diff1[t1]) >= (0.5 * box[t1]) || std::abs(diff2[t1]) >= (0.5 * box[t1])){
+                        newt.triangleindices_[maxIndex] += num * nv;
+                        if (std::abs(diff1[t1]) >= (0.5*box[t1])){newt.triangleindices_[OtherIndex[0]] += (num+array_shape[1])*nv;}
+                        else{newt.triangleindices_[OtherIndex[0]] += num * nv;}
+                        if (std::abs(diff2[t1]) >= (0.5*box[t1])){newt.triangleindices_[OtherIndex[1]] += (num+array_shape[1])*nv;}
+                        else{newt.triangleindices_[OtherIndex[1]] += num * nv;}
+                        newTriangles.push_back(newt);
+                    }
+                }
+            }
+        }
+    }
+
+    // finally fill the gap  
+    for (int i=0;i<array_shape[1];i++){
+        for (int j=0;j<array_shape[0]-1;j++){
+            int num = j * array_shape[1] + i;
+            for (int faceIdx : PeriodicFaceIndices){
+                // define the new triangle  --> first copy everything from the old triangle
+                triangle newt = f[faceIdx];
+
+                // obtain the old triangle indices --> these are real vertex indices 
+                INT3 vertsIndex = f[faceIdx].triangleindices_;
+
+                // obtain positions --> in t2 dimension
+                Real3 pos = {{v[vertsIndex[0]].position_[t1], v[vertsIndex[1]].position_[t1], v[vertsIndex[2]].position_[t1]}};
+                int maxIndex = Algorithm::argmax(pos);
+                std::vector<int> OtherIndex;
+                for (int k=0;k<3;k++){
+                    if (k != maxIndex){OtherIndex.push_back(k);}
+                }
+                int OtherIndex1 = vertsIndex[OtherIndex[0]], OtherIndex2 = vertsIndex[OtherIndex[1]], max = vertsIndex[maxIndex];
+
+                // find all the edge length in this triangle 
+                Real3 diff1 = v[OtherIndex1].position_ - v[max].position_;
+                Real3 diff2 = v[OtherIndex2].position_ - v[max].position_;
+                Real3 diff3 = v[OtherIndex1].position_ - v[OtherIndex2].position_;
+
+                // check if either 1 of the edges is both periodic in t1 and t2
+                bool bothPeriodic1 = (std::abs(diff1[t1]) >= (0.5 * box[t1])) && (std::abs(diff1[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic2 = (std::abs(diff2[t1]) >= (0.5 * box[t1])) && (std::abs(diff2[t2]) >= (0.5 * box[t2]));
+                bool bothPeriodic3 = (std::abs(diff3[t1]) >= (0.5 * box[t1])) && (std::abs(diff3[t2]) >= (0.5 * box[t2]));
+
+                if (bothPeriodic1 || bothPeriodic2 || bothPeriodic3){
+                    if (std::abs(diff1[t1]) >= (0.5 * box[t1]) || std::abs(diff2[t1]) >= (0.5 * box[t1])){
+                        newt.triangleindices_[maxIndex] += num * nv;
+                        if (std::abs(diff1[t1]) >= (0.5*box[t1])){newt.triangleindices_[OtherIndex[0]] += (num+array_shape[1])*nv;}
+                        else{newt.triangleindices_[OtherIndex[0]] += num * nv;}
+                        if (std::abs(diff2[t1]) >= (0.5*box[t1])){newt.triangleindices_[OtherIndex[1]] += (num+array_shape[1])*nv;}
+                        else{newt.triangleindices_[OtherIndex[1]] += num * nv;}
+                        newTriangles.push_back(newt);
+                    }
+                }
+            }
+        }
+    }
+    
+
+    v.clear();
+    v.insert(v.end(), newVertices.begin(), newVertices.end());
+    f.clear();
+    f.insert(f.end(), newTriangles.begin(), newTriangles.end());
+
+    MeshTools::writePLY(outputfname, mesh);
 }
