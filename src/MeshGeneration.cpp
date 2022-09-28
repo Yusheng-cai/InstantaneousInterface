@@ -16,8 +16,7 @@ void MeshGeneration::printPLY(std::string name)
 
 void MeshGeneration::printOutputs()
 {
-    for (int i=0;i<OutputNames_.size();i++)
-    {
+    for (int i=0;i<OutputNames_.size();i++){
         output_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
     }
 }
