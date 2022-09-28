@@ -40,6 +40,9 @@ namespace StringTools
     // Function that reads tabulated data 
     template <typename T>
     void ReadTabulatedData(std::string filename, std::vector<std::vector<T>>& data);
+
+    // function that reads the file extension 
+    std::string ReadFileExtension(std::string filename);
 }
 
 

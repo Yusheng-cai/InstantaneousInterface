@@ -20,6 +20,14 @@ void StringTools::RemoveBlankInString(std::string& str)
     str.erase(std::remove(str.begin(), str.end(), ' '), str.end());
 }
 
+std::string StringTools::ReadFileExtension(std::string name){
+    std::size_t it = name.find_first_of(".");
+    std::string extension = name.substr(it+1);
+    ASSERT((extension.find_first_of(".") == std::string::npos), "The file name " << name << " is not valid.");
+
+    return extension;
+}
+
                             ////// Parameter packs ///////// 
 std::string& ParameterPack::insert(const std::string& key, const std::string& value)
 {
