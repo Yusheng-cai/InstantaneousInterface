@@ -19,8 +19,7 @@ using mapUsage       = std::map<std::string, std::string>;
 void RegisterAction(std::string name, std::string usage, ActionFunction func, mapFunction& mapF, mapUsage& mapU);
 void RegisterAllActions(mapFunction& mapF, mapUsage& mapU);
 
-int main(int argc, char** argv)
-{
+int main(int argc, char** argv){
     CommandLineArguments cmd(argc, argv);
 
     std::string help_key_ = "help";
@@ -30,12 +29,10 @@ int main(int argc, char** argv)
 
     RegisterAllActions(MapNameToAction, MapNameToUsage);
 
-    if (cmd.has_key("help") && ! cmd.has_key("op"))
-    {
+    if (cmd.has_key("help") && ! cmd.has_key("op")){
         std::cout << "Usage: mesh_op -op OPERATION " << "\n";
         std::cout << "operation  Usage" << "\n";
-        for (auto it = MapNameToUsage.begin(); it != MapNameToUsage.end(); it ++)
-        {
+        for (auto it = MapNameToUsage.begin(); it != MapNameToUsage.end(); it ++){
             std::cout << it -> first << "\t" << it -> second << "\n";
         }
         return 0;
@@ -45,8 +42,7 @@ int main(int argc, char** argv)
     // find the operation
     cmd.readString("op",CommandLineArguments::Keys::Required,operation_);
 
-    if (cmd.has_key("help") && cmd.has_key("op"))
-    {
+    if (cmd.has_key("help") && cmd.has_key("op")){
         auto it = MapNameToUsage.find(operation_);
         std::cout << it -> first << "\t" << it -> second << "\n";
 
@@ -144,5 +140,11 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            mapF, mapU);
     RegisterAction("CutTeethlikeFace", "-op CutTeethlikeFace -i input.ply -o cut.ply", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::CutTeethlikeFace(cmd);},\
+                                           mapF, mapU);
+    RegisterAction("ConvertToSTL", "-op ConvertToSTL -i input.ply -o output.stl", \
+                                           [](CommandLineArguments& cmd ) -> void {return MeshActions::ConvertToStL(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("ReplicatePBCMesh", "-op ReplicatePBCMesh -i input.ply -o output.ply -box x y z", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ReplicatePeriodicMesh(cmd);}, \
                                            mapF, mapU);
 }
