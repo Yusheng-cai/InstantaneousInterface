@@ -72,15 +72,12 @@ void UmbrellaSmoothing::refineStepImplicit()
         rhs[2][i] = Lfactors_[i][2] * lambdadt_ + vertices[i].position_[2];
     }
 
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         xyz[i] = solver_.solveWithGuess(rhs[i],rhs[i]);
     }
 
-    for (int i=0;i<vertices.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
+    for (int i=0;i<vertices.size();i++){
+        for (int j=0;j<3;j++){
             newVertices_[i].position_[j] = xyz[j][i];
         }
     }
@@ -90,8 +87,7 @@ void UmbrellaSmoothing::refineStepImplicit()
     vert.clear();
     vert.insert(vert.end(), newVertices_.begin(), newVertices_.end());
 
-    if (scale_)
-    {
+    if (scale_){
         Real vol = mesh_->calculateVolume();
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
         mesh_->scaleVertices(scale);
@@ -129,15 +125,10 @@ void UmbrellaSmoothing::prepareImplicitMatrix()
                     localtriplets.push_back(triplet(i, neighborIndices_[i][j], factor));
 
                     // perform adding the lfactor only if mesh is periodic 
-                    if (mesh_->isPeriodic())
-                    {
+                    if (mesh_->isPeriodic()){
                         Real3 shiftVec;
                         mesh_ -> CalculateShift(vertices[neighborIndices_[i][j]].position_, vertices[i].position_, shiftVec);
-
-                        for (int i=0;i<3;i++)
-                        {
-                            localLfactor[i] += shiftVec[i] * factor;
-                        }
+                        localLfactor = localLfactor + shiftVec * factor;
                     }
                 }
                 localtriplets.push_back(triplet(i,i, -1));

@@ -19,7 +19,7 @@ class CurvatureCurveFit : public Curvature
         virtual void calculate(Mesh& mesh) override;
 
         // printing function specifically for curvefit
-        void printff2(std::string name);
+        void printSecondFundamentalForm(std::string name);
     
     private:
         int NumParameters_ = 3;

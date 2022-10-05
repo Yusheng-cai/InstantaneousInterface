@@ -131,12 +131,9 @@ void DensityField::CalcOffsetIndex()
     int Ny_offset = std::round(cutoff_/dy);
     int Nz_offset = std::round(cutoff_/dz);
 
-    for( int i=-Nx_offset; i<=Nx_offset;i++)
-    {
-        for (int j=-Ny_offset; j<=Ny_offset; j++)
-        {
-            for (int k=-Nz_offset; k<=Nz_offset;k++)
-            {
+    for( int i=-Nx_offset; i<=Nx_offset;i++){
+        for (int j=-Ny_offset; j<=Ny_offset; j++){
+            for (int k=-Nz_offset; k<=Nz_offset;k++){
                 INT3 id = {{i,j,k}};
                 offsetIndex_.push_back(id);
             }
@@ -192,8 +189,7 @@ void DensityField::initializeMesh()
 
     // initialize the mesh object 
     mesh_ = Meshptr(new Mesh());
-    if (MCpbc_)
-    {
+    if (MCpbc_){
         mesh_->setBoxLength(bound_box_->getSides());
     }
 }
@@ -234,8 +230,7 @@ void DensityField::findAtomsIndicesInBoundingBox()
 void DensityField::CalculateInstantaneousField()
 {
     // the master object will not be zero'd
-    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-    {
+    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
         it -> zero();
     } 
 
@@ -269,12 +264,7 @@ void DensityField::CalculateInstantaneousField()
                 // iterate over all the indices and calculate instantaneousinterface
                 for(int j=0;j<offsetIndex_.size();j++)
                 {
-                    INT3 RealIndex;
-                    for (int k=0;k<3;k++)
-                    {
-                        RealIndex[k] = Index[k] + offsetIndex_[j][k];
-                    }
-
+                    INT3 RealIndex = Index + offsetIndex_[j];
                     Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
 
                     Real3 distance;

@@ -57,16 +57,9 @@ void Field::fixIndex(index3& index)
     ASSERT((index[2] >= -Nz_ && index[2] <= 2*Nz_-1), "z index out of range.");
 
     index3 N = {{Nx_, Ny_, Nz_}};
-    for (int i=0;i<3;i++)
-    {
-        if (index[i] < 0)
-        {
-            index[i] += N[i];
-        }
-        else
-        {
-            index[i] = index[i] % N[i];
-        }
+    for (int i=0;i<3;i++){
+        if (index[i] < 0){index[i] += N[i];}
+        else{index[i] = index[i] % N[i];}
     }
 }
 

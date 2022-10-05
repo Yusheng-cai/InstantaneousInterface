@@ -35,8 +35,7 @@ void Mesh2d::InputFileReader()
     std::getline(ifs, sentence);
     ss.clear();
     ss.str(sentence);
-    while (ss >> tempval)
-    {
+    while (ss >> tempval){
         val.push_back(tempval);
     }
 
@@ -274,7 +273,6 @@ void Mesh2d::generate()
         OutputVertices_.push_back(point);
         index++;
     }
-    // CGAL::IO::write_VTU(std::cout, cdt_, CGAL::IO::ASCII);
 
     OutputFaces_.clear();
     for (CDT::Finite_faces_iterator fit = cdt_.finite_faces_begin(); fit != cdt_.finite_faces_end(); fit ++)

@@ -17,8 +17,7 @@
 #include <map>
 #include <unordered_map>
 
-struct Point
-{
+struct Point{
     using Real = CommonTypes::Real;
     Real x;
     Real y;

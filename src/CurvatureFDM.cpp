@@ -21,16 +21,15 @@ void CurvatureFDM::calculate(Mesh& mesh)
     int nv = vertices.size();
 
     // Now we calculate the curvature
-    for (int i=0;i<nv;i++)
-    {
+    #pragma omp parallel for
+    for (int i=0;i<nv;i++){
         auto& v1 = vertices[i];
         auto& neighbors = neighbor_indices_[i];
         int numneighbors= neighbors.size();
         Real GaussCurve = 1.0;
 
-        for (int j=0;j<numneighbors;j++)
-        { 
-            auto& v2 = vertices[neighbors[j]];
+        for (int n : neighbors){ 
+            auto& v2 = vertices[n];
 
             Real curve_Val;
             Real3 diff = v2.position_ - v1.position_;
@@ -48,6 +47,7 @@ void CurvatureFDM::calculate(Mesh& mesh)
         GaussCurvaturePerVertex_[i] = GaussCurve;
     }
 
+    #pragma omp parallel for
     for (int i=0;i<nv;i++){ 
         int neighborSize = neighbor_indices_[i].size();
         avgCurvaturePerVertex_[i] = avgCurvaturePerVertex_[i]/neighborSize;

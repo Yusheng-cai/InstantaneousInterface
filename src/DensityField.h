@@ -12,6 +12,7 @@
 #include "Curvature.h"
 #include "Registry.h"
 #include "tools/Constants.h"
+#include "tools/CommonOperations.h"
 
 #include <vector>
 #include <map>

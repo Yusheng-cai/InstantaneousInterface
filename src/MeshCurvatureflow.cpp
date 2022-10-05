@@ -100,12 +100,12 @@ bool MeshCurvatureflow::CalculateCotangentWeights(int i, Real3& Lfactor, std::ve
         // map this edge to the faces that it corresponds to 
         std::vector<int> faces;
         bool FoundEdge = Algorithm::FindInMap(MapEdgeToFace_, edge, faces);
-        ASSERT(FoundEdge, "The edge " << edge[0] << " " << edge[1] << " is not found.");
+        ASSERT(FoundEdge, "The edge " << edge <<  " is not found.");
 
         // map this edge to the opposing vertices indices 
         std::vector<int> OpposingVerts;
         bool FoundVerts = Algorithm::FindInMap(MapEdgeToOpposingVerts_, edge, OpposingVerts);
-        ASSERT(FoundVerts, "The edge " << edge[0] << " " << edge[1] << " is not found.");
+        ASSERT(FoundVerts, "The edge " << edge << " is not found.");
 
         // factor here is cot(\alpha) + cot(\beta) --> where \alpha and \beta are the opposing angles shared by an edge 
         Real cotOpposingAnglesSum = 0.0;

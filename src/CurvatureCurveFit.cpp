@@ -6,8 +6,7 @@ namespace CurvatureRegistry
 }
 
 CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
-:Curvature(input)
-{
+:Curvature(input){
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
 }
 
@@ -157,7 +156,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     CalculateFaceCurvature(mesh, avgCurvaturePerVertex_, GaussCurvaturePerVertex_, CurvaturePerVertex_, FaceCurvature_);
 }
 
-void CurvatureCurveFit::printff2(std::string name)
+void CurvatureCurveFit::printSecondFundamentalForm(std::string name)
 {
     std::ofstream ofs;
     ofs.open(name);

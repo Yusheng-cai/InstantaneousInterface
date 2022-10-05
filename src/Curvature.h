@@ -19,8 +19,7 @@ struct CurvatureInput
     ParameterPack& pack;
 };
 
-class Curvature
-{
+class Curvature{
     public:
         using Real = CommonTypes::Real;
         using Real3= CommonTypes::Real3;

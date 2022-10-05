@@ -24,12 +24,9 @@ void CurvatureJetFit::printPCAeigenvector(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
-    for (int i=0;i<PCAeigenvector_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            for (int k=0;k<3;k++)
-            {
+    for (int i=0;i<PCAeigenvector_.size();i++){
+        for (int j=0;j<3;j++){
+            for (int k=0;k<3;k++){
                 ofs_ << PCAeigenvector_[i][j][k] << " ";
             }
         }
