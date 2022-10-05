@@ -20,23 +20,28 @@
 #include <unordered_map>
 #include <iomanip>
 
-struct vertex
-{
+// triangle structs
+struct vertex{
     using Real = CommonTypes::Real;
     using Real3= CommonTypes::Real3;
 
     Real3 position_ = {{0,0,0}};
     Real3 normals_ = {{0,0,0}};
+
+    Real& operator[](int i){return position_[i];}
+    Real operator[](int i) const {return position_[i];}
 };
 
-struct triangle
-{
+struct triangle{
     using  INT3 = CommonTypes::index3;
 
     INT3 triangleindices_;
 
     // each triangle has 3 vertices
     std::array<vertex,3> vertices_;
+
+    int& operator[](int i){return triangleindices_[i];}
+    int operator[](int i) const {return triangleindices_[i];}
 };
 
 class Mesh
@@ -196,7 +201,7 @@ namespace MeshTools
     void CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Real>& Areas, std::vector<Real3>& Normals);
 
     // find vertex neighbors 
-    void CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
+    void CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
 
     // map Edge to faces
     void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge);

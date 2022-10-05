@@ -2,14 +2,12 @@
 
 void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
 {
-    if (isPeriodic())
-    {
+    if (isPeriodic()){
         Real3 boxCenter;
         boxCenter = boxLength_ * 0.5;
 
         Real3 diff;
-        for (int i=0;i<3;i++)
-        {
+        for (int i=0;i<3;i++){
             diff[i] = OldVerPos[i] - boxCenter[i];
 
             if (diff[i] >= boxLength_[i] * 0.5) diff[i] = diff[i] - boxLength_[i];
@@ -25,13 +23,12 @@ void Mesh::CalcPerVertexDir()
     PerVertexdir1_.resize(vertices_.size());
     PerVertexdir2_.resize(vertices_.size());
 
-    for (int i=0;i<triangles_.size();i++)
-    {
+    for (int i=0;i<triangles_.size();i++){
         auto& t = triangles_[i];
  
-        int index0 = t.triangleindices_[0];
-        int index1 = t.triangleindices_[1];
-        int index2 = t.triangleindices_[2];
+        int index0 = t[0];
+        int index1 = t[1];
+        int index2 = t[2];
 
         Real3 diff0, diff1, diff2;
         Real diffsq0, diffsq1, diffsq2;
@@ -68,19 +65,17 @@ Mesh::Real Mesh::calculateVolume()
         g.fill(0);
         for (int j=0;j<3;j++)
         {
-            int index= t.triangleindices_[j];
-            for (int k=0;k<3;k++)
-            {
+            int index= t[j];
+            for (int k=0;k<3;k++){
                 g[k] += vertices_[index].position_[k] /3.0;
             }
         }
 
         Real3 vec1, vec2;
-        int index1 = t.triangleindices_[0];
-        int index2 = t.triangleindices_[1];
-        int index3 = t.triangleindices_[2];
-        for (int j=0;j<3;j++)
-        {
+        int index1 = t[0];
+        int index2 = t[1];
+        int index3 = t[2];
+        for (int j=0;j<3;j++){
             vec1[j] = vertices_[index2].position_[j] - vertices_[index1].position_[j];
             vec2[j] = vertices_[index3].position_[j] - vertices_[index1].position_[j];
         }
@@ -96,12 +91,8 @@ Mesh::Real Mesh::calculateVolume()
 void Mesh::scaleVertices(Real num)
 {
     #pragma omp parallel for
-    for (int i=0;i<vertices_.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
-            vertices_[i].position_[j] = num * vertices_[i].position_[j];
-        }
+    for (int i=0;i<vertices_.size();i++){
+        vertices_[i].position_ = num * vertices_[i].position_;
     }
 
     update();
@@ -128,8 +119,7 @@ void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec,
 
 void Mesh::CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec)
 {
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         Real d = v1[i] - v2[i];
 
         if (d > (0.5 * boxLength_[i])) shiftVec[i] = -boxLength_[i];
@@ -156,8 +146,7 @@ Mesh::Real3 Mesh::getShiftIntoBox(const Real3& v1)
     Real3 center;
     center = boxLength_ * 0.5;
 
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         Real diff = v1[i] - center[i];
 
         if (diff >= boxLength_[i] * 0.5) shift[i] = -boxLength_[i];
@@ -182,9 +171,9 @@ void Mesh::CalculateCornerArea()
 	for (int i = 0; i < nf; i++) {
 		// Edges
         auto& t = triangles_[i];
-        int index1 = t.triangleindices_[0];
-        int index2 = t.triangleindices_[1];
-        int index3 = t.triangleindices_[2];
+        int index1 = t[0];
+        int index2 = t[1];
+        int index3 = t[2];
 
         Real3 edge1, edge2, edge3;
         Real edge1sq, edge2sq, edge3sq;
@@ -242,9 +231,9 @@ void Mesh::CalculateCornerArea()
             }
 		}
 
-		triangleArea_[t.triangleindices_[0]] += cornerArea_[i][0];
-		triangleArea_[t.triangleindices_[1]] += cornerArea_[i][1];
-		triangleArea_[t.triangleindices_[2]] += cornerArea_[i][2];
+		triangleArea_[t[0]] += cornerArea_[i][0];
+		triangleArea_[t[1]] += cornerArea_[i][1];
+		triangleArea_[t[2]] += cornerArea_[i][2];
 	}
 }
 
@@ -256,7 +245,7 @@ void Mesh::update()
 
         for (int j=0;j<3;j++)
         {
-            int index = t.triangleindices_[j];
+            int index = t[j];
             t.vertices_[j] = vertices_[index];
         }
     }
@@ -277,11 +266,8 @@ void Mesh::CalcVertexNormals()
 
         for (int j=0;j<3;j++)
         {
-            int index = t.triangleindices_[j];
-
-            for (int k=0;k<3;k++)
-            {
-                VertNorms[index][k] += normals[k];
+            for (int k=0;k<3;k++){
+                VertNorms[t[j]][k] += normals[k];
             }
         }
     }
@@ -302,37 +288,24 @@ void Mesh::CalcVertexNormalsAreaWeighted()
     std::fill(vertexNormals_.begin(), vertexNormals_.end(), zeroArr);
 
     // calculate the normals of each vertices
-    for (int i=0;i<triangles_.size();i++)
-    {
+    for (int i=0;i<triangles_.size();i++){
         auto& t = triangles_[i];
         Real area = triangleArea_[i];
         Real3 normals = facetNormals_[i];
 
-        for (int j=0;j<3;j++)
-        {
-            int index = t.triangleindices_[j];
-            auto& vNorm = vertexNormals_[index];
-
-            for (int k=0;k<3;k++)
-            {
-                vNorm[k] += area*normals[k];
-            }
+        for (int j=0;j<3;j++){
+            auto& vNorm = vertexNormals_[t[j]];
+            vNorm = vNorm + area * normals;
         }
     }
 
 
-    for (int i=0;i<vertexNormals_.size();i++)
-    {
+    for (int i=0;i<vertexNormals_.size();i++){
         Real norm = LinAlg3x3::norm(vertexNormals_[i]);
-
-        for (int j=0;j<3;j++)
-        {
-            vertexNormals_[i][j] = vertexNormals_[i][j]/norm;
-        }
+        vertexNormals_[i] = vertexNormals_[i] / norm;
     }
 
-    for (int i=0;i<vertices_.size();i++)
-    {
+    for (int i=0;i<vertices_.size();i++){
         vertices_[i].normals_ = vertexNormals_[i];
     }
 }
@@ -361,13 +334,11 @@ void MeshTools::writePLY(std::string filename, Mesh& mesh)
     verts.resize(v.size());
     faces.resize(f.size());
 
-    for (int i=0;i<v.size();i++)
-    {
+    for (int i=0;i<v.size();i++){
         verts[i] = v[i].position_;
     }
 
-    for (int i=0;i<f.size();i++)
-    {
+    for (int i=0;i<f.size();i++){
         faces[i] = f[i].triangleindices_;
     }
 
@@ -398,28 +369,23 @@ void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertice
     ofs << "end_header\n";
 
     ofs << std::fixed << std::setprecision(6);
-    for (int i=0;i<sizeVertex;i++)
-    {
-        for (int j=0;j<3;j++)
-        {
+    for (int i=0;i<sizeVertex;i++){
+        for (int j=0;j<3;j++){
             ofs << vertices[i][j] << " ";
         }
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             ofs << normals[i][j] << " ";
         }
 
         ofs << "\n";
     }
 
-    for (int i=0;i<sizetriangle;i++)
-    {
+    for (int i=0;i<sizetriangle;i++){
         ofs << 3 << " ";
         auto& t = faces[i];
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             ofs << t[j] << " ";
         }
         ofs << "\n";
@@ -606,8 +572,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
     vertices.resize(vPos.size());
     triangles.resize(fInd.size());
 
-    for (int i=0;i<vertices.size();i++)
-    {
+    for (int i=0;i<vertices.size();i++){
         auto& v = vertices[i];
         for (int j=0;j<3;j++){
             v.position_[j] = vPos[i][j];
@@ -621,7 +586,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
         ASSERT((fInd[i].size() == 3), "We are reading triangles here while the provided face is " << fInd[i].size());
 
         for (int j=0;j<3;j++){
-            t.triangleindices_[j] = fInd[i][j];
+            t[j] = fInd[i][j];
             t.vertices_[j] = vertices[fInd[i][j]];
         }
     }
@@ -842,9 +807,9 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
     {
         auto& t = triangles[i];
 
-        int index1 = t.triangleindices_[0];
-        int index2 = t.triangleindices_[1];
-        int index3 = t.triangleindices_[2];
+        int index1 = t[0];
+        int index2 = t[1];
+        int index3 = t[2];
 
         Real3 diff1 = {};
         Real3 diff2 = {};
@@ -865,7 +830,7 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
     }
 }
 
-void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int>>& neighborIndices)
+void MeshTools::CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vector<int>>& neighborIndices)
 {
     auto& vertices = mesh.getvertices();
     auto& triangles= mesh.gettriangles();
@@ -877,10 +842,10 @@ void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int
         auto& t = triangles[i];
 
         for (int j=0;j<3;j++){
-            int index1 = t.triangleindices_[j];
+            int index1 = t[j];
             for (int k=0;k<3;k++){
                 if (j != k){
-                    int index2 = t.triangleindices_[k];
+                    int index2 = t[k];
                     auto it = std::find(neighborIndices[index1].begin(), neighborIndices[index1].end(), index2);
                     if (it == neighborIndices[index1].end()){
                         neighborIndices[index1].push_back(index2);
@@ -890,6 +855,7 @@ void MeshTools::CalculateVertexNeighbors(Mesh& mesh, std::vector<std::vector<int
         }
     }
 }
+
 
 void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge)
 {
@@ -909,8 +875,8 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
 
         for (int j=0;j<3;j++){
             // get the 2 adjacent indices
-            int idx1 = t.triangleindices_[j];
-            int idx2 = t.triangleindices_[(j+1)%3];
+            int idx1 = t[j];
+            int idx2 = t[(j+1)%3];
 
             // find the min/max of the 2
             int minIndex = std::min(idx1, idx2);
@@ -932,20 +898,18 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
 
         // map vertex to edges 
         for (int j=0;j<3;j++){
-            int idx1 = t.triangleindices_[j];
-            int idx2 = t.triangleindices_[(j+1)%3];
+            int idx1 = t[j];
+            int idx2 = t[(j+1)%3];
             int minIdx = std::min(idx1, idx2);
             int maxIdx = std::max(idx1, idx2);
 
             INT2 indices = {{minIdx, maxIdx}};
 
-            for (int k=0;k<2;k++)
-            {
+            for (int k=0;k<2;k++){
                 // find if the edge is already in the vector
                 auto f = std::find(mapVertexToEdge[indices[k]].begin(), mapVertexToEdge[indices[k]].end(), indices);
 
-                if (f == mapVertexToEdge[indices[k]].end())
-                {
+                if (f == mapVertexToEdge[indices[k]].end()){
                     mapVertexToEdge[indices[k]].push_back(indices);
                 }
             }
@@ -956,9 +920,8 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
     int id = 0;
     for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++){
         if (it -> second.size() > 2){
-            std::cout << "This is for edge " << id << " consisting of vertex " << it ->first[0] <<" " << it->first[1] <<"\n";
-            for (auto s : it -> second)
-            {
+            std::cout << "This is for edge " << id << " consisting of vertex " << it ->first <<"\n";
+            for (auto s : it -> second){
                 std::cout << "Face it corresponds to : " << s <<"\n";
             }
         }
@@ -1024,9 +987,9 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
                 Real distsq2;
                 Real3 verticesNew3, verticesDiff3;
                 Real distsq3;
-                int idx1 = t.triangleindices_[0];
-                int idx2 = t.triangleindices_[1];
-                int idx3 = t.triangleindices_[2];
+                int idx1 = t[0];
+                int idx2 = t[1];
+                int idx3 = t[2];
 
                 // get the pbc corrected distance 
                 mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
@@ -1224,9 +1187,9 @@ void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, 
 	for (int i = 0; i < nf; i++) {
 		// Edges
         auto& t = triangles[i];
-        int index1 = t.triangleindices_[0];
-        int index2 = t.triangleindices_[1];
-        int index3 = t.triangleindices_[2];
+        int index1 = t[0];
+        int index2 = t[1];
+        int index3 = t[2];
 
         Real3 edge1, edge2, edge3;
         Real edge1sq, edge2sq, edge3sq;
@@ -1281,9 +1244,9 @@ void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, 
             }
 		}
 
-		VertexArea[t.triangleindices_[0]] += CornerArea[i][0];
-		VertexArea[t.triangleindices_[1]] += CornerArea[i][1];
-		VertexArea[t.triangleindices_[2]] += CornerArea[i][2];
+		VertexArea[t[0]] += CornerArea[i][0];
+		VertexArea[t[1]] += CornerArea[i][1];
+		VertexArea[t[2]] += CornerArea[i][2];
 	}
 }
 
