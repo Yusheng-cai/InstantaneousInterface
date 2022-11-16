@@ -3,6 +3,7 @@ add_library(IIsrc SHARED)
 target_sources(IIsrc PRIVATE
     "AtomGroup.cpp"
     "AtomGroupParsingStrategy.cpp"
+    "Bin.cpp"
     "BoundingBox.cpp"
     "DensityField.cpp"
     "Driver.cpp"
@@ -32,6 +33,7 @@ target_sources(IIsrc PRIVATE
 set(IIsrc_HEADER
     "AtomGroup.h"
     "AtomGroupParsingStrategy.h"
+    "Bin.h"
     "BoundingBox.h"
     "DensityField.h"
     "Driver.h"
