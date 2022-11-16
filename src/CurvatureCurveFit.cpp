@@ -33,8 +33,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     Real3 referenceDir = {{0,0,-1}};
 
     #pragma omp parallel for
-    for (int i=0;i<nv;i++)
-    {
+    for (int i=0;i<nv;i++){
         auto& v = vertices[i];
         auto& neighbors = NeighborIndicesNVertex[i];
         ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
@@ -73,6 +72,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
             b[1] += std::pow(ypos, 2.0) * zpos;
             b[2] += xpos * ypos * zpos;
         }
+
         mat(1,0) = mat(0,1);
         mat(2,0) = mat(0,2);
         mat(2,1) = mat(1,2);

@@ -19,6 +19,7 @@
 #include "tools/CommonOperations.h"
 #include "tools/Algorithm.h"
 #include "LinAlgTools.h"
+#include "Graph.h"
 
 namespace MeshActions
 {

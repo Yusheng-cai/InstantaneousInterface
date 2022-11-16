@@ -26,10 +26,8 @@ void MeshActions::TranslateMesh(CommandLineArguments& cmd)
     normals.resize(verts.size());
 
     #pragma omp parallel for
-    for (int i=0;i<vertices.size();i++)
-    {
-        for (int j=0;j<3;j++)
-        {
+    for (int i=0;i<vertices.size();i++){
+        for (int j=0;j<3;j++){
             vertices[i][j] = verts[i].position_[j] + translate_vec[j];
             normals[i][j]  = verts[i].normals_[j];
         }
@@ -90,7 +88,7 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     if (ff2_read){
         CurvatureCurveFit* c = dynamic_cast<CurvatureCurveFit*>(curve.get());
         ASSERT((c != nullptr), "Something went wrong in curvefit mesh action.");
-        c->printff2(ff2fname);
+        c-> printSecondFundamentalForm(ff2fname);
     }
 }
 
@@ -134,7 +132,7 @@ void MeshActions::TensorFit(CommandLineArguments& cmd)
 void MeshActions::JetFit(CommandLineArguments& cmd)
 {
     std::string inputfname, outputfname="jetfit.out", faceCfname="jetfit_faceC.out", neighbors, degree, MongeCoefficient;
-    std::string pdir_fname="pdir.out";
+    std::string pdir_fname="pdir.out", pca_fname;
     std::string monge;
     Real3 box;
 
@@ -150,6 +148,7 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
     bool fcread = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
     bool MongeRead = cmd.readString("mongeFile", CommandLineArguments::Keys::Optional, monge);
     bool pdirRead  = cmd.readString("pdirFile", CommandLineArguments::Keys::Optional, pdir_fname);
+    bool pcaRead   = cmd.readString("PCAFile", CommandLineArguments::Keys::Optional, pca_fname);
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
     cmd.readString("degree", CommandLineArguments::Keys::Required, degree);
     cmd.readString("MongeCoefficient", CommandLineArguments::Keys::Required, MongeCoefficient);
@@ -185,13 +184,18 @@ void MeshActions::JetFit(CommandLineArguments& cmd)
         jetfit->printCoefficientPerVertex(monge);
     }
 
+    if (pcaRead){
+        CurvatureJetFit* jetfit = dynamic_cast<CurvatureJetFit*>(curve.get());
+        ASSERT((jetfit != nullptr), "Something went wrong in jetfit.");
+        jetfit->printPCAeigenvector(pca_fname);
+    }
+
     if (pdirRead){
         curve -> printPrincipalDir(pdir_fname);
     }
 }
 
-void MeshActions::FDMFit(CommandLineArguments& cmd)
-{
+void MeshActions::FDMFit(CommandLineArguments& cmd){
     std::string inputfname, outputfname="FDMfit.out", faceCfname="FDMfit_faceC.out";
     Real3 box;
 
@@ -207,8 +211,7 @@ void MeshActions::FDMFit(CommandLineArguments& cmd)
     bool fcread = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
-    if (pbcMesh)
-    {
+    if (pbcMesh){
         mesh.setBoxLength(box);
     }
 
@@ -297,8 +300,7 @@ void MeshActions::FindNonPBCTriangles(CommandLineArguments& cmd)
     MeshTools::writeNonPeriodicTriangleIndices(outputfname, mesh);
 }
 
-void MeshActions::CutMesh(CommandLineArguments& cmd)
-{
+void MeshActions::CutMesh(CommandLineArguments& cmd){
     std::string inputfname;
     std::string outputfname="out.ply";
     Mesh mesh;
@@ -606,8 +608,7 @@ void MeshActions::Project3dMesh(CommandLineArguments& cmd)
     ofs.close();
 
     // if we are doing normal mapping 
-    if (normalMap)
-    {
+    if (normalMap){
         std::ofstream ofs;
         ofs.open(normalMapfname);
         int index=0;
@@ -1076,7 +1077,9 @@ void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
 {
     std::string inputfname, outputfname="neighbors.out";
 
+    int n = 1;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
 
     // read in the mesh
@@ -1085,16 +1088,16 @@ void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
 
     // calculate the neighbor indices 
     std::vector<std::vector<int>> neighborInd;
+    std::vector<std::vector<int>> neighborInd_nVertex;
     MeshTools::CalculateVertexNeighbors(mesh, neighborInd);
+    Graph::getNearbyIndicesNVertexAway(neighborInd, n, neighborInd_nVertex);
 
     std::ofstream ofs;
     ofs.open(outputfname);
 
-    for (int i=0;i<neighborInd.size();i++)
-    {
+    for (int i=0;i<neighborInd.size();i++){
         ofs << i << " ";
-        for (auto ind : neighborInd[i])
-        {
+        for (auto ind : neighborInd_nVertex[i]){
             ofs << ind << " ";
         }
         ofs << "\n";

@@ -89,7 +89,7 @@ class Driver
         std::string abs_path_;
 
         // density field pointer 
-        DensityPtr densityfield_;
+        std::vector<DensityPtr> densityfields_;
 
         // bounding box pointer 
         BBPtr boundingbox_;

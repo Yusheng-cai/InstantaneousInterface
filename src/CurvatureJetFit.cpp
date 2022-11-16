@@ -65,8 +65,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
         MongeViaJetFitting jetfitterLocal;
 
         #pragma omp for
-        for (int i=0;i<nv;i++)
-        {
+        for (int i=0;i<nv;i++){
             std::vector<Dpoint> vec;
             Real3 thisPos = vertices[i].position_;
             Real3 thisNormal = vertices[i].normals_;
