@@ -1643,3 +1643,39 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
 
     MeshTools::writePLY(outputfname, mesh);
 }
+
+void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
+    using Range = CommonTypes::Real2;
+    using Binptr= std::unique_ptr<Bin>;
+
+    std::string inputfname, outputfname="dist.out";
+    Real3 box;
+    int numbins;
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("numbins", CommandLineArguments::Keys::Optional, numbins);
+    bool BoxRead = cmd.readValue("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (BoxRead){
+        m.setBoxLength(box);
+    }
+
+    // create the bin object
+    Range r = {{0,180}};
+    Bin b(r, numbins);
+
+    // 
+    std::vector<Real> angles;
+    MeshTools::FindTriangleAngles(m, angles);
+
+    #pragma omp parallel
+    {
+        for (int i=0;i<angles.size();i++){
+
+
+        }
+    }
+}

@@ -98,7 +98,7 @@ void Mesh::scaleVertices(Real num)
     update();
 }
 
-void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist)
+void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist) const 
 {
     distVec.fill(0);
     distVec = v1 - v2;
@@ -112,7 +112,7 @@ void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, R
     dist = LinAlg3x3::norm(distVec);
 }
 
-void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist)
+void Mesh::getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist) const
 {
     getVertexDistance(v1.position_, v2.position_, distVec, dist);
 }
@@ -1595,4 +1595,46 @@ void MeshTools::ReconstructMeshAfterFaceCut(Mesh& mesh)
     auto& oldV = mesh.accessvertices();
     oldT.clear(); oldT.insert(oldT.end(), newFace.begin(), newFace.end());
     oldV.clear(); oldV.insert(oldV.end(), newVerts.begin(), newVerts.end());
+}
+
+
+void MeshTools::FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles){
+    angles.clear();
+
+    const auto& tri = mesh.gettriangles();
+    const auto& vert = mesh.getvertices();
+
+    #pragma omp parallel
+    {
+        std::vector<Real> localAngles;
+        #pragma omp for
+        for (int i=0;i<tri.size();i++){
+            triangle ti = tri[i];
+            // for each triangle we have 3 angles 
+            for (int j=0;j<3;j++){
+                int next = (j+1) % 3;
+                int before  = j-1;
+
+                if (before < 0){
+                    before  += 3;
+                }
+
+                // find the 2 vectors of the triangle
+                Real3 vec1, vec2;
+                Real dist1, dist2;
+                mesh.getVertexDistance(vert[ti[next]], vert[ti[j]], vec1, dist1);
+                mesh.getVertexDistance(vert[ti[before]], vert[ti[j]], vec2, dist2);
+
+                Real dot = LinAlg3x3::DotProduct(vec1, vec2);
+                Real angle = std::acos(dot);
+
+                localAngles.push_back(angle);
+            }
+        }
+
+        #pragma omp critical
+        {
+            angles.insert(angles.end(), localAngles.begin(), localAngles.end());
+        }
+    }
 }

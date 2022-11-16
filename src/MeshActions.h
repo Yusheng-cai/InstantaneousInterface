@@ -19,6 +19,7 @@
 #include "tools/CommonOperations.h"
 #include "tools/Algorithm.h"
 #include "LinAlgTools.h"
+#include "Bin.h"
 
 namespace MeshActions
 {
@@ -104,4 +105,7 @@ namespace MeshActions
 
     // replicate periodic mesh --> make it
     void ReplicatePeriodicMesh(CommandLineArguments& cmd);
+
+    // find the distribution of the triangle angles
+    void TriangleAngleDistribution(CommandLineArguments& cmd);
 };

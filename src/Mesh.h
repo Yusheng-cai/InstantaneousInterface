@@ -30,6 +30,9 @@ struct vertex{
 
     Real& operator[](int i){return position_[i];}
     Real operator[](int i) const {return position_[i];}
+
+    Real3 operator-(const vertex& otherV) const{return position_ - otherV.position_;}
+    Real3 operator+(const vertex& otherV) const{return position_ + otherV.position_;}
 };
 
 struct triangle{
@@ -114,10 +117,10 @@ class Mesh
                                         ///////////////////////////////
 
         // Check whether or not the mesh is periodic 
-        bool isPeriodic() {return isPeriodic_;}
+        bool isPeriodic() const {return isPeriodic_;}
         // find PBC distance between 2 vertices 
-        void getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist);
-        void getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist);
+        void getVertexDistance(const vertex& v1, const vertex& v2, Real3& distVec, Real& dist) const;
+        void getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist) const;
         void CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec);
         // move a vertex into pbc box
         void MoveVertexIntoBox(const Real3& OldVertPos, Real3& NewVertexPos);
@@ -260,4 +263,7 @@ namespace MeshTools
 
     // regenerate mesh after some faces are cut
     void ReconstructMeshAfterFaceCut(Mesh& mesh);
+
+    // get a sense of the triangular angles 
+    void FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles);
 };
