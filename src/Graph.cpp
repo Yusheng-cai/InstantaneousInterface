@@ -17,35 +17,26 @@ void Graph::getNNearbyIndices(const std::vector<std::vector<int>>& NearbyIndices
         std::vector<int> currentNearbyIndicesNVertex;
         currentNearbyIndicesNVertex.resize(0);
         
-        while (currentNearbyIndicesNVertex.size() < N)
-        {
-            if (currentNearbyIndicesNVertex.size() == 0)
-            {
-                for (int j=0;j<currentNearbyIndices.size();j++)
-                {
+        while (currentNearbyIndicesNVertex.size() < N){
+            if (currentNearbyIndicesNVertex.size() == 0){
+                for (int j=0;j<currentNearbyIndices.size();j++){
                     bool found = (std::find(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end(), currentNearbyIndices[j])) != currentNearbyIndicesNVertex.end();
-
-                    if ( ! found && currentNearbyIndices[j] != i)
-                    {
+                    if ( ! found && currentNearbyIndices[j] != i){
                         currentNearbyIndicesNVertex.push_back(currentNearbyIndices[j]);
                     }
                 }
 
                 final_count = currentNearbyIndicesNVertex.size();
             }            
-            else
-            {
+            else{
                 std::vector<int> temp;
                 temp.resize(0);
-                for (int k=initial_count;k<final_count;k++)
-                {
+                for (int k=initial_count;k<final_count;k++){
                     int id = currentNearbyIndicesNVertex[k];
 
-                    for (int m=0;m<NearbyIndices[id].size();m++)
-                    {
+                    for (int m=0;m<NearbyIndices[id].size();m++){
                         bool found = (std::find(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end(),NearbyIndices[id][m])) != currentNearbyIndicesNVertex.end();
-                        if (! found && NearbyIndices[id][m] != i)
-                        {
+                        if (! found && NearbyIndices[id][m] != i){
                             currentNearbyIndicesNVertex.push_back(NearbyIndices[id][m]);
                         }
                     }
@@ -82,8 +73,7 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
     NearbyIndicesNVertex.resize(NumberOfVertices);
 
     #pragma omp parallel for
-    for(int i=0;i<NumberOfVertices;i++)
-    {
+    for(int i=0;i<NumberOfVertices;i++){
         int initial_count = 0;
         int final_count = 0;
         int nearbySize = NearbyIndices[i].size();
@@ -91,27 +81,21 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
         std::vector<int> currentNearbyIndicesNVertex;
         currentNearbyIndicesNVertex.resize(0);
 
-        for (int j=0;j<N;j++)
-        {
-            if (currentNearbyIndicesNVertex.size() == 0)
-            {
+        for (int j=0;j<N;j++){
+            if (currentNearbyIndicesNVertex.size() == 0){
                 currentNearbyIndicesNVertex.insert(currentNearbyIndicesNVertex.end(),\
                 currentNearbyIndices.begin(), currentNearbyIndices.end());
 
                 final_count = currentNearbyIndicesNVertex.size();
             }            
-            else
-            {
+            else{
                 std::vector<int> temp;
                 temp.resize(0);
-                for (int k=initial_count;k<final_count;k++)
-                {
+                for (int k=initial_count;k<final_count;k++){
                     int id = currentNearbyIndicesNVertex[k];
 
-                    for (int m=0;m<NearbyIndices[id].size();m++)
-                    {
-                        if (NearbyIndices[id][m] != i)
-                        {
+                    for (int m=0;m<NearbyIndices[id].size();m++){
+                        if (NearbyIndices[id][m] != i){
                             temp.push_back(NearbyIndices[id][m]);
                         }
                     }
@@ -123,7 +107,10 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
             }
         }
 
+
+        // sort the vector
         std::sort(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end());
+
         // The non-unique terms will be undefined ***
         auto it = std::unique(currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.end());
 

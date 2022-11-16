@@ -27,8 +27,7 @@ void Field::resize(std::size_t Nx, std::size_t Ny, std::size_t Nz, Range& xrange
     dz_ = Lz_/Nz_;
 }
 
-void Field::clearField()
-{
+void Field::clearField(){
     field_.clear();
 }
 

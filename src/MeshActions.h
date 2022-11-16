@@ -20,6 +20,7 @@
 #include "tools/Algorithm.h"
 #include "LinAlgTools.h"
 #include "Bin.h"
+#include "Graph.h"
 
 namespace MeshActions
 {

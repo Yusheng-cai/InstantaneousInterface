@@ -87,7 +87,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("FDMfit", "-op FDMfit -box[optional] x y z -i input.ply -o FDMfit.out -fc FDMfit_faceC.out", \
                               [](CommandLineArguments& cmd)->void {return MeshActions::FDMFit(cmd);}, \
                               mapF, mapU);
-    RegisterAction("curvatureflow", "-op curvatureflow -box[optional] x y z -i input.ply -o output.ply -pbcOutput[optional] true/false -decimate[optional] true -iteration number[int] -lambdadt number[float]", \
+    RegisterAction("curvatureflow", "-op curvatureflow -box[optional] x y z -i input.ply -o output.ply -pbcOutput[optional] true/false -Decimate[optional] true -iteration number[int] -lambdadt number[float]", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::CurvatureFlow(cmd);}, \
                     mapF, mapU);
     RegisterAction("NonPBCFace", "-op NonPBCFace -box[required] x y z -i input.ply -o NonPBC.out",\
@@ -146,5 +146,8 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            mapF, mapU);
     RegisterAction("ReplicatePBCMesh", "-op ReplicatePBCMesh -i input.ply -o output.ply -box x y z", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::ReplicatePeriodicMesh(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("FindNeighborIndices", "-op FindNeighborIndices -i input.ply -n num -o output.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::FindVertexNeighbors(cmd);}, \
                                            mapF, mapU);
 }

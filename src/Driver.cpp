@@ -69,13 +69,14 @@ void Driver::initializeDriver()
 
 void Driver::initializeDensityField()
 {
-    auto DensityPack = pack_.findParamPack("densityfield", ParameterPack::KeyType::Required);
+    auto DensityPack = pack_.findParamPacks("densityfield", ParameterPack::KeyType::Required);
 
-    std::string densityType;
-    DensityPack->ReadString("type", ParameterPack::KeyType::Required, densityType);
-
-    DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*DensityPack), reg_};
-    densityfield_ = DensityPtr(DensityFieldRegistry::Factory::instance().create(densityType, input));
+    for (int i=0;i<DensityPack.size();i++){
+        std::string densityType;
+        DensityPack[i]->ReadString("type", ParameterPack::KeyType::Required, densityType);
+        DensityFieldInput input = {simstate_,const_cast<ParameterPack&>(*DensityPack[i]), reg_};
+        densityfields_.push_back(DensityPtr(DensityFieldRegistry::Factory::instance().create(densityType, input)));
+    }
 }
 
 void Driver::initializeBoundingBox()
@@ -100,8 +101,7 @@ void Driver::initializeMeshRefinement()
 {
     auto refinePack = pack_.findParamPacks("refine", ParameterPack::KeyType::Optional);
 
-    for (int i=0;i<refinePack.size();i++)
-    {
+    for (int i=0;i<refinePack.size();i++){
         std::string type;
         std::string name;
 
@@ -114,15 +114,13 @@ void Driver::initializeMeshRefinement()
 
         reg_.registerMeshRefinement(ptr -> getName(), *ptr);
     }
-
 }
 
 void Driver::initializeCurvature()
 {
     auto Cpack = pack_.findParamPacks("curvature", ParameterPack::KeyType::Optional);
 
-    for (int i=0;i<Cpack.size();i++)
-    {
+    for (int i=0;i<Cpack.size();i++){
         std::string curvatureType;
         std::string name;
         auto& p = Cpack[i];
@@ -158,8 +156,7 @@ void Driver::update(int FrameNum)
     const auto& positions_ = xdrfile_ -> getPositions();
 
     // update the atomgroups
-    for (int i=0;i<AtomGroupNames_.size();i++)
-    {
+    for (int i=0;i<AtomGroupNames_.size();i++){
         auto  agName = AtomGroupNames_[i];
         auto& ag     = simstate_.getAtomGroup(agName);
 
@@ -193,8 +190,7 @@ void Driver::initializeGroFile()
 {
     auto groPack = pack_.findParamPack("grofile", ParameterPack::KeyType::Optional);
 
-    if (groPack != nullptr)
-    {
+    if (groPack != nullptr){
         groPack->ReadString("path", ParameterPack::KeyType::Required, groPath_);
 
         grofile_.Open(groPath_);
@@ -205,8 +201,7 @@ void Driver::initializeAtomGroups()
 {
     auto agPack = pack_.findParamPacks("atomgroup", ParameterPack::KeyType::Required);
 
-    for (int i=0;i<agPack.size();i++)
-    {
+    for (int i=0;i<agPack.size();i++){
         auto pack = agPack[i];
         std::string atomName_;
         pack -> ReadString("name", ParameterPack::KeyType::Required, atomName_);
@@ -231,30 +226,35 @@ AtomGroup& Driver::getAtomGroup(const std::string& name)
     return simstate_.getAtomGroup(name);
 }
 
-void Driver::calculate()
-{
-    densityfield_->calculate();
+void Driver::calculate(){
+    for (int i=0;i<densityfields_.size();i++){
+        densityfields_[i]->calculate();
+    }
 }
 
-void Driver::finishCalculate()
-{
-    densityfield_->finishCalculate();
+void Driver::finishCalculate(){
+    for (int i=0;i<densityfields_.size();i++){
+        densityfields_[i]->finishCalculate();
+    }
 }
 
 void Driver::printOutputfileIfOnStep()
 {
-    densityfield_->printOutputIfOnStep();
+    for (int i=0;i<densityfields_.size();i++){
+        densityfields_[i]->printOutputIfOnStep();
+    }
 }
 
 void Driver::printFinalOutput()
 {
-    densityfield_->printFinalOutput();
+    for (int i=0;i<densityfields_.size();i++){
+        densityfields_[i]->printFinalOutput();
+    }
 }
 
 void Driver::run()
 {
-    for (int i=0;i<SimulationFrames_.size();i++)
-    {
+    for (int i=0;i<SimulationFrames_.size();i++){
         int ind = SimulationFrames_[i];
 
         std::cout << "Frame = " << ind << std::endl;

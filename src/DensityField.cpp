@@ -49,8 +49,8 @@ DensityField::DensityField(const DensityFieldInput& input)
     // calculate the offset Index
     CalcOffsetIndex();
 
-    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-    {
+    // calculate the field buffer
+    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
 
@@ -74,8 +74,7 @@ void DensityField::initializeRefinement()
     std::vector<std::string> refinevec;
     pack_.ReadVectorString("refinement", ParameterPack::KeyType::Optional, refinevec);
 
-    for (int i=0;i<refinevec.size();i++)
-    {
+    for (int i=0;i<refinevec.size();i++){
         auto& r = reg_.getMeshRefineStrat(refinevec[i]);
         refinementstrat_.push_back(&r);
     }
@@ -86,22 +85,18 @@ void DensityField::initializeCurvature()
     std::vector<std::string> cvec;
     pack_.ReadVectorString("curvature", ParameterPack::KeyType::Optional, cvec);
 
-    for (int i=0;i<cvec.size();i++)
-    {
+    for (int i=0;i<cvec.size();i++){
         auto& c = reg_.getCurvature(cvec[i]);
         curvatures_.push_back(&c); 
     }
 }
 
-void DensityField::printFinalOutput()
-{
-    for (int i=0;i<OutputNames_.size();i++)
-    {
+void DensityField::printFinalOutput(){
+    for (int i=0;i<OutputNames_.size();i++){
         outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
     }
 
-    for (int i=0;i<curvatures_.size();i++)
-    {
+    for (int i=0;i<curvatures_.size();i++){
         curvatures_[i]->printOutput();
     }
 }
@@ -110,8 +105,7 @@ inline DensityField::Real DensityField::GaussianCoarseGrainFunction(const Real3&
 {
     Real dotproduct = 0.0;
 
-    for(int i=0;i<3;i++)
-    {
+    for(int i=0;i<3;i++){
         dotproduct += dx[i] * dx[i];
     }
 
@@ -141,8 +135,7 @@ void DensityField::CalcOffsetIndex()
     }
 }
 
-void DensityField::addAtomGroup(std::string& name)
-{
+void DensityField::addAtomGroup(std::string& name){
     int index = AtomGroups_.size();
 
     registerAtomGroupID(name, index);
@@ -150,8 +143,7 @@ void DensityField::addAtomGroup(std::string& name)
     AtomGroups_.push_back(&simstate_.getAtomGroup(name));
 }
 
-void DensityField::registerAtomGroupID(std::string& name, int index)
-{
+void DensityField::registerAtomGroupID(std::string& name, int index){
     auto it = MapAtomGroupName2Id_.find(name);
 
     ASSERT(( it == MapAtomGroupName2Id_.end()), "The name for atomgroup " << name << " is already registered.");
@@ -159,8 +151,7 @@ void DensityField::registerAtomGroupID(std::string& name, int index)
     MapAtomGroupName2Id_.insert(std::make_pair(name, index));
 }
 
-int DensityField::getAtomGroupID(std::string& name)
-{
+int DensityField::getAtomGroupID(std::string& name){
     auto it = MapAtomGroupName2Id_.find(name);
 
     ASSERT(( it != MapAtomGroupName2Id_.end()), "The name for atomgroup " << name << " is already registered.");
@@ -168,22 +159,19 @@ int DensityField::getAtomGroupID(std::string& name)
     return it -> second;
 }
 
-const AtomGroup& DensityField::getAtomGroup(std::string& name)
-{
+const AtomGroup& DensityField::getAtomGroup(std::string& name){
     int ID = getAtomGroupID(name);
 
     return *AtomGroups_[ID];
 }
 
-AtomGroup& DensityField::accessAtomGroup(std::string& name)
-{
+AtomGroup& DensityField::accessAtomGroup(std::string& name){
     int ID = getAtomGroupID(name);
 
     return const_cast<AtomGroup&>(*AtomGroups_[ID]);
 }
 
-void DensityField::initializeMesh()
-{
+void DensityField::initializeMesh(){
     // check if we want to output a pbc mesh 
     pack_.Readbool("PBCMesh", ParameterPack::KeyType::Optional, MCpbc_);
 
@@ -194,11 +182,9 @@ void DensityField::initializeMesh()
     }
 }
 
-void DensityField::findAtomsIndicesInBoundingBox()
-{
+void DensityField::findAtomsIndicesInBoundingBox(){
     AtomIndicesInside_.clear();
-    for (auto ag : atomGroupNames_)
-    {
+    for (auto ag : atomGroupNames_){
         const auto& atomgroup = getAtomGroup(ag);
         auto& atoms = atomgroup.getAtoms();
 
@@ -209,10 +195,8 @@ void DensityField::findAtomsIndicesInBoundingBox()
             std::vector<int> indices_local; 
 
             #pragma omp for
-            for(int i=0;i<atoms.size();i++)
-            {
-                if (bound_box_ -> isInside(atoms[i].position))
-                {
+            for(int i=0;i<atoms.size();i++){
+                if (bound_box_ -> isInside(atoms[i].position)){
                     indices_local.push_back(i);
                 }
             }
@@ -227,8 +211,7 @@ void DensityField::findAtomsIndicesInBoundingBox()
     }
 }
 
-void DensityField::CalculateInstantaneousField()
-{
+void DensityField::CalculateInstantaneousField(){
     // the master object will not be zero'd
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
         it -> zero();
@@ -252,8 +235,7 @@ void DensityField::CalculateInstantaneousField()
             auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
 
             #pragma omp for 
-            for (int j=0;j<AtomIndicesInside_[i].size();j++)
-            {
+            for (int j=0;j<AtomIndicesInside_[i].size();j++){
                 int indices        = AtomIndicesInside_[i][j];;
                 Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
                 INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
@@ -262,11 +244,14 @@ void DensityField::CalculateInstantaneousField()
                 fieldbuf.fixIndex(Index);
 
                 // iterate over all the indices and calculate instantaneousinterface
-                for(int j=0;j<offsetIndex_.size();j++)
-                {
-                    INT3 RealIndex = Index + offsetIndex_[j];
+                for(int k=0;k<offsetIndex_.size();k++){
+                    // offset index 
+                    INT3 RealIndex = Index + offsetIndex_[k];
+
+                    // plate the positions on grid
                     Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
 
+                    // calculate the distance 
                     Real3 distance;
                     bound_box_->calculateDistance(latticepos, correctedPos, distance);
 
@@ -279,26 +264,22 @@ void DensityField::CalculateInstantaneousField()
         #pragma omp parallel for
         for (int i=0;i<field_.totalSize();i++)
         {
-            for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++)
-            {
+            for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
                 field_.accessField()[i] += it->accessField()[i];
             }
         }
     }
 }
 
-void DensityField::printSTL(std::string name)
-{
+void DensityField::printSTL(std::string name){
     MeshTools::writeSTL(name, *mesh_);
 }
 
-void DensityField::printPLY(std::string name)
-{
+void DensityField::printPLY(std::string name){
     MeshTools::writePLY(name, *mesh_);
 }
 
-void DensityField::printBoundaryVertices(std::string name)
-{
+void DensityField::printBoundaryVertices(std::string name){
     std::ofstream ofs;
     ofs.open(name);
 
@@ -312,10 +293,8 @@ void DensityField::printBoundaryVertices(std::string name)
     const auto& v = mesh_->getvertices();
 
     ofs << "# Index Vx Vy Vz Nx Ny Nz" << "\n";
-    for (int i=0;i<v.size();i++)
-    {
-        if (MeshTools::IsBoundary(i, boundaryIndicator))
-        {
+    for (int i=0;i<v.size();i++){
+        if (MeshTools::IsBoundary(i, boundaryIndicator)){
             ofs << i << " " << v[i].position_[0] << " " << v[i].position_[1] << " " << v[i].position_[2] << \
             " " << v[i].normals_[0] << " " << v[i].normals_[1] << " " << v[i].normals_[2] << "\n";
         }
@@ -324,7 +303,6 @@ void DensityField::printBoundaryVertices(std::string name)
     ofs.close();
 }
 
-void DensityField::printnonPBCMesh(std::string name)
-{
+void DensityField::printnonPBCMesh(std::string name){
     MeshTools::writeNonPBCMesh(name, *mesh_);
 }
