@@ -1653,6 +1653,7 @@ void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
 
     std::string inputfname, outputfname="dist.out";
     Real3 box;
+    Real angle=120;
     int numbins;
 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
@@ -1697,7 +1698,7 @@ void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
     std::ofstream ofs;
     ofs.open(outputfname);
 
-    for (int i=0;i<angles.size();i++){
+    for (int i=0;i<histogram_angles.size();i++){
         ofs << histogram_angles[i] << "\n";
     }
 
@@ -1733,12 +1734,13 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     std::string inputfname, outputfname="cleaned.ply";
 
     Real3 box;
-    Real edgeLength;
-    int iterations=10;
+    Real edgeLength, angleThreshold=120;
+    int maxiterations=10;
     bool verbose=false;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
-    cmd.readValue("iterations", CommandLineArguments::Keys::Optional, iterations);
+    cmd.readValue("maxiteration", CommandLineArguments::Keys::Optional, maxiterations);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("angleThreshold", CommandLineArguments::Keys::Optional, angleThreshold);
     cmd.readBool("verbose", CommandLineArguments::Keys::Optional, verbose);
     bool edgeLengthRead = cmd.readValue("edgeLengthCutoff", CommandLineArguments::Keys::Optional, edgeLength);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
@@ -1780,8 +1782,14 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
 
     while (true){
         int verticesbefore = m.getvertices().size();
+
+        // first remove short edges
         ShortEdgeRemoval edgeRemove(m);
         int numCollapsed = edgeRemove.calculate(edgeLength);
+
+        // then remove obtuse edges 
+        ObtuseTriangleRemoval triangleRemove(m);
+        triangleRemove.calculate(angleThreshold,100);
 
         int facesafter = m.gettriangles().size(); 
         if (verbose){
@@ -1792,8 +1800,8 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             break;
         }
 
-        if (count > iterations){
-            std::cout << "The clean up process did not converge, but exit before it exceed max iteration number " << iterations << "\n";
+        if (count > maxiterations){
+            std::cout << "The clean up process did not converge, but exit before it exceed max iteration number " << maxiterations << "\n";
             break;
         }
 

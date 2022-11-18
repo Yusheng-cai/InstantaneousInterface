@@ -22,6 +22,7 @@
 #include "Bin.h"
 #include "Graph.h"
 #include "ShortEdgeRemoval.h"
+#include "ObtuseTriangleRemoval.h"
 
 namespace MeshActions
 {
