@@ -56,12 +56,19 @@ namespace Algorithm
     template <typename T, std::size_t dim>
     void sort(std::array<T, dim>& arr);
 
+    template <typename T>
+    void sort(std::vector<T>& vec);
+
     template <typename key, typename value>
     bool FindInMap(const std::map<key,value>& map, const key& k, value& v);
 
     // insert something into map --> this value needs to not exist in the map previously
     template <typename key, typename value>
-    bool InsertInMap(const std::map<key,value>& map, const key& k, const value& v);
+    bool InsertInMap(std::map<key,value>& map, key k, value v);
+
+    // insert something into vector map 
+    template <typename key, typename value>
+    void InsertInVectorMap(std::map<key,std::vector<value>>& map, key k, value v);
 };
 
 template<typename T>
@@ -198,10 +205,29 @@ bool Algorithm::FindInMap(const std::map<key,value>& map, const key& k, value& v
 
 
 template <typename key, typename value>
-bool Algorithm::InsertInMap(const std::map<key,value>& map, const key& k, const value& v){
+bool Algorithm::InsertInMap(std::map<key,value>& map, key k, value v){
     typename std::map<key,value>::const_iterator it = map.find(k);  
-    if (it != map.end()){map.insert(std::make_pair(k,v));}
+    if (it == map.end()){map.insert(std::make_pair(k,v));}
     else{return false;}
 
     return true;
+}
+
+template <typename key, typename value>
+void Algorithm::InsertInVectorMap(std::map<key, std::vector<value>>& map, key k, value v){
+    typename std::map<key,std::vector<value>>::iterator it = map.find(k);
+
+    if (it == map.end()){
+        std::vector<value> temp;
+        temp.push_back(v);
+        map.insert(std::make_pair(k, temp));
+    }
+    else{
+        it->second.push_back(v);
+    }
+}
+
+template <typename T>
+void Algorithm::sort(std::vector<T>& vec){
+    std::sort(vec.begin(), vec.end());
 }

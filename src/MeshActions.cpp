@@ -1658,7 +1658,7 @@ void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readValue("numbins", CommandLineArguments::Keys::Optional, numbins);
-    bool BoxRead = cmd.readValue("box", CommandLineArguments::Keys::Optional, box);
+    bool BoxRead = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     Mesh m;
     MeshTools::readPLYlibr(inputfname, m);
@@ -1670,15 +1670,139 @@ void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
     Range r = {{0,180}};
     Bin b(r, numbins);
 
-    // 
+    // specify all the angles 
     std::vector<Real> angles;
     MeshTools::FindTriangleAngles(m, angles);
 
+    // define the histogram
+    std::vector<int> histogram_angles(b.getNumbins(), 0);
+
     #pragma omp parallel
     {
+        std::vector<int> local_histogram(b.getNumbins(),0);
+        #pragma omp for
         for (int i=0;i<angles.size();i++){
+            if (b.isInRange(angles[i])){
+                int binNum = b.findBin(angles[i]);
+                local_histogram[binNum] += 1;
+            }
+        }
 
-
+        #pragma omp critical
+        {
+            histogram_angles = histogram_angles + local_histogram;
         }
     }
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+
+    for (int i=0;i<angles.size();i++){
+        ofs << histogram_angles[i] << "\n";
+    }
+
+    ofs.close();
+}
+
+void MeshActions::SideLengthsDistribution(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="SideLengthDist.out";
+    Real3 box;
+
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    bool ispbc = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (ispbc){
+        m.setBoxLength(box);
+    }
+
+    std::vector<Real> SideLengths;
+    MeshTools::FindSideLengths(m, SideLengths);
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    for (int i=0;i<SideLengths.size();i++){
+        ofs << SideLengths[i] << "\n";
+    }
+    ofs.close();
+}
+
+void MeshActions::MeshCleanup(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="cleaned.ply";
+
+    Real3 box;
+    Real edgeLength;
+    int iterations=10;
+    bool verbose=false;
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("iterations", CommandLineArguments::Keys::Optional, iterations);
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readBool("verbose", CommandLineArguments::Keys::Optional, verbose);
+    bool edgeLengthRead = cmd.readValue("edgeLengthCutoff", CommandLineArguments::Keys::Optional, edgeLength);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (isPBC){
+        m.setBoxLength(box);
+    }
+
+    // if edge length is not provided, then we use the average side length
+    if (! edgeLengthRead){
+        std::vector<Real> sideLength;
+        MeshTools::FindSideLengths(m, sideLength);
+        Real sum=0.0;
+        #pragma omp parallel
+        {
+            Real localsum = 0.0;
+            #pragma omp for
+            for (int i=0;i<sideLength.size();i++){
+                localsum  += sideLength[i];
+            }
+
+            #pragma omp critical
+            {
+                sum += localsum;
+            }
+        }
+
+        edgeLength = sum / sideLength.size();
+
+        if (verbose){
+            std::cout << "edge length cut off  = " << edgeLength << "\n";
+        }
+    }
+
+    int count=0;
+    // initialize edge removal 
+
+    while (true){
+        int verticesbefore = m.getvertices().size();
+        ShortEdgeRemoval edgeRemove(m);
+        int numCollapsed = edgeRemove.calculate(edgeLength);
+
+        int facesafter = m.gettriangles().size(); 
+        if (verbose){
+            std::cout << "Collapsed edges = " << numCollapsed << " facesAfter = " << facesafter << "\n";
+        }
+        int verticesafter = m.getvertices().size();
+        if (verticesafter == verticesbefore){
+            break;
+        }
+
+        if (count > iterations){
+            std::cout << "The clean up process did not converge, but exit before it exceed max iteration number " << iterations << "\n";
+            break;
+        }
+
+        count ++;
+    }
+
+    MeshTools::RemoveIsolatedVertices(m);
+    MeshTools::RemoveDuplicatedFaces(m);
+    MeshTools::RemoveIsolatedFaces(m);
+
+    MeshTools::writePLY(outputfname, m);
 }

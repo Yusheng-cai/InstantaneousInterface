@@ -79,6 +79,17 @@ inline std::vector<T1> operator/(const std::vector<T1>& v1, const T2& f)
     return v1 * factor;
 }
 
+template <typename T1, typename T2>
+inline std::vector<T1> operator+(const std::vector<T1>& v1, std::vector<T2>& v2){
+    ASSERT((v1.size() == v2.size()), "The vector operation cannot be done because of size mismatch.");
+    std::vector<T1> res(v1.size());
+    for (int i=0;i<v1.size();i++){
+        res[i] = v1[i] + v2[i];
+    }
+
+    return res;
+}
+
 template <typename T, std::size_t dim>
 inline std::array<T,dim> operator/(const std::array<T,dim>& v1, const std::array<T,dim>& v2)
 {

@@ -21,6 +21,7 @@
 #include "LinAlgTools.h"
 #include "Bin.h"
 #include "Graph.h"
+#include "ShortEdgeRemoval.h"
 
 namespace MeshActions
 {
@@ -109,4 +110,10 @@ namespace MeshActions
 
     // find the distribution of the triangle angles
     void TriangleAngleDistribution(CommandLineArguments& cmd);
+
+    // find the distribution of the side lengths
+    void SideLengthsDistribution(CommandLineArguments& cmd);
+
+    // clean up mesh
+    void MeshCleanup(CommandLineArguments& cmd);
 };
