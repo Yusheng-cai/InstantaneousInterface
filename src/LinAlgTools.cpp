@@ -37,8 +37,7 @@ LinAlg3x3::Real LinAlg3x3::norm(const Real3& v1)
 {
     Real ret = 0.0;
 
-    for (int i=0;i<3;i++)
-    {
+    for (int i=0;i<3;i++){
         ret += v1[i]*v1[i];
     }
 
@@ -159,7 +158,7 @@ void LinAlg3x3::RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const R
     return;
 }
 
-LinAlg3x3::Real LinAlg3x3::findCosangle(Real3& vec1, Real3& vec2)
+LinAlg3x3::Real LinAlg3x3::findCosangle(Real3 vec1, Real3 vec2)
 {
     Real dot = DotProduct(vec1, vec2);
     Real normA = norm(vec1);
@@ -168,7 +167,7 @@ LinAlg3x3::Real LinAlg3x3::findCosangle(Real3& vec1, Real3& vec2)
     return dot/(normA*normB);
 }
 
-LinAlg3x3::Real LinAlg3x3::findSinangle(Real3& vec1, Real3& vec2)
+LinAlg3x3::Real LinAlg3x3::findSinangle(Real3 vec1, Real3 vec2)
 {
     Real3 cross = CrossProduct(vec1, vec2);
     Real normcross = norm(cross);
@@ -176,4 +175,12 @@ LinAlg3x3::Real LinAlg3x3::findSinangle(Real3& vec1, Real3& vec2)
     Real normB = norm(vec2);
 
     return normcross/(normA * normB);
+}
+
+LinAlg3x3::Real LinAlg3x3::findAngle(Real3 vec1, Real3 vec2){
+    Real sin_val = LinAlg3x3::norm(LinAlg3x3::CrossProduct(vec1, vec2));
+    Real cos_val = LinAlg3x3::DotProduct(vec1, vec2);
+    Real result = std::atan2(sin_val, cos_val);
+
+    return std::fabs(result);
 }

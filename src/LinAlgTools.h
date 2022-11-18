@@ -2,6 +2,7 @@
 #include "tools/CommonTypes.h"
 #include "tools/Assert.h"
 #include "tools/CommonOperations.h"
+#include "tools/Constants.h"
 
 #include <cmath>
 
@@ -26,10 +27,13 @@ namespace LinAlg3x3
     void RotateBasisSet(Real3& N1, Real3& N2, const Real3& oldu1, const Real3& oldv1, Real3& u1, Real3& v1);
 
     // find cos(angle) between 2 vectors 
-    Real findCosangle(Real3& vec1, Real3& vec2);
+    Real findCosangle(Real3 vec1, Real3 vec2);
 
     // find sin(angle) between 2 vectors 
-    Real findSinangle(Real3& vec1, Real3& vec2);
+    Real findSinangle(Real3 vec1, Real3 vec2);
+
+    // find angle
+    Real findAngle(Real3 vec1, Real3 vec2);
 
     // find determinant
     Real MatrixDeterminant(Matrix& mat);
