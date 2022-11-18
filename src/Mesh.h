@@ -7,6 +7,7 @@
 #include "MeshRefineStrategy.h"
 #include "tools/OutputFunction.h"
 #include "tools/CommonOperations.h"
+#include "tools/Constants.h"
 #include "tools/Algorithm.h"
 #include "happly.h"
 
@@ -112,6 +113,9 @@ class Mesh
 
         // update the triangles/vertex/edges if they were to be changed
         void update();
+
+        // set vertices and triangles
+        void SetVerticesAndTriangles(const std::vector<vertex>& vertices, const std::vector<triangle>& triangles);
                                         ///////////////////////////////
                                         /////       PBC stuff   ///////
                                         ///////////////////////////////
@@ -198,7 +202,7 @@ namespace MeshTools
     bool isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newarr, const Real3& boxLength);
 
     // map vertices to faces
-    void MapVerticesToFaces(Mesh& mesh, std::vector<std::vector<int>>& map);
+    void MapVerticesToFaces(const Mesh& mesh, std::vector<std::vector<int>>& map);
 
     // calculate triangle areas and Face normals 
     void CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Real>& Areas, std::vector<Real3>& Normals);
@@ -207,7 +211,7 @@ namespace MeshTools
     void CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
 
     // map Edge to faces
-    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge);
+    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge, bool assert=true);
 
     // map edge to opposing vertices --> needs boundary indicators  
     void MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace,std::map<INT2, std::vector<int>>& MapEdgeToOppoVertices);
@@ -266,4 +270,16 @@ namespace MeshTools
 
     // get a sense of the triangular angles 
     void FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles);
+
+    // return distribution of side lengths
+    void FindSideLengths(const Mesh& mesh, std::vector<Real>& SideLength);
+
+    // remove isolated vertices
+    void RemoveIsolatedVertices(Mesh& mesh);
+
+    // remove isolated faces 
+    void RemoveIsolatedFaces(Mesh& mesh);
+
+    // remove duplicate triangles 
+    void RemoveDuplicatedFaces(Mesh& mesh);
 };

@@ -18,6 +18,14 @@ void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
     }
 }
 
+void Mesh::SetVerticesAndTriangles(const std::vector<vertex>& v, const std::vector<triangle>& t){
+    vertices_.clear();
+    vertices_.insert(vertices_.end(),v.begin(), v.end());
+
+    triangles_.clear();
+    triangles_.insert(triangles_.end(), t.begin(), t.end());
+}
+
 void Mesh::CalcPerVertexDir()
 {
     PerVertexdir1_.resize(vertices_.size());
@@ -771,20 +779,16 @@ bool MeshTools::isPeriodicEdge(const Real3& vec1, const Real3& vec2, Real3& newa
     return false;
 }
 
-void MeshTools::MapVerticesToFaces(Mesh& mesh, std::vector<std::vector<int>>& map)
-{
-    auto& vertices = mesh.getvertices();
-    auto& triangles= mesh.gettriangles();
+void MeshTools::MapVerticesToFaces(const Mesh& mesh, std::vector<std::vector<int>>& map){
+    const auto& vertices = mesh.getvertices();
+    const auto& triangles= mesh.gettriangles();
 
     map.clear();
     map.resize(vertices.size());
 
-    for (int i=0;i<triangles.size();i++)
-    {
+    for (int i=0;i<triangles.size();i++){
         auto t = triangles[i].triangleindices_;
-
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             map[t[j]].push_back(i);
         }
     }
@@ -857,7 +861,7 @@ void MeshTools::CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vect
 }
 
 
-void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge)
+void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge, bool assert)
 {
     // get the triangles and vertices from mesh object
     const auto& triangles = mesh.gettriangles();
@@ -917,17 +921,19 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
     }
 
     // do a check to make sure that each edge is shared by at least 1 and at most 2 faces
-    int id = 0;
-    for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++){
-        if (it -> second.size() > 2){
-            std::cout << "This is for edge " << id << " consisting of vertex " << it ->first <<"\n";
-            for (auto s : it -> second){
-                std::cout << "Face it corresponds to : " << s <<"\n";
+    if (assert){
+        int id = 0;
+        for (auto it=mapEdgeToFace.begin(); it != mapEdgeToFace.end();it++){
+            if (it -> second.size() > 2){
+                std::cout << "This is for edge " << id << " consisting of vertex " << it ->first <<"\n";
+                for (auto s : it -> second){
+                    std::cout << "Face it corresponds to : " << s <<"\n";
+                }
             }
+            ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
+            , however the calculated result shows " << it -> second.size());
+            id ++;
         }
-        ASSERT((it->second.size() == 1 || it -> second.size() ==2), "The number of faces shared by an edge needs to be either 1 or 2 \
-        , however the calculated result shows " << it -> second.size());
-        id ++;
     }
 
     return;
@@ -981,43 +987,43 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
                 triangles.push_back(t.triangleindices_);
             }
             // if it's periodic triangle, then we push back 3 new vertices 
-            else{
-                Real3 verticesNew1;
-                Real3 verticesNew2, verticesDiff2;
-                Real distsq2;
-                Real3 verticesNew3, verticesDiff3;
-                Real distsq3;
-                int idx1 = t[0];
-                int idx2 = t[1];
-                int idx3 = t[2];
+            // else{
+            //     Real3 verticesNew1;
+            //     Real3 verticesNew2, verticesDiff2;
+            //     Real distsq2;
+            //     Real3 verticesNew3, verticesDiff3;
+            //     Real distsq3;
+            //     int idx1 = t[0];
+            //     int idx2 = t[1];
+            //     int idx3 = t[2];
 
-                // get the pbc corrected distance 
-                mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
-                mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
+            //     // get the pbc corrected distance 
+            //     mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
+            //     mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
 
-                // get the new vertices --> with respect to position 1
-                verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
-                verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
+            //     // get the new vertices --> with respect to position 1
+            //     verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
+            //     verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
 
-                // Find approximately the center of the triangle
-                Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
-                Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
+            //     // Find approximately the center of the triangle
+            //     Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
+            //     Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
 
-                // update the vertices
-                verticesNew1 = MeshVertices[idx1].position_ + shift;
-                verticesNew2 = verticesNew2 + shift;
-                verticesNew3 = verticesNew3 + shift;
+            //     // update the vertices
+            //     verticesNew1 = MeshVertices[idx1].position_ + shift;
+            //     verticesNew2 = verticesNew2 + shift;
+            //     verticesNew3 = verticesNew3 + shift;
 
-                int NewIndex1 = vertices.size();
-                vertices.push_back(verticesNew1);
-                int NewIndex2 = vertices.size();
-                vertices.push_back(verticesNew2);
-                int NewIndex3 = vertices.size();
-                vertices.push_back(verticesNew3);
+            //     int NewIndex1 = vertices.size();
+            //     vertices.push_back(verticesNew1);
+            //     int NewIndex2 = vertices.size();
+            //     vertices.push_back(verticesNew2);
+            //     int NewIndex3 = vertices.size();
+            //     vertices.push_back(verticesNew3);
 
-                INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
-                triangles.push_back(NewT);
-            }
+            //     INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
+            //     triangles.push_back(NewT);
+            // }
         }
     }
 }
@@ -1624,10 +1630,8 @@ void MeshTools::FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles){
                 Real dist1, dist2;
                 mesh.getVertexDistance(vert[ti[next]], vert[ti[j]], vec1, dist1);
                 mesh.getVertexDistance(vert[ti[before]], vert[ti[j]], vec2, dist2);
-
-                Real dot = LinAlg3x3::DotProduct(vec1, vec2);
-                Real angle = std::acos(dot);
-
+                
+                Real angle = LinAlg3x3::findAngle(vec1,vec2) * 180 / Constants::PI;
                 localAngles.push_back(angle);
             }
         }
@@ -1637,4 +1641,124 @@ void MeshTools::FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles){
             angles.insert(angles.end(), localAngles.begin(), localAngles.end());
         }
     }
+}
+
+void MeshTools::FindSideLengths(const Mesh& mesh, std::vector<Real>& SideLengths){
+    const auto& tri = mesh.gettriangles();
+    const auto& v = mesh.getvertices();
+
+    SideLengths.clear();
+
+    #pragma omp parallel
+    {
+        std::vector<Real> localSideLength;
+
+        #pragma omp for       
+        for (int i =0;i<tri.size();i++){
+            auto t = tri[i];
+
+            // first side length 0 - 1
+            Real side1, side2, side3;
+            Real3 vec1, vec2, vec3;
+
+            mesh.getVertexDistance(v[0], v[1], vec1, side1);
+            mesh.getVertexDistance(v[1], v[2], vec2, side2);
+            mesh.getVertexDistance(v[2], v[0], vec3, side3);
+
+            localSideLength.push_back(side1);
+            localSideLength.push_back(side2);
+            localSideLength.push_back(side3);
+        }
+
+        #pragma omp critical
+        {
+            SideLengths.insert(SideLengths.end(), localSideLength.begin(), localSideLength.end());
+        }
+    }
+}
+
+void MeshTools::RemoveIsolatedVertices(Mesh& mesh){
+    std::vector<std::vector<int>> MapVerticesToFaces;
+    MeshTools::MapVerticesToFaces(mesh, MapVerticesToFaces);
+
+    std::vector<vertex> newV;
+    std::vector<triangle> newF;
+    const auto& cv = mesh.getvertices();
+    const auto& cf = mesh.gettriangles();
+    std::vector<int> MapOldIndexToNew(cv.size(), -100);
+    int count = 0;
+    for (int i=0;i<MapVerticesToFaces.size();i++){
+        if (MapVerticesToFaces[i].size() != 0){
+            newV.push_back(cv[i]);
+            MapOldIndexToNew[i] = count;
+            count ++;
+        }
+    }
+
+    for (int i=0;i<cf.size();i++){
+        triangle t;
+        for (int j=0;j<3;j++){
+            t[j] = MapOldIndexToNew[cf[i][j]];
+            ASSERT((t[j] != -100), "Something went wrong.");
+        }
+        newF.push_back(t);
+    }
+
+    auto& v = mesh.accessvertices();
+    auto& f = mesh.accesstriangles();
+    v.clear();
+    v.insert(v.end(), newV.begin(), newV.end());
+    f.clear();
+    f.insert(f.end(), newF.begin(), newF.end());
+}
+
+void MeshTools::RemoveIsolatedFaces(Mesh& mesh){
+    std::map<INT2, std::vector<int>> EtoF;
+    std::vector<std::vector<INT2>> VtoE;
+    MeshTools::MapEdgeToFace(mesh, EtoF, VtoE);
+
+    std::vector<triangle> newF;
+    const auto& cf = mesh.gettriangles();
+    for (int i=0;i<cf.size();i++){
+        if (! IsIsolatedFace(mesh, i, EtoF)){
+            newF.push_back(cf[i]);
+        }
+    }
+
+    auto& f = mesh.accesstriangles();
+    f.clear();
+    f.insert(f.end(), newF.begin(), newF.end());
+}
+
+void MeshTools::RemoveDuplicatedFaces(Mesh& mesh){
+    std::map<INT3, std::vector<int>> MapVertexIndexToFace;
+
+    const auto& f = mesh.gettriangles();
+    const auto& v = mesh.getvertices(); 
+
+    for (int i=0;i<f.size();i++){
+        INT3 indices = f[i].triangleindices_;
+        // sort the indices
+        Algorithm::sort(indices);
+        Algorithm::InsertInVectorMap(MapVertexIndexToFace, indices,i);
+    }
+
+    std::vector<triangle> newf;
+    for (auto it = MapVertexIndexToFace.begin(); it != MapVertexIndexToFace.end(); it++){
+        // unique triangle
+        if (it -> second.size() == 1){
+            int t_index = it -> second[0];
+            newf.push_back(f[t_index]);
+        }
+        // else{
+        //     std::vector<int> tempVec = it -> second;
+        //     Algorithm::sort(tempVec);
+        //     int t_index = tempVec[0];
+        //     newf.push_back(f[t_index]);
+        // }
+    }
+
+    auto& nf = mesh.accesstriangles();
+    nf.clear();
+    nf.insert(nf.end(), newf.begin(), newf.end());
 }
