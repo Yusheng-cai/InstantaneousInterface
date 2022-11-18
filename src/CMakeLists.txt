@@ -28,6 +28,8 @@ target_sources(IIsrc PRIVATE
     "MeshGeneration.cpp"
     "MeshGen2d.cpp"
     "MeshActions.cpp"
+    "ShortEdgeRemoval.cpp"
+    "ObtuseTriangleRemoval.cpp"
 )
 
 set(IIsrc_HEADER
@@ -59,6 +61,8 @@ set(IIsrc_HEADER
     "MeshGen2d.h"
     "MeshActions.h"
     "MeshPlaneIntersection.hpp"
+    "ShortEdgeRemoval.h"
+    "ObtuseTriangleRemoval.h"
 )
 
 target_include_directories(IIsrc
