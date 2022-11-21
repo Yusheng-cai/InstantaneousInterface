@@ -141,14 +141,12 @@ void CurvatureJetFit::printNeighbors(std::string name)
     std::ofstream ofs_;
     ofs_.open(name);
 
-    for (int i=0;i<NeighborIndicesNVertex_.size();i++)
-    {
+    for (int i=0;i<NeighborIndicesNVertex_.size();i++){
         int neighborsize = NeighborIndicesNVertex_[i].size();
         // print self first 
         ofs_ << i << " ";
 
-        for (int j=0;j<neighborsize;j++)
-        {
+        for (int j=0;j<neighborsize;j++){
             ofs_ << NeighborIndicesNVertex_[i][j] << " ";
         }
         ofs_ << "\n";

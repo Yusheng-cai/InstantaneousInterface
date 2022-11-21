@@ -23,7 +23,6 @@ int ObtuseTriangleRemoval::calculate(Real max_angle_allowed, int max_iterations)
         count++;
 
         finalize_geometry();
-        std::cout << "Done." << "\n";
         if (num_split == 0) break;
     } while (count < max_iterations);
     mesh_.SetVerticesAndTriangles(m_vertices_, m_faces_);
