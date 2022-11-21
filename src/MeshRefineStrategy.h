@@ -13,13 +13,11 @@
 // forward declare Mesh
 class Mesh;
 
-struct MeshRefineStrategyInput
-{
+struct MeshRefineStrategyInput{
     ParameterPack& pack;
 };
 
-class MeshRefineStrategy
-{
+class MeshRefineStrategy{
     public:
         using Real = CommonTypes::Real;
         using Real3 = CommonTypes::Real3;

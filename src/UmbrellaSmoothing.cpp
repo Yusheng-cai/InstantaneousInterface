@@ -35,14 +35,12 @@ void UmbrellaSmoothing::refine(Mesh& mesh)
     prepareImplicitMatrix();
 
     // find volume if needed 
-    if ( scale_)
-    {
+    if ( scale_){
         initialVolume_ = mesh_->calculateVolume();
         std::cout << "Initial volume = " << initialVolume_ << std::endl;
     }
 
-    for (int i=0;i<numIterations_;i++)
-    {
+    for (int i=0;i<numIterations_;i++){
         std::cout << "Step " << i << std::endl;
         refineStepImplicit();
     }
