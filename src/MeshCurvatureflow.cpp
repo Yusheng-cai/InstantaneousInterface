@@ -12,6 +12,11 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
+    fixed_index_.clear();
+    if (pack_.ReadString("FixedIndexFile", ParameterPack::KeyType::Optional, fixed_index_file_)){
+        StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
+    }
+
     pack_.ReadNumber("NumBoundarySmoothing", ParameterPack::KeyType::Optional, StopBoundarySmoothing_);
 
     // set Eigen to be using the correct number of threads 
@@ -19,8 +24,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     Eigen::setNbThreads(0);
 }
 
-void MeshCurvatureflow::updateMesh()
-{
+void MeshCurvatureflow::updateMesh(){
     // obtain map from edge index {minIndex, maxIndex} to the face index 
     // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
@@ -49,18 +53,22 @@ void MeshCurvatureflow::updateMesh()
     xyz_.resize(3, Eigen::VectorXf::Zero(numVerts_));
 }
 
-void MeshCurvatureflow::refine(Mesh& mesh)
-{
+void MeshCurvatureflow::refine(Mesh& mesh){
     mesh_ = &mesh;
 
     updateMesh();
+
+    isfixed_.resize(numVerts_, 0);
+    for (int i=0;i<fixed_index_.size();i++){
+        int ind = fixed_index_[i];
+        isfixed_[ind] = 1;
+    }
 
     // if we are scaling, we need to calculate the volume
     if (scale_){initialVolume_ = mesh_->calculateVolume();}
 
     // start refining 
-    for (int i=1;i<=numIterations_;i++)
-    {
+    for (int i=1;i<=numIterations_;i++){
         // every iteration, decimate the degenerate triangles if necessary
         if (decimate_){
             if (MeshTools::decimateDegenerateTriangle(*mesh_)){
@@ -210,6 +218,7 @@ void MeshCurvatureflow::refineImplicitStep()
     }
 }
 
+
 Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplicitMatrix()
 {
     const auto& vertices = mesh_->getvertices();
@@ -223,7 +232,7 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
         std::vector<triplet> triplet_local;
         #pragma omp for
         for (int i=0;i<vertices.size();i++){
-            if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
+            if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
                 int numneighbors = neighborIndices_[i].size();
 
                 // get the weights of the neighbor indices 

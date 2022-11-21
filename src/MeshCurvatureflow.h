@@ -51,6 +51,11 @@ class MeshCurvatureflow : public MeshRefineStrategy
         int numIterations_;
         Real lambdadt_=0.5;
 
+        // fixed index file
+        std::string fixed_index_file_;
+        std::vector<int> fixed_index_;
+        std::vector<int> isfixed_;
+
         std::vector<vertex> newVertices_;
         std::vector<Real> TotalArea_;
 
