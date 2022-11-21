@@ -2,6 +2,7 @@
 #pragma once
 
 #include <vector>
+#include "tools/Algorithm.h"
 
 #include "Mesh.h"
 #include "tools/CommonTypes.h"
