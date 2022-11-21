@@ -1295,7 +1295,7 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
 
 void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
 {
-    std::string inputfname, outputfname="evolved.ply", neighbors, stepsize, k0, maxstep="1e5", tolerance;
+    std::string inputfname, outputfname="evolved.ply", FixedIndexFile, neighbors, stepsize, k0, maxstep="1e5", tolerance;
     Real3 box;
 
     // initialize curve ptr
@@ -1313,6 +1313,9 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     cmd.readString("k0", CommandLineArguments::Keys::Required, k0);
     cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
     cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
+    if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, FixedIndexFile)){
+        EvolutionPack.insert("fixed_index_file", FixedIndexFile);
+    }
     
     // fill parameter pack
     curvePack.insert("neighbors", neighbors);
@@ -1359,8 +1362,7 @@ void MeshActions::FindIsolatedFace(CommandLineArguments& cmd){
     std::vector<std::vector<INT2>> mapVertexToEdge;
     MeshTools::MapEdgeToFace(m, mapEdgeToFace, mapVertexToEdge);
 
-    for (int i=0;i<nf;i++)
-    {
+    for (int i=0;i<nf;i++){
         if (MeshTools::IsIsolatedFace(m, i, mapEdgeToFace)){
             IsolatedTriangles.push_back(t[i].triangleindices_);
         }
@@ -1368,8 +1370,7 @@ void MeshActions::FindIsolatedFace(CommandLineArguments& cmd){
 
     std::ofstream ofs;
     ofs.open(outputfname);
-    for (int i=0;i<IsolatedTriangles.size();i++)
-    {
+    for (int i=0;i<IsolatedTriangles.size();i++){
         ofs << IsolatedTriangles[i] << "\n";
     }
 

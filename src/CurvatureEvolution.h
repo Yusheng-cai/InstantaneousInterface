@@ -38,6 +38,10 @@ class CurvatureEvolution : public MeshRefineStrategy
         // The indices for the outside vertices to not be kept constant 
         std::vector<int> VertexIndices_;
 
+        std::string fixed_index_file_;
+        std::vector<int> fixed_index_;
+        std::vector<int> isfixed_;
+
         Real StepSize_;
         Real meanCurvature_;
 

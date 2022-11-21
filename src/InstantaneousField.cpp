@@ -18,14 +18,12 @@ void InstantaneousField::calculate()
     MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, MCpbc_);
 
     // once we triangulate the field, we calculate the curvature 
-    for (int i=0;i<curvatures_.size();i++)
-    {
+    for (int i=0;i<curvatures_.size();i++){
         curvatures_[i]->calculate(*mesh_);
         const auto& faceC = curvatures_[i]->getFaceCurvature();
         std::vector<Real> faceMeanC(faceC.size(),0.0);
 
-        for (int j=0;j<faceMeanC.size();j++)
-        {
+        for (int j=0;j<faceMeanC.size();j++){
             faceMeanC[j] = faceC[j][0];
         }
     }

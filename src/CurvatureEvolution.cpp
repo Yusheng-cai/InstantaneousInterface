@@ -19,6 +19,11 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
     pack_.ReadNumber("tolerance", ParameterPack::KeyType::Optional, tol_);
     pack_.ReadNumber("k0", ParameterPack::KeyType::Required, meanCurvature_);
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
+
+    fixed_index_.clear();
+    if (pack_.ReadString("fixed_index_file", ParameterPack::KeyType::Optional, fixed_index_file_)){
+        StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
+    }
 }
 
 
@@ -30,7 +35,7 @@ void CurvatureEvolution::findVertices()
     MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
     for (int i=0;i<vertices.size();i++){
-        if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
+        if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
             VertexIndices_.push_back(i);
         }
     }
