@@ -19,10 +19,25 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
     pack_.ReadNumber("tolerance", ParameterPack::KeyType::Optional, tol_);
     pack_.ReadNumber("k0", ParameterPack::KeyType::Required, meanCurvature_);
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
+    pack_.Readbool("fairing", ParameterPack::KeyType::Optional, fairing_);
 
     fixed_index_.clear();
     if (pack_.ReadString("fixed_index_file", ParameterPack::KeyType::Optional, fixed_index_file_)){
         StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
+    }
+
+    if (fairing_){
+        pack_.ReadString("fairing_iteration", ParameterPack::KeyType::Required, fairing_iteration_);
+        pack_.ReadString("fairing_step", ParameterPack::KeyType::Required, fairing_step_);
+
+        ParameterPack fairing_pack;
+        fairing_pack.insert("iterations", fairing_iteration_);
+        fairing_pack.insert("lambdadt", fairing_step_);
+        fairing_pack.insert("name", "f");
+        fairing_pack.insert("Decimate", "false");
+        MeshRefineStrategyInput input = {fairing_pack};
+
+        curvatureflow_ = flowptr(new MeshCurvatureflow(input));
     }
 }
 
@@ -34,6 +49,15 @@ void CurvatureEvolution::findVertices()
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
     MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
 
+    curvatureCalc_-> calculate(*mesh_);
+
+    isfixed_.resize(vertices.size(),0);
+    for (int i=0;i<fixed_index_.size();i++){
+        int ind = fixed_index_[i];
+        isfixed_[ind] = 1;
+    }
+
+    const auto& c = curvatureCalc_->getAvgCurvaturePerVertex();
     for (int i=0;i<vertices.size();i++){
         if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
             VertexIndices_.push_back(i);
@@ -44,6 +68,7 @@ void CurvatureEvolution::findVertices()
 void CurvatureEvolution::refine(Mesh& mesh)
 {
     mesh_ = &mesh;
+    mesh_->CalcVertexNormals();
 
     // find the vertices to be updated
     findVertices();
@@ -99,18 +124,26 @@ void CurvatureEvolution::refine(Mesh& mesh)
             {
                 avgE += avgElocal;
             }
+
         }
 
         avgE = avgE / VertexIndices_.size();
 
         if (meanCurvature_ == 0){err_ = maxerr;}
-        else{err_ = maxerr / meanCurvature_;}
+        else{err_ = std::abs(maxerr / meanCurvature_);}
 
         std::cout << "Max error is " << err_ << std::endl;
         std::cout << "average error is " << avgE << "\n";
 
         // update the normals as well 
         mesh_->CalcVertexNormals();
+        
+        // fair the mesh if necessary
+        if (fairing_){
+            if (err_ > 10){
+                curvatureflow_->refine(*mesh_);
+            }
+        }
 
         // update the iterations
         iteration_ ++;

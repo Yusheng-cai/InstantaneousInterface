@@ -13,7 +13,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
     fixed_index_.clear();
-    if (pack_.ReadString("FixedIndexFile", ParameterPack::KeyType::Optional, fixed_index_file_)){
+    if (pack_.ReadString("fixed_index_file", ParameterPack::KeyType::Optional, fixed_index_file_)){
         StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
     }
 

@@ -4,6 +4,7 @@
 #include "Curvature.h"
 #include "tools/CommonTypes.h"
 #include "xdr/XtcFile.h"
+#include "MeshCurvatureflow.h"
 
 #include <vector>
 #include <string>
@@ -21,6 +22,7 @@ class CurvatureEvolution : public MeshRefineStrategy
 {
     public:
         using curveptr = std::unique_ptr<Curvature>;
+        using flowptr  = std::unique_ptr<MeshCurvatureflow>;
         using xtcptr   = std::unique_ptr<XtcFile>;
         using Matrix   = CommonTypes::Matrix;
         using Real2    = CommonTypes::Real2;
@@ -34,6 +36,7 @@ class CurvatureEvolution : public MeshRefineStrategy
     private:
         std::string curvaturetype_;
         curveptr curvatureCalc_;
+        flowptr  curvatureflow_;
 
         // The indices for the outside vertices to not be kept constant 
         std::vector<int> VertexIndices_;
@@ -54,4 +57,8 @@ class CurvatureEvolution : public MeshRefineStrategy
         // whether or not we want to print the error 
         Real err_;
         int skip_=1;
+
+        // are we doing fairing 
+        bool fairing_=false;
+        std::string fairing_iteration_, fairing_step_;
 };
