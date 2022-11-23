@@ -9,7 +9,11 @@ ObtuseTriangleRemoval::ObtuseTriangleRemoval(
 
 int ObtuseTriangleRemoval::calculate(Real max_angle_allowed, int max_iterations) {
     int total_num_split = 0;
+
+    // convert angle to radian
     max_angle_allowed = max_angle_allowed * Constants::PI / 180;
+
+    // start doing the iterations
     int count = 0;
     do {
         clear_intermediate_data();
