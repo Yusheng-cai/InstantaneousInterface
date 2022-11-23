@@ -1321,7 +1321,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     // initialize curve ptr
     refineptr r;
     ParameterPack EvolutionPack, curvePack;
-    bool fairing=false;
+    bool fairing=false, cleanMesh=false;
 
     // read input output
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
@@ -1338,6 +1338,14 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
         EvolutionPack.insert("fixed_index_file", FixedIndexFile);
     }
     cmd.readBool("fairing",CommandLineArguments::Keys::Optional, fairing);
+    cmd.readBool("cleanMesh", CommandLineArguments::Keys::Optional, cleanMesh);
+
+    if (cleanMesh){
+        std::string edgelength;
+        cmd.readString("edgeLengthCutoff", CommandLineArguments::Keys::Required, edgelength);
+        EvolutionPack.insert("cleanMesh", "true");
+        EvolutionPack.insert("edgeLengthCutoff", edgelength);
+    }
     
     // fill parameter pack
     curvePack.insert("neighbors", neighbors);
@@ -1761,17 +1769,19 @@ void MeshActions::SideLengthsDistribution(CommandLineArguments& cmd){
 }
 
 void MeshActions::MeshCleanup(CommandLineArguments& cmd){
+    using INT2 = CommonTypes::index2;
     std::string inputfname, outputfname="cleaned.ply";
 
     Real3 box;
     Real edgeLength, angleThreshold=120;
     int maxiterations=10;
-    bool verbose=false;
+    bool verbose=false, preserve_features=true;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("maxiteration", CommandLineArguments::Keys::Optional, maxiterations);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readValue("angleThreshold", CommandLineArguments::Keys::Optional, angleThreshold);
     cmd.readBool("verbose", CommandLineArguments::Keys::Optional, verbose);
+    cmd.readBool("preserve_features", CommandLineArguments::Keys::Optional, preserve_features);
     bool edgeLengthRead = cmd.readValue("edgeLengthCutoff", CommandLineArguments::Keys::Optional, edgeLength);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
@@ -1815,6 +1825,24 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
 
         // first remove short edges
         ShortEdgeRemoval edgeRemove(m);
+
+        // if we are preserving features, then we set high importance for the boundary vertices
+        if (preserve_features){
+            std::map<INT2,std::vector<int>> EToF; 
+            std::vector<bool> boundaryIndicator;
+            std::vector<int> importance(verticesbefore,0);
+            MeshTools::MapEdgeToFace(m, EToF, false);
+            MeshTools::CalculateBoundaryVertices(m, EToF, boundaryIndicator);
+            for (int i=0;i<verticesbefore;i++){
+                if (MeshTools::IsBoundary(i, boundaryIndicator)){
+                    // high importance 
+                    importance[i] = 10;
+                }
+            }
+
+            edgeRemove.set_importance(importance);
+        }
+
         int numCollapsed = edgeRemove.calculate(edgeLength);
 
         // then remove obtuse edges 
