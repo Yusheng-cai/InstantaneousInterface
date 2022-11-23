@@ -950,7 +950,6 @@ void MeshTools::CalculateBoundaryVertices(Mesh& mesh, const std::map<INT2, std::
 
     for (auto it = mapEdgeToFace.begin(); it != mapEdgeToFace.end(); it ++){
         int size = it -> second.size();
-        ASSERT(( size == 1 || size == 2), "An edge can only be shared by 1 or 2 faces.");
         INT2 arr = it -> first;
 
         // if the edge size == 1, then it is a boundary edge
@@ -1679,7 +1678,7 @@ void MeshTools::FindSideLengths(const Mesh& mesh, std::vector<Real>& SideLengths
     }
 }
 
-void MeshTools::RemoveIsolatedVertices(Mesh& mesh){
+std::vector<int> MeshTools::RemoveIsolatedVertices(Mesh& mesh){
     std::vector<std::vector<int>> MapVerticesToFaces;
     MeshTools::MapVerticesToFaces(mesh, MapVerticesToFaces);
 
@@ -1712,6 +1711,8 @@ void MeshTools::RemoveIsolatedVertices(Mesh& mesh){
     v.insert(v.end(), newV.begin(), newV.end());
     f.clear();
     f.insert(f.end(), newF.begin(), newF.end());
+
+    return MapOldIndexToNew;
 }
 
 void MeshTools::RemoveIsolatedFaces(Mesh& mesh){

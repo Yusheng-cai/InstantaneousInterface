@@ -277,7 +277,7 @@ namespace MeshTools
     void FindSideLengths(const Mesh& mesh, std::vector<Real>& SideLength);
 
     // remove isolated vertices
-    void RemoveIsolatedVertices(Mesh& mesh);
+    std::vector<int> RemoveIsolatedVertices(Mesh& mesh);
 
     // remove isolated faces 
     void RemoveIsolatedFaces(Mesh& mesh);
