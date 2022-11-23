@@ -32,12 +32,28 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,-1}};
 
+    // map edge to face 
+    std::map<INT2, std::vector<int>> EToF;
+    std::vector<bool> boundary_indicator;
+    MeshTools::MapEdgeToFace(mesh, EToF);
+    MeshTools::CalculateBoundaryVertices(mesh, EToF, boundary_indicator);
+
     #pragma omp parallel for
     for (int i=0;i<nv;i++){
         auto& v = vertices[i];
         auto& neighbors = NeighborIndicesNVertex[i];
-        ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
-         index = " << i << " number of neighbors = " << neighbors.size());
+
+        if (boundary_indicator[i]){
+            int boundary_neighbors = NumNeighbors_ + 1;
+            while (neighbors.size() < 3){
+                Graph::getNearbyIndicesNVertexAway(VertexNeighbors, boundary_neighbors, i, neighbors);
+                boundary_neighbors += 1;
+            }
+        }
+        else{
+            ASSERT((neighbors.size()>=3), "The number of points to be fit must be larger or equal to 3, \
+            index = " << i << " number of neighbors = " << neighbors.size());
+        }
 
         // How to rotate normal vector to be z vector
         Matrix rotationMat = LinAlg3x3::GetRotationMatrix(v.normals_, referenceDir); 

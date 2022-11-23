@@ -98,16 +98,14 @@ void Curvature::CalculateFaceCurvature(Mesh& mesh, const std::vector<Real>& Vert
     FaceCurvature.resize(triangle.size());
 
     #pragma omp parallel for
-    for (int i=0;i<triangle.size();i++)
-    {
+    for (int i=0;i<triangle.size();i++){
         auto& t = triangle[i].triangleindices_;
         Real FaceMeanC = 0.0;
         Real FaceGaussC= 0.0;
         Real FaceMeank1= 0.0;
         Real FaceMeank2= 0.0;
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             FaceMeanC += VertexCurvature[t[j]];
             FaceGaussC+= VertexGaussCurvature[t[j]];
             FaceMeank1+= CurvaturePerVertex[t[j]][0];
