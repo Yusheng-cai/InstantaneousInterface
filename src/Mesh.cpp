@@ -267,13 +267,11 @@ void Mesh::CalcVertexNormals()
     std::vector<Real3> VertNorms(getNumVertices(), {{0,0,0}});
 
     // calculate the normals of each vertices
-    for (int i=0;i<triangles_.size();i++)
-    {
+    for (int i=0;i<triangles_.size();i++){
         auto& t = triangles_[i];
         Real3 normals = facetNormals_[i];
 
-        for (int j=0;j<3;j++)
-        {
+        for (int j=0;j<3;j++){
             for (int k=0;k<3;k++){
                 VertNorms[t[j]][k] += normals[k];
             }
@@ -807,8 +805,7 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
 
     // calculate the area of the triangles as well as the normals of the faces of triangles
     #pragma omp parallel for
-    for (int i=0;i<triangles.size();i++)
-    {
+    for (int i=0;i<triangles.size();i++){
         auto& t = triangles[i];
 
         int index1 = t[0];
@@ -823,6 +820,7 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
         mesh.getVertexDistance(vertices[index1], vertices[index2], diff1, norm1);
         mesh.getVertexDistance(vertices[index3], vertices[index2], diff2, norm2);
         mesh.getVertexDistance(vertices[index3], vertices[index1], diff3, norm3);
+
 
         Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
         Real norm = LinAlg3x3::norm(crossProduct);
@@ -860,6 +858,10 @@ void MeshTools::CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vect
     }
 }
 
+void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, bool assert){
+    std::vector<std::vector<INT2>> temp;
+    MapEdgeToFace(mesh, mapEdgeToFace, temp, assert);
+}
 
 void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge, bool assert)
 {
@@ -939,7 +941,7 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
     return;
 }
 
-void MeshTools::CalculateBoundaryVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator)
+void MeshTools::CalculateBoundaryVertices(Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator)
 {
     const auto& vertices = mesh.getvertices();
 

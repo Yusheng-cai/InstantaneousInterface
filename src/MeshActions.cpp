@@ -235,7 +235,7 @@ void MeshActions::FDMFit(CommandLineArguments& cmd){
 void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
 {
     refineptr refine;
-    std::string inputfname, outputfname="CurvatureFlow.ply", iterations, lambdadt, decimate="true", numBoundarySmooth="0";
+    std::string inputfname, outputfname="CurvatureFlow.ply", fixed_index_file, iterations, lambdadt, decimate="true", numBoundarySmooth="0";
     Real3 box;
     ParameterPack pack;
     bool pbcOutput = false;
@@ -247,6 +247,10 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     cmd.readBool("pbcOutput", CommandLineArguments::Keys::Optional, pbcOutput);
     cmd.readString("Decimate", CommandLineArguments::Keys::Optional, decimate);
     cmd.readString("NumBoundarySmoothing", CommandLineArguments::Keys::Optional, numBoundarySmooth);
+    if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, fixed_index_file)){
+        pack.insert("fixed_index_file", fixed_index_file);
+    }
+
     // check if the mesh is periodic 
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
@@ -261,6 +265,7 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     pack.insert("name", "temp");
     pack.insert("Decimate", decimate);
     pack.insert("NumBoundarySmoothing",numBoundarySmooth);
+
 
     MeshRefineStrategyInput input = {{pack}};
     refine = refineptr(MeshRefineStrategyFactory::Factory::instance().create("curvatureflow", input));
@@ -723,7 +728,7 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
                 Real t, u, v;
 
                 // if the mesh is periodic, then we shift the other 2 vertices with respect to the first vertex 
-                if (isPBC){
+                if (m.isPeriodic()){
                     MeshTools::ShiftPeriodicTriangle(const_cast<std::vector<vertex>&>(refverts), \
                                                     const_cast<INT3&>(refFace[j].triangleindices_), box, A, B, C);
                 }
@@ -737,10 +742,8 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
     }
 
     #pragma omp parallel for
-    for (int i=0;i<lattice.size();i++)
-    {
-        if (hitRefMeshHeightTotal[i].size() != 0)
-        {
+    for (int i=0;i<lattice.size();i++){
+        if (hitRefMeshHeightTotal[i].size() != 0){
             hitRefMeshHeightMin[i] = Algorithm::min(hitRefMeshHeightTotal[i]);
         }
     }
@@ -784,6 +787,16 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
             Real t, u, v;
             Real3 A=shiftedTriangle[j][0], B = shiftedTriangle[j][1], C=shiftedTriangle[j][2];
 
+            // shift centroid with respect to the O
+            Real3 centroid = 1.0 / 3.0 * (A + B + C);
+            Real3 shiftVec;
+            mesh.CalculateShift(centroid, O, shiftVec);
+            for (int i=0;i<2;i++){
+                A[ProjectedIndex[i]] += shiftVec[ProjectedIndex[i]];
+                B[ProjectedIndex[i]] += shiftVec[ProjectedIndex[i]];
+                C[ProjectedIndex[i]] += shiftVec[ProjectedIndex[i]];
+            }
+
             if (MeshTools::MTRayTriangleIntersection(A,B,C,O,D,t,u,v)){
                 faceIndex.push_back(j);
                 value.push_back(t);
@@ -795,13 +808,20 @@ void MeshActions::Project3dCurvature(CommandLineArguments& cmd)
         if (value.size() != 0){
             // find the min element index of t --> the shorted the t, the closer it is to the viewing point
             int minIndex = Algorithm::argmin(value);
-            if (value[minIndex] < hitRefMeshHeightMin[i]){
+            if (hitRefMeshHeightMin[i] != 1e10){
+                pointCurvature[i] = temp;
+            }
+            else{
                 int fcIndex = faceIndex[minIndex];
                 pointCurvature[i] = fc[fcIndex];
             }
-            else {
-                pointCurvature[i] = temp;
-            }
+            // if (value[minIndex] < hitRefMeshHeightMin[i]){
+            //     int fcIndex = faceIndex[minIndex];
+            //     pointCurvature[i] = fc[fcIndex];
+            // }
+            // else {
+            //     pointCurvature[i] = temp;
+            // }
         }
         else{
             pointCurvature[i] = temp;
@@ -1301,6 +1321,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     // initialize curve ptr
     refineptr r;
     ParameterPack EvolutionPack, curvePack;
+    bool fairing=false;
 
     // read input output
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
@@ -1316,6 +1337,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, FixedIndexFile)){
         EvolutionPack.insert("fixed_index_file", FixedIndexFile);
     }
+    cmd.readBool("fairing",CommandLineArguments::Keys::Optional, fairing);
     
     // fill parameter pack
     curvePack.insert("neighbors", neighbors);
@@ -1327,6 +1349,14 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     EvolutionPack.insert("k0", k0);
     EvolutionPack.insert("maxstep", maxstep);
     EvolutionPack.insert("tolerance", tolerance);
+    if (fairing){
+        std::string fairing_iteration, fairing_step;
+        cmd.readString("fairing_iteration", CommandLineArguments::Keys::Required, fairing_iteration);
+        cmd.readString("fairing_step", CommandLineArguments::Keys::Required, fairing_step);
+        EvolutionPack.insert("fairing", "true");
+        EvolutionPack.insert("fairing_iteration", fairing_iteration);
+        EvolutionPack.insert("fairing_step", fairing_iteration);
+    }
 
     // refine pointer 
     MeshRefineStrategyInput input = {{EvolutionPack}};
@@ -1334,9 +1364,8 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
 
     // read input mesh 
     Mesh m;
-    MeshTools::readPLYlibr(inputfname, m);
-
     // set box length for mesh
+    MeshTools::readPLYlibr(inputfname, m);
     if (isPBC){m.setBoxLength(box);}
 
     // refine the mesh
