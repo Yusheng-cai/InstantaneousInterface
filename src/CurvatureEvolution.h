@@ -5,6 +5,7 @@
 #include "tools/CommonTypes.h"
 #include "xdr/XtcFile.h"
 #include "MeshCurvatureflow.h"
+#include "ShortEdgeRemoval.h"
 
 #include <vector>
 #include <string>
@@ -22,6 +23,7 @@ class CurvatureEvolution : public MeshRefineStrategy
 {
     public:
         using curveptr = std::unique_ptr<Curvature>;
+        using edgeRemovePtr = std::unique_ptr<ShortEdgeRemoval>;
         using flowptr  = std::unique_ptr<MeshCurvatureflow>;
         using xtcptr   = std::unique_ptr<XtcFile>;
         using Matrix   = CommonTypes::Matrix;
@@ -31,7 +33,9 @@ class CurvatureEvolution : public MeshRefineStrategy
 
         virtual void refine(Mesh& mesh) override;
 
-        void findVertices();
+        void init();
+        void update();
+        void CleanMesh();
 
     private:
         std::string curvaturetype_;
@@ -47,6 +51,7 @@ class CurvatureEvolution : public MeshRefineStrategy
 
         Real StepSize_;
         Real meanCurvature_;
+        int num_vertices_;
 
         Real tol_ = 1e-4;
 
@@ -59,6 +64,10 @@ class CurvatureEvolution : public MeshRefineStrategy
         int skip_=1;
 
         // are we doing fairing 
-        bool fairing_=false;
+        bool fairing_=false, cleanMesh_=false;
         std::string fairing_iteration_, fairing_step_;
+        int edgeCutoffLength_;
+
+        // short edge removal
+        edgeRemovePtr edgeRemover_;
 };
