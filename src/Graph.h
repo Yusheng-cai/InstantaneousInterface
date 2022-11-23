@@ -17,5 +17,7 @@ namespace Graph
     // Need the input of nearby Indices of the vertex connected to it 
     void getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NerabyIndicesNVertex);
 
+    void getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, int index, std::vector<int>& NearbyIndicesNVertex);
+
     void getNNearbyIndices(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NearbyIndicesN);
 };

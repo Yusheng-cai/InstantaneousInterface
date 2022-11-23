@@ -50,8 +50,7 @@ void Graph::getNNearbyIndices(const std::vector<std::vector<int>>& NearbyIndices
         int size = currentNearbyIndicesNVertex.size();
         std::vector<int> temp_;
 
-        if (size > N)
-        {
+        if (size > N){
             temp_.insert(temp_.end(),currentNearbyIndicesNVertex.begin(), currentNearbyIndicesNVertex.begin() + N);
             std::sort(temp_.begin(), temp_.end());
             NearbyIndicesN[i] = temp_;
@@ -63,6 +62,49 @@ void Graph::getNNearbyIndices(const std::vector<std::vector<int>>& NearbyIndices
         }
     }
 
+}
+
+void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, int index, std::vector<int>& NearbyIndicesNVertex){
+    int initial_count = 0;
+    int final_count = 0;
+    int nearbySize = NearbyIndices[index].size();
+    const std::vector<int>& currentNearbyIndices = NearbyIndices[index];
+    NearbyIndicesNVertex.clear();
+
+    for (int j=0;j<N;j++){
+        if (NearbyIndicesNVertex.size() == 0){
+            NearbyIndicesNVertex.insert(NearbyIndicesNVertex.end(),\
+            currentNearbyIndices.begin(), currentNearbyIndices.end());
+
+            final_count = NearbyIndicesNVertex.size();
+        }            
+        else{
+            std::vector<int> temp;
+            for (int k=initial_count;k<final_count;k++){
+                int id = NearbyIndicesNVertex[k];
+
+                for (int m=0;m<NearbyIndices[id].size();m++){
+                    if (NearbyIndices[id][m] != index){
+                        temp.push_back(NearbyIndices[id][m]);
+                    }
+                }
+            }
+
+            NearbyIndicesNVertex.insert(NearbyIndicesNVertex.end(), temp.begin(), temp.end());
+            initial_count = final_count;
+            final_count = NearbyIndicesNVertex.size();
+        }
+    }
+
+
+    // sort the vector
+    std::sort(NearbyIndicesNVertex.begin(), NearbyIndicesNVertex.end());
+
+    // The non-unique terms will be undefined ***
+    auto it = std::unique(NearbyIndicesNVertex.begin(), NearbyIndicesNVertex.end());
+
+    // removes the non-unique terms
+    NearbyIndicesNVertex.resize(std::distance(NearbyIndicesNVertex.begin(), it));
 }
 
 void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NearbyIndicesNVertex)
