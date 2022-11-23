@@ -150,4 +150,13 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("FindNeighborIndices", "-op FindNeighborIndices -i input.ply -n num -o output.out", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::FindVertexNeighbors(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("AngleDistribution", "-op AngleDistribution -i input.ply -numbins num -box x y z -o dist.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::TriangleAngleDistribution(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("SideLengthsDistribution", "-op SideLengthsDistribution -i input.ply -o sidelength.out -box x y z", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::SideLengthsDistribution(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("MeshCleanup", "-op MeanCleanup -i input.ply -box x y z -o cleaned.ply -iterations num -edgeLengthCutoff num", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::MeshCleanup(cmd);}, \
+                                           mapF, mapU);
 }
