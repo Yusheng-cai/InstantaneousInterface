@@ -24,6 +24,8 @@ int ShortEdgeRemoval::calculate(Real threshold) {
         update();
         if (num_collapsed == m_num_collapsed_) break;
     } while (get_num_faces() > 0 && min_edge_length() <= threshold);
+
+
     return m_num_collapsed_;
 }
 
@@ -283,10 +285,10 @@ void ShortEdgeRemoval::collapse_edge(int edge_idx) {
 
     Real3 new_v;
     if (v1_importance < 0) {
-        ASSERT(v2_importance >= 0, "wrong.");
+        ASSERT((v2_importance >= 0), "v1 is negative so v2 importance has to be positive while it is " << v2_importance);
         new_v = v1;
     } else if (v2_importance < 0) {
-        ASSERT((v1_importance>=0), "wrong");
+        ASSERT((v1_importance>=0), "v2 wrong");
         new_v = v2;
     } else {
         if (v1_importance == v2_importance) {

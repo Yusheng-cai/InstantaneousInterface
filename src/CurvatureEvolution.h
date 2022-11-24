@@ -6,6 +6,7 @@
 #include "xdr/XtcFile.h"
 #include "MeshCurvatureflow.h"
 #include "ShortEdgeRemoval.h"
+#include "ObtuseTriangleRemoval.h"
 
 #include <vector>
 #include <string>
@@ -24,6 +25,7 @@ class CurvatureEvolution : public MeshRefineStrategy
     public:
         using curveptr = std::unique_ptr<Curvature>;
         using edgeRemovePtr = std::unique_ptr<ShortEdgeRemoval>;
+        using angleRemovePtr= std::unique_ptr<ObtuseTriangleRemoval>;
         using flowptr  = std::unique_ptr<MeshCurvatureflow>;
         using xtcptr   = std::unique_ptr<XtcFile>;
         using Matrix   = CommonTypes::Matrix;
@@ -66,8 +68,9 @@ class CurvatureEvolution : public MeshRefineStrategy
         // are we doing fairing 
         bool fairing_=false, cleanMesh_=false;
         std::string fairing_iteration_, fairing_step_;
-        int edgeCutoffLength_;
+        Real edgeCutoffLength_;
 
         // short edge removal
         edgeRemovePtr edgeRemover_;
+        angleRemovePtr angleRemover_;
 };

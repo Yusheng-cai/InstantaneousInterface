@@ -29,6 +29,8 @@ class MeshRefineStrategy{
 
         virtual void refine(Mesh& mesh) = 0;
 
+        virtual void setFixed(const std::vector<int>& fixed_indices){fixed_indices_=fixed_indices;}
+
         virtual std::string getName() {return name_;}
 
     protected:
@@ -43,6 +45,9 @@ class MeshRefineStrategy{
         std::map<INT2, std::vector<int>> MapEdgeToFace_;
         std::vector<std::vector<INT2>> MapVertexToEdge_;
         std::vector<bool> boundaryIndicator_;
+
+        std::vector<int> fixed_indices_;
+        std::vector<bool> isfixed_;
 };
 
 namespace MeshRefineStrategyFactory

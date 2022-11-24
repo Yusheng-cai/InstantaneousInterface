@@ -941,7 +941,7 @@ void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapE
     return;
 }
 
-void MeshTools::CalculateBoundaryVertices(Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator)
+void MeshTools::CalculateBoundaryVertices(const Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator)
 {
     const auto& vertices = mesh.getvertices();
 
@@ -1679,8 +1679,9 @@ void MeshTools::FindSideLengths(const Mesh& mesh, std::vector<Real>& SideLengths
 }
 
 std::vector<int> MeshTools::RemoveIsolatedVertices(Mesh& mesh){
-    std::vector<std::vector<int>> MapVerticesToFaces;
+    std::vector<std::vector<int>> MapVerticesToFaces, neighborIndices;
     MeshTools::MapVerticesToFaces(mesh, MapVerticesToFaces);
+    MeshTools::CalculateVertexNeighbors(mesh, neighborIndices);
 
     std::vector<vertex> newV;
     std::vector<triangle> newF;
@@ -1689,6 +1690,7 @@ std::vector<int> MeshTools::RemoveIsolatedVertices(Mesh& mesh){
     std::vector<int> MapOldIndexToNew(cv.size(), -100);
     int count = 0;
     for (int i=0;i<MapVerticesToFaces.size();i++){
+        // check if this is an isolated triangle --> for all of its neighbors do they map to 1 triangle only
         if (MapVerticesToFaces[i].size() != 0){
             newV.push_back(cv[i]);
             MapOldIndexToNew[i] = count;
@@ -1718,7 +1720,7 @@ std::vector<int> MeshTools::RemoveIsolatedVertices(Mesh& mesh){
 void MeshTools::RemoveIsolatedFaces(Mesh& mesh){
     std::map<INT2, std::vector<int>> EtoF;
     std::vector<std::vector<INT2>> VtoE;
-    MeshTools::MapEdgeToFace(mesh, EtoF, VtoE);
+    MeshTools::MapEdgeToFace(mesh, EtoF, VtoE, false);
 
     std::vector<triangle> newF;
     const auto& cf = mesh.gettriangles();

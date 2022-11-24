@@ -1770,7 +1770,7 @@ void MeshActions::SideLengthsDistribution(CommandLineArguments& cmd){
 
 void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     using INT2 = CommonTypes::index2;
-    std::string inputfname, outputfname="cleaned.ply";
+    std::string inputfname, outputfname="cleaned.ply", fixed_index_file;
 
     Real3 box;
     Real edgeLength, angleThreshold=120;
@@ -1782,6 +1782,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     cmd.readValue("angleThreshold", CommandLineArguments::Keys::Optional, angleThreshold);
     cmd.readBool("verbose", CommandLineArguments::Keys::Optional, verbose);
     cmd.readBool("preserve_features", CommandLineArguments::Keys::Optional, preserve_features);
+    bool fixed = cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, fixed_index_file);
     bool edgeLengthRead = cmd.readValue("edgeLengthCutoff", CommandLineArguments::Keys::Optional, edgeLength);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
@@ -1789,6 +1790,17 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     MeshTools::readPLYlibr(inputfname, m);
     if (isPBC){
         m.setBoxLength(box);
+    }
+
+    int nv = m.getNumVertices();
+
+    std::vector<int> fixed_index;
+    std::vector<int> isfixed(nv, 0);
+    if (fixed){
+        StringTools::ReadTabulatedData(fixed_index_file, 0, fixed_index);
+        for (int i=0;i<fixed_index.size();i++){
+            isfixed[fixed_index[i]] = 1;
+        }
     }
 
     // if edge length is not provided, then we use the average side length
@@ -1827,6 +1839,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
         ShortEdgeRemoval edgeRemove(m);
 
         // if we are preserving features, then we set high importance for the boundary vertices
+        std::vector<int> importance(verticesbefore,0);
         if (preserve_features){
             std::map<INT2,std::vector<int>> EToF; 
             std::vector<bool> boundaryIndicator;
@@ -1836,12 +1849,20 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             for (int i=0;i<verticesbefore;i++){
                 if (MeshTools::IsBoundary(i, boundaryIndicator)){
                     // high importance 
-                    importance[i] = 10;
+                    importance[i] = -1;
                 }
             }
-
-            edgeRemove.set_importance(importance);
         }
+
+        if (fixed){
+            for (int i=0;i<verticesbefore;i++){
+                if (isfixed[i]){
+                    importance[i] = -1;
+                }
+            }
+        }
+
+        edgeRemove.set_importance(importance);
 
         int numCollapsed = edgeRemove.calculate(edgeLength);
 

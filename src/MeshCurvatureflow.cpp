@@ -12,10 +12,6 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
-    fixed_index_.clear();
-    if (pack_.ReadString("fixed_index_file", ParameterPack::KeyType::Optional, fixed_index_file_)){
-        StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
-    }
 
     pack_.ReadNumber("NumBoundarySmoothing", ParameterPack::KeyType::Optional, StopBoundarySmoothing_);
 
@@ -57,12 +53,6 @@ void MeshCurvatureflow::refine(Mesh& mesh){
     mesh_ = &mesh;
 
     updateMesh();
-
-    isfixed_.resize(numVerts_, 0);
-    for (int i=0;i<fixed_index_.size();i++){
-        int ind = fixed_index_[i];
-        isfixed_[ind] = 1;
-    }
 
     // if we are scaling, we need to calculate the volume
     if (scale_){initialVolume_ = mesh_->calculateVolume();}
@@ -232,7 +222,7 @@ Eigen::SparseMatrix<MeshCurvatureflow::Real> MeshCurvatureflow::CalculateImplici
         std::vector<triplet> triplet_local;
         #pragma omp for
         for (int i=0;i<vertices.size();i++){
-            if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
+            if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
                 int numneighbors = neighborIndices_[i].size();
 
                 // get the weights of the neighbor indices 

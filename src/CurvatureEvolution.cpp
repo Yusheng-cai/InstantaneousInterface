@@ -27,6 +27,7 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
         StringTools::ReadTabulatedData(fixed_index_file_, 0, fixed_index_);
     }
 
+    // whether or not we are doing fairing 
     if (fairing_){
         pack_.ReadString("fairing_iteration", ParameterPack::KeyType::Required, fairing_iteration_);
         pack_.ReadString("fairing_step", ParameterPack::KeyType::Required, fairing_step_);
@@ -41,6 +42,7 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
         curvatureflow_ = flowptr(new MeshCurvatureflow(input));
     }
 
+    // whether or not we are cleaning 
     if (cleanMesh_){
         pack_.ReadNumber("edgeLengthCutoff", ParameterPack::KeyType::Required, edgeCutoffLength_);
     }
@@ -83,33 +85,66 @@ void CurvatureEvolution::update(){
             VertexIndices_.push_back(i);
         }
     }
-    std::cout << "Vertex indices = " << VertexIndices_ << "\n";
 }
 
 void CurvatureEvolution::CleanMesh(){
     // set boundary or fixed vertices to be of high importance
     std::vector<int> importance(mesh_->getNumVertices(),0);
     for (int i=0;i<importance.size();i++){
-        if ((MeshTools::IsBoundary(i, boundaryIndicator_)) || (isfixed_[i])){
-            importance[i] = 10;
+        if ((MeshTools::IsBoundary(i, boundaryIndicator_))){
+            importance[i] = -1;
+        }
+        // -1 importance means fixed
+        if (isfixed_[i]){
+            importance[i] = -1;
         }
     }
-    std::cout << importance << "\n";
+
+    // set the importance of the edges
+    edgeRemover_ = edgeRemovePtr(new ShortEdgeRemoval(*mesh_));
     edgeRemover_->set_importance(importance);
+
+    // cleant he mesh by collapsing edges 
     int num_collapsed = edgeRemover_->calculate(edgeCutoffLength_);
-    std::cout << "num collapsed = " << num_collapsed << "\n";
+    
+    std::cout << "num collapse = " << num_collapsed << "\n";
 
     if (num_collapsed != 0){
-        std::vector<int> MapOldToNew = MeshTools::RemoveIsolatedVertices(*mesh_);
+        MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_, false);
+        MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+        int numB=0;
+        for (int i=0;i<boundaryIndicator_.size();i++){
+            if (boundaryIndicator_[i]){
+                numB += 1;
+            }
+        }
+        MeshTools::RemoveIsolatedFaces(*mesh_);
         MeshTools::RemoveDuplicatedFaces(*mesh_);
+        std::vector<int> MapOldToNew = MeshTools::RemoveIsolatedVertices(*mesh_);
+
+        MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
+        MeshTools::CalculateBoundaryVertices(*mesh_, MapEdgeToFace_, boundaryIndicator_);
+        int numBafter=0;
+        for (int i=0;i<boundaryIndicator_.size();i++){
+            if (boundaryIndicator_[i]){
+                numBafter += 1;
+            }
+        }
+
+        ASSERT((numB==numBafter), "No new boundary should be created.");
 
         isfixed_.clear();
         isfixed_.resize(mesh_->getNumVertices(),0);
+        std::vector<int> newfixed_index;
         for (int i=0;i<fixed_index_.size();i++){
             int ind = MapOldToNew[fixed_index_[i]];
-            ASSERT((ind != -100), "Fixed vertices shouldn't be merged.");
-            isfixed_[ind] = 1;
+            if (ind != -100){
+                newfixed_index.push_back(ind);
+                isfixed_[ind] = 1;
+            }
         }
+        fixed_index_ = newfixed_index;
+        std::cout << "Fixed index = " << newfixed_index.size() << "\n";
 
         update();
     }
@@ -128,11 +163,14 @@ void CurvatureEvolution::refine(Mesh& mesh){
     iteration_=1;
 
     while (err_ >= tol_){
-        // initialize edge removal
-        edgeRemover_ = edgeRemovePtr(new ShortEdgeRemoval(*mesh_));
-
         // set max error numeric min
-        Real maxerr = -std::numeric_limits<Real>::min();
+        Real maxerr = -std::numeric_limits<Real>::max();
+
+        // break the calculation if iteration is already maxed out
+        if (iteration_ > maxStep){
+            std::cout << "Evolution finished premature at iteration " << iteration_-1 << "\n";
+            break;
+        }
 
         // first let's calculate the curvatures 
         curvatureCalc_ -> calculate(*mesh_);
@@ -146,7 +184,6 @@ void CurvatureEvolution::refine(Mesh& mesh){
         // update the vertices 
         std::cout << "Iteration " << iteration_ << std::endl;
         Real avgE=0.0;
-        std::cout << "Vertexindices size =" << VertexIndices_.size() << "\n";
         #pragma omp parallel
         {
             Real e=maxerr;
@@ -192,6 +229,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
         // update the normals as well 
         mesh_->CalcVertexNormals();
 
+        // clean mesh before we perform the calculation
         if (cleanMesh_){
             CleanMesh();
         }
@@ -205,11 +243,5 @@ void CurvatureEvolution::refine(Mesh& mesh){
 
         // update the iterations
         iteration_ ++;
-
-        // break the calculation if iteration is already maxed out
-        if (iteration_ > maxStep){
-            std::cout << "Evolution finished premature at iteration " << iteration_ << "\n";
-            break;
-        }
     }
 }
