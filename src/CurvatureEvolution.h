@@ -73,4 +73,7 @@ class CurvatureEvolution : public MeshRefineStrategy
         // short edge removal
         edgeRemovePtr edgeRemover_;
         angleRemovePtr angleRemover_;
+
+        // keep track of the original positions
+        std::vector<Real3> original_pos_;
 };

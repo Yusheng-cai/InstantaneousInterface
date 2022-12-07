@@ -52,6 +52,11 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
 void CurvatureEvolution::init(){
     const auto& vertices = mesh_->getvertices();
     num_vertices_ = vertices.size();
+    original_pos_.clear();
+    original_pos_.resize(num_vertices_);
+    for (int i=0;i<original_pos_.size();i++){
+        original_pos_[i] = vertices[i].position_;
+    }
 
     // find the boundary vertices
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
@@ -66,7 +71,7 @@ void CurvatureEvolution::init(){
 
     VertexIndices_.clear();
     for (int i=0;i<vertices.size();i++){
-        if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
+        if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
             VertexIndices_.push_back(i);
         }
     }
@@ -81,7 +86,7 @@ void CurvatureEvolution::update(){
 
     VertexIndices_.clear();
     for (int i=0;i<vertices.size();i++){
-        if ((! MeshTools::IsBoundary(i, boundaryIndicator_)) && (! isfixed_[i])){
+        if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
             VertexIndices_.push_back(i);
         }
     }
@@ -166,12 +171,6 @@ void CurvatureEvolution::refine(Mesh& mesh){
         // set max error numeric min
         Real maxerr = -std::numeric_limits<Real>::max();
 
-        // break the calculation if iteration is already maxed out
-        if (iteration_ > maxStep){
-            std::cout << "Evolution finished premature at iteration " << iteration_-1 << "\n";
-            break;
-        }
-
         // first let's calculate the curvatures 
         curvatureCalc_ -> calculate(*mesh_);
 
@@ -202,7 +201,12 @@ void CurvatureEvolution::refine(Mesh& mesh){
                 if (std::abs(diffkappa) > e){e = std::abs(diffkappa);}
 
                 // update the vertex positions 
-                vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa;
+                if (isfixed_[index]){
+                    vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa + StepSize_ * 0.05 * (original_pos_[index] - vertices[index].position_);
+                }
+                else{
+                    vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa;
+                }
             }
 
             #pragma omp critical
@@ -221,7 +225,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
         avgE = avgE / VertexIndices_.size();
 
         if (meanCurvature_ == 0){err_ = maxerr;}
-        else{err_ = std::abs(maxerr / meanCurvature_);}
+        else{err_ = std::abs(maxerr);}
 
         std::cout << "Max error is " << err_ << std::endl;
         std::cout << "average error is " << avgE << "\n";
@@ -239,6 +243,12 @@ void CurvatureEvolution::refine(Mesh& mesh){
             if (err_ > 10){
                 curvatureflow_->refine(*mesh_);
             }
+        }
+
+        // break the calculation if iteration is already maxed out
+        if (iteration_ > maxStep){
+            std::cout << "Evolution finished premature at iteration " << iteration_-1 << "\n";
+            break;
         }
 
         // update the iterations
