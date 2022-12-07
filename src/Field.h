@@ -31,6 +31,7 @@ class Field
 
         // defined an operator for easy access of data in the field
         Real& operator()(int i, int j, int k);
+        const Real& operator()(int i, int j, int k) const;
 
         // set different range for x, y, z
         void setXrange(Range& xrange) 
@@ -54,7 +55,7 @@ class Field
             center_[2] = (z_range_[1] + z_range_[0])*0.5;
         }
 
-        void fixIndex(index3& index);
+        void fixIndex(index3& index) const;
 
         // zero the field
         void zero() {std::fill(field_.begin(), field_.end(),0.0);}

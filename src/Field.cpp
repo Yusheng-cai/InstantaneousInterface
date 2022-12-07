@@ -49,7 +49,17 @@ Field::Real& Field::operator()(int i, int j, int k)
     return field_[index];
 }
 
-void Field::fixIndex(index3& index)
+const Field::Real& Field::operator()(int i, int j, int k) const
+{
+    index3 newIndex = {{i,j,k}}; 
+    fixIndex(newIndex);
+ 
+    int index = newIndex[2]*Nx_*Ny_ + newIndex[1]*Nx_ + newIndex[0];
+
+    return field_[index];
+}
+
+void Field::fixIndex(index3& index) const
 {
     ASSERT((index[0] >= -Nx_ && index[0] <= 2*Nx_-1), "x index out of range.");
     ASSERT((index[1] >= -Ny_ && index[1] <= 2*Ny_-1), "y index out of range.");
