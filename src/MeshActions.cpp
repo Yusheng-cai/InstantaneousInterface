@@ -238,7 +238,7 @@ void MeshActions::CurvatureFlow(CommandLineArguments& cmd)
     std::string inputfname, outputfname="CurvatureFlow.ply", fixed_index_file, iterations, lambdadt, decimate="true", numBoundarySmooth="0";
     Real3 box;
     ParameterPack pack;
-    bool pbcOutput = false;
+    bool pbcOutput = true;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
@@ -294,8 +294,7 @@ void MeshActions::FindNonPBCTriangles(CommandLineArguments& cmd)
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Required, box);
-    if (pbcMesh)
-    {
+    if (pbcMesh){
         mesh.setBoxLength(box);
     }
 
@@ -1126,8 +1125,7 @@ void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
     ofs.close();
 }
 
-void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd)
-{
+void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd){
     std::string inputfname, outputfname="boundary.out";
 
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
@@ -1322,41 +1320,66 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     refineptr r;
     ParameterPack EvolutionPack, curvePack;
     bool fairing=false, cleanMesh=false;
+    std::string curve_type="curvefit";
 
     // read input output
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("curve_type", CommandLineArguments::Keys::Optional, curve_type);
 
     // use curve fit 
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
-    cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+    if (curve_type == "curvefit"){
+        cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+        // fill parameter pack
+        curvePack.insert("neighbors", neighbors);
+        curvePack.insert("type", "curvefit");
+        curvePack.insert("name", "temp");
+    }
+    else if (curve_type == "jetfit"){
+        std::string MongeCoefficient, degree;
+        cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+        cmd.readString("MongeCoefficient", CommandLineArguments::Keys::Required, MongeCoefficient);
+        cmd.readString("degree", CommandLineArguments::Keys::Required, degree);
+
+        curvePack.insert("neighbors", neighbors);
+        curvePack.insert("type", "jetfit");
+        curvePack.insert("name", "temp");
+        curvePack.insert("MongeCoefficient", MongeCoefficient);
+        curvePack.insert("degree", degree);
+    }
+    else{
+        ASSERT((true==false), "The curvature type " << curve_type << " is not valid.");
+    }
+
+    // start reading the step size information etc.
     cmd.readString("stepsize", CommandLineArguments::Keys::Required, stepsize);
     cmd.readString("k0", CommandLineArguments::Keys::Required, k0);
     cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
     cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
-    if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, FixedIndexFile)){
-        EvolutionPack.insert("fixed_index_file", FixedIndexFile);
-    }
     cmd.readBool("fairing",CommandLineArguments::Keys::Optional, fairing);
     cmd.readBool("cleanMesh", CommandLineArguments::Keys::Optional, cleanMesh);
 
-    if (cleanMesh){
-        std::string edgelength;
-        cmd.readString("edgeLengthCutoff", CommandLineArguments::Keys::Required, edgelength);
-        EvolutionPack.insert("cleanMesh", "true");
-        EvolutionPack.insert("edgeLengthCutoff", edgelength);
-    }
-    
-    // fill parameter pack
-    curvePack.insert("neighbors", neighbors);
-    curvePack.insert("type", "curvefit");
-    curvePack.insert("name", "temp");
+    // insert everything into evolution pack.
     EvolutionPack.insert("Curvature", curvePack);
     EvolutionPack.insert("name", "refine");
     EvolutionPack.insert("stepsize", stepsize);
     EvolutionPack.insert("k0", k0);
     EvolutionPack.insert("maxstep", maxstep);
     EvolutionPack.insert("tolerance", tolerance);
+
+    // read the fixed index file
+    if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, FixedIndexFile)){
+        EvolutionPack.insert("fixed_index_file", FixedIndexFile);
+    }
+        
+    if (cleanMesh){
+        std::string edgelength;
+        cmd.readString("edgeLengthCutoff", CommandLineArguments::Keys::Required, edgelength);
+        EvolutionPack.insert("cleanMesh", "true");
+        EvolutionPack.insert("edgeLengthCutoff", edgelength);
+    }
+
     if (fairing){
         std::string fairing_iteration, fairing_step;
         cmd.readString("fairing_iteration", CommandLineArguments::Keys::Required, fairing_iteration);
@@ -1437,8 +1460,7 @@ void MeshActions::CutTeethlikeFace(CommandLineArguments& cmd){
         std::vector<triangle> newT;
         MeshTools::MapEdgeToFace(m, mapEdgeToFace, mapVertexToEdge);
 
-        for (int i=0;i<nf;i++)
-        {
+        for (int i=0;i<nf;i++){
             if (MeshTools::IsTeethlikeFace(m, i, mapEdgeToFace)){
                 teethlikeTriangles.push_back(i);
             }
@@ -1844,7 +1866,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             std::map<INT2,std::vector<int>> EToF; 
             std::vector<bool> boundaryIndicator;
             std::vector<int> importance(verticesbefore,0);
-            MeshTools::MapEdgeToFace(m, EToF, false);
+            MeshTools::MapEdgeToFace(m, EToF);
             MeshTools::CalculateBoundaryVertices(m, EToF, boundaryIndicator);
             for (int i=0;i<verticesbefore;i++){
                 if (MeshTools::IsBoundary(i, boundaryIndicator)){
@@ -1883,6 +1905,9 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             std::cout << "The clean up process did not converge, but exit before it exceed max iteration number " << maxiterations << "\n";
             break;
         }
+        MeshTools::RemoveIsolatedVertices(m);
+        MeshTools::RemoveDuplicatedFaces(m);
+        MeshTools::RemoveIsolatedFaces(m);
 
         count ++;
     }
@@ -1890,6 +1915,206 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     MeshTools::RemoveIsolatedVertices(m);
     MeshTools::RemoveDuplicatedFaces(m);
     MeshTools::RemoveIsolatedFaces(m);
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::ConstrainedDelaunayTriangulation(CommandLineArguments& cmd){
+
+}
+
+void MeshActions::FlattenMesh(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="flat.ply";
+    int index=2;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("index", CommandLineArguments::Keys::Required, index);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    auto& vertices = m.accessvertices();
+    for (int i=0;i<vertices.size();i++){
+        vertices[i].position_[index] = 0;
+    }
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="gen.ply", boundaryfname;
+    Real2 Box;
+    Real aspect_bound=0.125, size_bound=0.5;
+    int NumBoundary;
+    bool periodic=true;
+    INT2 index = {{0,1}};
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("boundaryfile", CommandLineArguments::Keys::Required, boundaryfname);
+    cmd.readValue("NumBoundary", CommandLineArguments::Keys::Required, NumBoundary);
+    cmd.readArray("box", CommandLineArguments::Keys::Required, Box);
+    cmd.readArray("ReadIndex", CommandLineArguments::Keys::Optional, index);
+    cmd.readBool("periodic", CommandLineArguments::Keys::Optional, periodic);
+    cmd.readValue("aspect_bound", CommandLineArguments::Keys::Optional, aspect_bound);
+    cmd.readValue("size_bound", CommandLineArguments::Keys::Optional, size_bound);
+
+    // copy the boundary points 
+    std::vector<std::vector<Real>> temp;
+    std::vector<Real2> points;
+    Real2 centroid={{0,0}};
+    std::vector<INT2> edges;
+    std::vector<Real> edgeLength;
+    std::vector<Real2> seed;
+    StringTools::ReadTabulatedData(boundaryfname, temp);
+    ASSERT((temp.size() != 0), "The boundary file provided contains no data.");
+    points.resize(temp.size());
+    edges.resize(temp.size());
+    edgeLength.resize(temp.size());
+    for (int i=0;i<temp.size();i++){
+        Real2 pos;
+        INT2 e;
+        pos[0] = temp[i][index[0]];
+        pos[1] = temp[i][index[1]];
+        centroid = centroid + pos;
+        e[0] = i; e[1] = (i+1) % temp.size();
+        points[i] = pos;
+        edges[i] = e;
+    }
+    centroid = centroid / temp.size();
+    seed.push_back(centroid);
+
+    #pragma omp parallel for
+    for (int i=0;i<edges.size();i++){
+        auto e = edges[i];
+        Real2 diff = points[e[0]] - points[e[1]];
+        Real sum=0;
+        for (int j=0;j<2;j++){
+            sum += diff[j] * diff[j];
+        }
+        edgeLength[i] = std::sqrt(sum);
+    }
+    Real minEdgeLength = Algorithm::min(edgeLength);
+
+    // construct the box
+    Real2 stepsize = Box / NumBoundary;
+    std::vector<Real2> newPoints;
+    std::vector<INT2> newEdges;
+    newPoints.push_back({{0,0}});
+    // start with x = 0 y = something
+    for (int i=1;i<NumBoundary+1;i++){
+        Real2 p = {{0,i * stepsize[1]}};
+        newPoints.push_back(p);
+        newEdges.push_back({{i-1,i}});
+    }
+
+    // continue with x = something, y = max
+    for (int i=1;i<NumBoundary+1;i++){
+        Real2 p = {{i * stepsize[0], Box[1]}};
+        int LastIndex = newPoints.size() - 1;
+        newPoints.push_back(p);
+        int CurrIndex = newPoints.size() - 1;
+        newEdges.push_back({{LastIndex, CurrIndex}});
+    }
+
+    // continnue with x = max ,  y =something
+    for (int i=NumBoundary-1;i>=0;i--){
+        Real2 p = {{Box[0], i * stepsize[1]}};
+        int LastIndex = newPoints.size()-1;
+        newPoints.push_back(p);
+        int CurrIndex = newPoints.size() - 1;
+        newEdges.push_back({{LastIndex, CurrIndex}});
+    }
+
+    // continue with x = something, y = 0
+    for (int i=NumBoundary-1;i>=1;i--){
+        Real2 p = {{i * stepsize[0], 0}};
+        int LastIndex = newPoints.size() - 1;
+        newPoints.push_back(p);
+        int CurrIndex = newPoints.size() - 1;
+        newEdges.push_back({{LastIndex, CurrIndex}});
+    }
+
+    // finally connect the last point with the first point
+    int LastIndex = newPoints.size()-1;
+    newEdges.push_back({{LastIndex, 0}});
+    int ori_point_size = points.size();
+    newEdges = newEdges + ori_point_size;
+
+    // merge the newpoints with points 
+    points.insert(points.end(), newPoints.begin(), newPoints.end());
+    edges.insert(edges.end(), newEdges.begin(), newEdges.end());
+
+    // constrct the generation 
+    MeshGen2d meshgen(points, edges, seed, aspect_bound, size_bound);
+    if (periodic){
+        meshgen.setBoxLength(Box);
+    }
+    meshgen.generate();
+    const auto& m = meshgen.getMesh();
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::SplitLongEdges(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="split.ply";
+
+    bool isPBC;
+    Real3 box;
+    Real max_length;
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    cmd.readValue("max_length", CommandLineArguments::Keys::Required, max_length);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    if (isPBC){
+        m.setBoxLength(box);
+    }
+
+    LongEdgeRemoval e(m);
+    e.run(max_length);
+
+    MeshTools::RemoveIsolatedVertices(m);
+    MeshTools::RemoveDuplicatedFaces(m);
+    MeshTools::RemoveIsolatedFaces(m);
+    m.CalcVertexNormals();
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::ShiftMeshWithRef(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="shifted.ply", reffname;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("ref", CommandLineArguments::Keys::Required, reffname);
+
+    Mesh m, ref;
+    MeshTools::readPLYlibr(inputfname, m);
+    MeshTools::readPLYlibr(reffname, ref);
+
+    const auto& v = m.getvertices();
+    const auto& refv = ref.getvertices();
+
+    Real3 v_COM = {{0,0,0}};
+    Real3 ref_COM = {{0,0,0}};
+    for (int i=0;i<v.size();i++){
+        v_COM = v_COM + v[i].position_;
+    }
+
+    for (int i=0;i<refv.size();i++){
+        ref_COM = ref_COM + refv[i].position_;
+    }
+
+    v_COM = v_COM / v.size();
+    ref_COM = ref_COM / refv.size();
+
+    std::cout << v_COM << " " << ref_COM << "\n";
+
+    // MeshTools::IterativeClosestPoint(m, ref);
 
     MeshTools::writePLY(outputfname, m);
 }

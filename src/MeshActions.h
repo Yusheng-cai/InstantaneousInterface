@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "tools/Assert.h"
+#include "MeshGen2d.h"
 #include "MeshPlaneIntersection.hpp"
 #include "tools/CommandLineArguments.h"
 #include "Mesh.h"
@@ -23,6 +24,8 @@
 #include "Graph.h"
 #include "ShortEdgeRemoval.h"
 #include "ObtuseTriangleRemoval.h"
+#include "LongEdgeRemoval.h"
+#include "ICP/ICP.h"
 
 namespace MeshActions
 {
@@ -97,6 +100,9 @@ namespace MeshActions
     // function that decimates degenerate triangles 
     void DecimateDegenerateTriangles(CommandLineArguments& cmd);
 
+    // perform constraint delaunay triangulation
+    void ConstrainedDelaunayTriangulation(CommandLineArguments& cmd);
+
     // curvature evolution --> only use curvefit
     void CurvatureEvolution(CommandLineArguments& cmd);
 
@@ -117,4 +123,17 @@ namespace MeshActions
 
     // clean up mesh
     void MeshCleanup(CommandLineArguments& cmd);
+
+    // flatten a mesh --> convert one of the indices to be all 0
+    void FlattenMesh(CommandLineArguments& cmd);
+
+    // generate a mesh --> conforming triangulations
+    // https://doc.cgal.org/latest/Mesh_2/index.html
+    void ConformingTriangulations(CommandLineArguments& cmd);
+
+    // split long edges
+    void SplitLongEdges(CommandLineArguments& cmd);
+
+    // perform iterative closest point to shift a mesh with respect to another
+    void ShiftMeshWithRef(CommandLineArguments& cmd);
 };
