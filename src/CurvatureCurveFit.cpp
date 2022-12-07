@@ -30,7 +30,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     Graph::getNearbyIndicesNVertexAway(VertexNeighbors, NumNeighbors_,NeighborIndicesNVertex);
 
     // the reference direction of the normal vector is the z vector
-    Real3 referenceDir = {{0,0,-1}};
+    Real3 referenceDir = {{0,0,1}};
 
     // map edge to face 
     std::map<INT2, std::vector<int>> EToF;
@@ -100,10 +100,10 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
         // Ans = [ b1, b2, b12 ]
         Eigen::Matrix2d SecondFundamentalMat;
-        SecondFundamentalMat(0,0) = 2*ans[0];
+        SecondFundamentalMat(0,0) = -2*ans[0];
         SecondFundamentalMat(0,1) = ans[2];
         SecondFundamentalMat(1,0) = ans[2];
-        SecondFundamentalMat(1,1) = 2*ans[1];
+        SecondFundamentalMat(1,1) = -2*ans[1];
         eigensolver.compute(SecondFundamentalMat);
 
         // ff2
