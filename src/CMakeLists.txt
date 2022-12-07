@@ -25,11 +25,12 @@ target_sources(IIsrc PRIVATE
     "CurvatureEvolution.cpp"
     "Registry.cpp"
     "marching_cubes.cpp"
-    "MeshGeneration.cpp"
     "MeshGen2d.cpp"
     "MeshActions.cpp"
     "ShortEdgeRemoval.cpp"
     "ObtuseTriangleRemoval.cpp"
+    "surface_nets.cpp"
+    "LongEdgeRemoval.cpp"
 )
 
 set(IIsrc_HEADER
@@ -57,12 +58,13 @@ set(IIsrc_HEADER
     "CurvatureEvolution.h"
     "Registry.h"
     "marching_cubes.hpp"
-    "MeshGeneration.h"
     "MeshGen2d.h"
     "MeshActions.h"
     "MeshPlaneIntersection.hpp"
     "ShortEdgeRemoval.h"
     "ObtuseTriangleRemoval.h"
+    "surface_nets.h"
+    "LongEdgeRemoval.h"
 )
 
 target_include_directories(IIsrc
@@ -71,17 +73,12 @@ target_include_directories(IIsrc
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
-
-#if(Boost_FOUND)
-#    target_include_directories(IIsrc PUBLIC ${Boost_INCLUDE_DIRS})
-#endif()
+add_subdirectory(ICP)
 
 if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
-target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel CGAL::CGAL)
-#message("Boost include dir = ${Boost_INCLUDE_DIRS}")
-#message("Boost library dir = ${Boost_LIBRARIES}")
+target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL)
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 
