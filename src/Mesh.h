@@ -10,6 +10,7 @@
 #include "tools/Constants.h"
 #include "tools/Algorithm.h"
 #include "happly.h"
+#include "ICP/ICP.h"
 
 #include <vector>
 #include <array>
@@ -178,7 +179,7 @@ namespace MeshTools
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, Real factor=1.0);
     void writePLY(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals);
     void writePLYRGB(std::string filename, const std::vector<Real3>& Vertices, const std::vector<INT3>& faces, const std::vector<Real3>& RGB);
-    void writePLY(std::string filename, Mesh& mesh);
+    void writePLY(std::string filename, const Mesh& mesh);
 
     // write non pbc mesh 
     void writeNonPBCMesh(std::string filename, Mesh& mesh);
@@ -284,4 +285,7 @@ namespace MeshTools
 
     // remove duplicate triangles 
     void RemoveDuplicatedFaces(Mesh& mesh);
+
+    // translate mesh from one to another
+    void IterativeClosestPoint(Mesh& m, const Mesh& ref);
 };

@@ -329,26 +329,29 @@ std::vector<Mesh::Real3> Mesh::getVertexPositions()
                                     /**************************************
                                      ************   MeshTools *************
                                      *************************************/       
-void MeshTools::writePLY(std::string filename, Mesh& mesh)
+void MeshTools::writePLY(std::string filename, const Mesh& mesh)
 {
     std::vector<Real3> verts;
     std::vector<INT3> faces;
+    std::vector<Real3> normals;
 
     const auto& v = mesh.getvertices();
     const auto& f = mesh.gettriangles();
 
     verts.resize(v.size());
     faces.resize(f.size());
+    normals.resize(v.size());
 
     for (int i=0;i<v.size();i++){
         verts[i] = v[i].position_;
+        normals[i] = v[i].normals_;
     }
 
     for (int i=0;i<f.size();i++){
         faces[i] = f[i].triangleindices_;
     }
 
-    writePLY(filename, verts, faces);
+    writePLY(filename, verts, faces, normals);
 }
 
 void MeshTools::writePLY(std::string filename, const std::vector<Real3>& vertices, const std::vector<INT3>& faces, const std::vector<Real3>& normals)
@@ -559,8 +562,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
     }
 
     // do something when it does have normals
-    if (hasnormals)
-    {
+    if (hasnormals){
         for (int i=0;i<3;i++){
             const auto& n = plydata.getElement("vertex").getProperty<double>(normalNames[i]);
             ASSERT((n.size() == vPos.size()), "The size of nx must equal to the number of vertices.");
@@ -988,43 +990,43 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
                 triangles.push_back(t.triangleindices_);
             }
             // if it's periodic triangle, then we push back 3 new vertices 
-            // else{
-            //     Real3 verticesNew1;
-            //     Real3 verticesNew2, verticesDiff2;
-            //     Real distsq2;
-            //     Real3 verticesNew3, verticesDiff3;
-            //     Real distsq3;
-            //     int idx1 = t[0];
-            //     int idx2 = t[1];
-            //     int idx3 = t[2];
+            else{
+                Real3 verticesNew1;
+                Real3 verticesNew2, verticesDiff2;
+                Real distsq2;
+                Real3 verticesNew3, verticesDiff3;
+                Real distsq3;
+                int idx1 = t[0];
+                int idx2 = t[1];
+                int idx3 = t[2];
 
-            //     // get the pbc corrected distance 
-            //     mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
-            //     mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
+                // get the pbc corrected distance 
+                mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
+                mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
 
-            //     // get the new vertices --> with respect to position 1
-            //     verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
-            //     verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
+                // get the new vertices --> with respect to position 1
+                verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
+                verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
 
-            //     // Find approximately the center of the triangle
-            //     Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
-            //     Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
+                // Find approximately the center of the triangle
+                Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
+                Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
 
-            //     // update the vertices
-            //     verticesNew1 = MeshVertices[idx1].position_ + shift;
-            //     verticesNew2 = verticesNew2 + shift;
-            //     verticesNew3 = verticesNew3 + shift;
+                // update the vertices
+                verticesNew1 = MeshVertices[idx1].position_ + shift;
+                verticesNew2 = verticesNew2 + shift;
+                verticesNew3 = verticesNew3 + shift;
 
-            //     int NewIndex1 = vertices.size();
-            //     vertices.push_back(verticesNew1);
-            //     int NewIndex2 = vertices.size();
-            //     vertices.push_back(verticesNew2);
-            //     int NewIndex3 = vertices.size();
-            //     vertices.push_back(verticesNew3);
+                int NewIndex1 = vertices.size();
+                vertices.push_back(verticesNew1);
+                int NewIndex2 = vertices.size();
+                vertices.push_back(verticesNew2);
+                int NewIndex3 = vertices.size();
+                vertices.push_back(verticesNew3);
 
-            //     INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
-            //     triangles.push_back(NewT);
-            // }
+                INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
+                triangles.push_back(NewT);
+            }
         }
     }
 }
@@ -1766,4 +1768,37 @@ void MeshTools::RemoveDuplicatedFaces(Mesh& mesh){
     auto& nf = mesh.accesstriangles();
     nf.clear();
     nf.insert(nf.end(), newf.begin(), newf.end());
+}
+
+void MeshTools::IterativeClosestPoint(Mesh& m, const Mesh& ref){
+    std::vector<gs::Point*> dynamic, st;
+    const auto& v = m.getvertices();
+    const auto& refv = ref.getvertices();
+
+    dynamic.resize(v.size());
+    st.resize(refv.size());
+    
+    for (int i=0;i<v.size();i++){
+        gs::Point* p = new gs::Point(v[i][0], v[i][1], v[i][2]);
+        dynamic[i] = p;
+    }
+
+    for (int i=0;i<refv.size();i++){
+        gs::Point* p = new gs::Point(refv[i][0], refv[i][1], refv[i][2]);
+        st[i] = p;
+    }
+
+    gs::icp(dynamic, st);
+
+    auto& vert = m.accessvertices();
+    vert.clear();
+    vert.resize(dynamic.size());
+
+    for (int i=0;i<dynamic.size();i++){
+        vertex newv;
+        newv.position_ = {{dynamic[i]->pos[0], dynamic[i]->pos[1], dynamic[i]->pos[2]}};
+        vert[i] = newv;
+    }
+
+    m.CalcVertexNormals();
 }
