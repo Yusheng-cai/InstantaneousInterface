@@ -39,7 +39,13 @@ namespace Algorithm
     T min(std::vector<T>& vec);
 
     template <typename T, std::size_t dim>
+    T min(const std::array<T,dim>& arr);
+
+    template <typename T, std::size_t dim>
     T max(std::array<T,dim>& arr);
+
+    template <typename T, std::size_t dim>
+    T sum(const std::array<T,dim>& arr);
 
     template <typename T>
     bool contain(std::vector<T>& vec, T num);
@@ -144,6 +150,23 @@ template <typename T>
 T Algorithm::min(std::vector<T>& vec)
 {
     typename std::vector<T>::iterator min_element = std::min_element(vec.begin(), vec.end());
+
+    return *min_element;
+}
+
+template <typename T, std::size_t dim>
+T Algorithm::sum(const std::array<T,dim>& arr){
+    T sum=0.0;
+    for (int i=0;i<dim;i++){
+        sum += arr[i];
+    }
+
+    return sum;
+}
+
+template <typename T, std::size_t dim>
+T Algorithm::min(const std::array<T,dim>& arr){
+    typename std::array<T,dim>::const_iterator min_element = std::min_element(arr.begin(), arr.end());
 
     return *min_element;
 }

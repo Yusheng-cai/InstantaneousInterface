@@ -80,6 +80,17 @@ inline std::vector<T1> operator/(const std::vector<T1>& v1, const T2& f)
 }
 
 template <typename T1, typename T2>
+inline std::vector<T1> operator+(const std::vector<T1>& v1, const T2& f)
+{
+    ASSERT((v1.size() !=0), "adding an empty std::vector.");
+    std::vector<T1> ret(v1.size());
+    for (int i=0;i<v1.size();i++){
+        ret[i] = v1[i] + f;
+    }
+    return ret;
+}
+
+template <typename T1, typename T2>
 inline std::vector<T1> operator+(const std::vector<T1>& v1, std::vector<T2>& v2){
     ASSERT((v1.size() == v2.size()), "The vector operation cannot be done because of size mismatch.");
     std::vector<T1> res(v1.size());

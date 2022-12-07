@@ -61,22 +61,18 @@ add_subdirectory(test)
 add_subdirectory(ModelViewer)
 
 add_executable(InstantaneousInterface main.cpp)
-add_executable(mesh_gen mesh_gen.cpp)
 add_executable(mesh_op mesh_op.cpp)
 add_executable(mesh_display mesh_display.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(mesh_gen PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
-target_link_libraries(mesh_gen PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_display PUBLIC IIxdr IIsrc IItools IIparallel IIModelViewer ${GLFW3_LIBRARY})
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
-install(TARGETS mesh_gen DESTINATION bin)
 install(TARGETS mesh_op DESTINATION bin)
 install(TARGETS mesh_display DESTINATION bin)
