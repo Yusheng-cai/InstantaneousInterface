@@ -1,12 +1,12 @@
 #pragma once
 
-#include "MeshGeneration.h"
 #include "CGAL/Exact_predicates_inexact_constructions_kernel.h"
 #include "CGAL/Constrained_Delaunay_triangulation_2.h"
 #include "CGAL/Delaunay_mesher_2.h"
 #include "CGAL/Delaunay_mesh_face_base_2.h"
 #include "CGAL/Delaunay_mesh_size_criteria_2.h"
 #include "CGAL/IO/write_VTU.h"
+#include "CGAL/lloyd_optimize_mesh_2.h"
 #include "Mesh.h"
 
 #include <iostream>
@@ -19,7 +19,7 @@
 #include <map>
 #include <limits>
 
-class Mesh2d : public MeshGeneration
+class MeshGen2d
 {
     public:
         using K        = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -28,11 +28,19 @@ class Mesh2d : public MeshGeneration
         using Tds      = CGAL::Triangulation_data_structure_2<Vb, Fb>;
         using CDT      = CGAL::Constrained_Delaunay_triangulation_2<K, Tds>;
         using Criteria = CGAL::Delaunay_mesh_size_criteria_2<CDT>;
+        using Mesher   = CGAL::Delaunay_mesher_2<CDT,Criteria>;
         using Vertex_handle = CDT::Vertex_handle;
         using Point    = CDT::Point;
+        using Real2    = CommonTypes::Real2;
+        using Real3    = CommonTypes::Real3;
+        using INT2     = CommonTypes::index2;
+        using Real     = CommonTypes::Real;
+        using INT3     = CommonTypes::index3;
         
-        Mesh2d(ParameterPack& pack);
-        virtual void generate();
+        MeshGen2d(std::string file, Real aspect_bound=0.125, Real size_bound=1.0);
+        MeshGen2d(std::vector<Real2>& vertices, std::vector<INT2>& edges, std::vector<Real2>& seed_point, Real aspect_bound=0.125, Real size_bound=1.0);
+        void setBoxLength(Real2& box){box_length_=box; isPBC_=true;}
+        void generate();
 
         // The input file I designed has the following features 
         // File 
@@ -56,6 +64,8 @@ class Mesh2d : public MeshGeneration
 
         // make periodic
         void MakePeriodic();
+
+        const Mesh& getMesh() {return mesh_;}
 
     private:
         std::string FileName_;
@@ -90,4 +100,9 @@ class Mesh2d : public MeshGeneration
         // boolean that signifies whether or not the calculation is for pbc
         bool isPBC_=false;
         Real2 box_length_;
+
+        std::map<INT2, std::vector<int>> MapEdgeToFace_;
+        std::vector<bool> boundaryIndicator_;
+
+        Mesh mesh_;
 };

@@ -159,4 +159,16 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("MeshCleanup", "-op MeanCleanup -i input.ply -box x y z -o cleaned.ply -iterations num -edgeLengthCutoff num", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::MeshCleanup(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("FlattenMesh", "-op FlattenMesh -i input.ply -o flat.ply -index num", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::FlattenMesh(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("ConformingTriangles", "-op ConformingTriangles -box x y z", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ConformingTriangulations(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("SplitLongEdge", "-op SplitLongEdge -i input.ply -max_length m -o split.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::SplitLongEdges(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("ShiftMeshWithRef", "-op ShiftMeshWithRef -i input.ply -ref ref.ply -o out.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ShiftMeshWithRef(cmd);}, \
+                                           mapF, mapU);
 }
