@@ -13,6 +13,7 @@
 #include "Registry.h"
 #include "tools/Constants.h"
 #include "tools/CommonOperations.h"
+#include "surface_nets.h"
 
 #include <vector>
 #include <map>
@@ -117,6 +118,7 @@ class DensityField
 
         // whether we do pbc or not for marching cubes 
         bool MCpbc_=false;
+        bool useMC_=true;
 
         // Name of the bounding box
         std::string boundingboxName_;
@@ -137,6 +139,7 @@ class DensityField
         Real isoSurfaceVal_;
 
         MarchingCubes MarchingCubes_;
+        Surface_nets SurfaceNets_;
 
         // Mesh stuff 
         Meshptr mesh_;

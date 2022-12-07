@@ -26,6 +26,7 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // Read in the pbc 
     input.pack_.Readbool("pbc", ParameterPack::KeyType::Optional, MCpbc_);
+    input.pack_.Readbool("useMarchingCubes", ParameterPack::KeyType::Optional, useMC_);
 
     // Read in the bounding box
     input.pack_.ReadString("boundingbox", ParameterPack::KeyType::Required,boundingboxName_);
