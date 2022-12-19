@@ -1,12 +1,16 @@
 cmake_minimum_required(VERSION 3.18.1)
 
 # Include the cmake scripts directory
-LIST( APPEND CMAKE_MODULE_PATH
+LIST( PREPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/cmake/
 )
 
 # create the new project
 project(InstantaneousInterface)
+
+# libigl
+include(libigl)
+igl_include(glfw)
 
 # Require C++11
 set(CMAKE_CXX_STANDARD 14)
@@ -58,21 +62,21 @@ add_subdirectory(tools)
 add_subdirectory(parallel)
 add_subdirectory(xdr)
 add_subdirectory(test)
-add_subdirectory(ModelViewer)
+#add_subdirectory(ModelViewer)
 
 add_executable(InstantaneousInterface main.cpp)
 add_executable(mesh_op mesh_op.cpp)
-add_executable(mesh_display mesh_display.cpp)
+#add_executable(mesh_display mesh_display.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(mesh_display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
+#target_include_directories(mesh_display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
 target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel)
-target_link_libraries(mesh_display PUBLIC IIxdr IIsrc IItools IIparallel IIModelViewer ${GLFW3_LIBRARY})
+#target_link_libraries(mesh_display PUBLIC IIxdr IIsrc IItools IIparallel IIModelViewer ${GLFW3_LIBRARY})
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
 install(TARGETS mesh_op DESTINATION bin)
-install(TARGETS mesh_display DESTINATION bin)
+#install(TARGETS mesh_display DESTINATION bin)
