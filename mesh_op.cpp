@@ -81,6 +81,9 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("jetfit", "-op jetfit -box[optional] x y z -i input.ply -o curve.out -fc faceC.out -neighbors number[int] -MongeCoefficient number[int] -degree number[int]",\
                               [](CommandLineArguments& cmd)->void{return MeshActions::JetFit(cmd);}, \
                               mapF, mapU);
+    RegisterAction("quadraticfit", "-op quadraticfit -box[optional] x y z -i input.ply -o quadraticfit.out -neighbors number[int] -MonteCarlo bool -MonteCarloN number", \
+                              [](CommandLineArguments& cmd)->void{return MeshActions::QuadraticCurveFit(cmd);}, \
+                              mapF, mapU);
     RegisterAction("tensorfit", "-op tensorfit -box[optional] x y z -i input.ply -o tensor.out -fc tensor_faceC.out", \
                               [](CommandLineArguments& cmd)-> void {return MeshActions::TensorFit(cmd);}, \
                               mapF, mapU);
@@ -170,5 +173,8 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            mapF, mapU);
     RegisterAction("ShiftMeshWithRef", "-op ShiftMeshWithRef -i input.ply -ref ref.ply -o out.ply", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::ShiftMeshWithRef(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("ViewMeshWithData", "-op ViewMeshWithData -i input.ply -data data.out -col[int] -numSteps[optional] -min[optional] -max[optional]",\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ViewMeshWithData(cmd);}, \
                                            mapF, mapU);
 }

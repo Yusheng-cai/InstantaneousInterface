@@ -5,6 +5,10 @@
 #include <array>
 #include <memory>
 
+#include "igl/opengl/glfw/Viewer.h"
+#include "igl/read_triangle_mesh.h"
+#include "Eigen/Core"
+
 #include "tools/Assert.h"
 #include "MeshGen2d.h"
 #include "MeshPlaneIntersection.hpp"
@@ -42,6 +46,9 @@ namespace MeshActions
 
     // calculate the mesh of a mesh using the method of curve fitting (second fundamental form)
     void CurveFit(CommandLineArguments& cmd);
+
+    // quadratic curve fit
+    void QuadraticCurveFit(CommandLineArguments& cmd);
 
     // calculate the curvature of a mesh using the method of jet fitting
     void JetFit(CommandLineArguments& cmd);
@@ -136,4 +143,6 @@ namespace MeshActions
 
     // perform iterative closest point to shift a mesh with respect to another
     void ShiftMeshWithRef(CommandLineArguments& cmd);
+
+    void ViewMeshWithData(CommandLineArguments& cmd);
 };

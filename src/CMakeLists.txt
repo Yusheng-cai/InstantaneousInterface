@@ -31,6 +31,7 @@ target_sources(IIsrc PRIVATE
     "ObtuseTriangleRemoval.cpp"
     "surface_nets.cpp"
     "LongEdgeRemoval.cpp"
+    "CurvatureQuadraticFit.cpp"
 )
 
 set(IIsrc_HEADER
@@ -65,6 +66,7 @@ set(IIsrc_HEADER
     "ObtuseTriangleRemoval.h"
     "surface_nets.h"
     "LongEdgeRemoval.h"
+    "CurvatureQuadraticFit.hpp"
 )
 
 target_include_directories(IIsrc
@@ -78,7 +80,7 @@ add_subdirectory(ICP)
 if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
-target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL)
+target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw)
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 

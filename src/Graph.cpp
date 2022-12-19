@@ -162,3 +162,37 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
         NearbyIndicesNVertex[i] = currentNearbyIndicesNVertex;
     }
 }
+
+void Graph::BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NNearbyNeighbors)
+{
+    int numv = NearbyIndices.size();
+    NNearbyNeighbors.clear(); NNearbyNeighbors.resize(numv);
+
+    #pragma omp parallel for
+    for (int i=0;i<numv;i++){
+        std::list<std::pair<int,int>> queue;
+        std::vector<bool> visited(numv, false);
+        queue.push_back(std::pair<int,int>(i,0));
+        std::vector<int> vv;
+
+        while (! queue.empty()){
+            int toVisit = queue.front().first;
+            int distance = queue.front().second;
+
+            // removes the first element
+            queue.pop_front();
+            vv.push_back(toVisit);
+            if (distance < N){
+                for (int j=0;j<NearbyIndices[i].size();j++){
+                    int neighbor = NearbyIndices[i][j];
+                    if (! visited[neighbor]){
+                        queue.push_back(std::pair<int,int>(neighbor, distance+1));
+                        visited[neighbor] = true;
+                    }
+                }
+            }
+        }
+
+        NNearbyNeighbors[i] = vv;
+    }
+}

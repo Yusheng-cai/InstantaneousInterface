@@ -41,6 +41,49 @@ void MeshActions::TranslateMesh(CommandLineArguments& cmd)
     MeshTools::writePLY(outputfname, vertices, faces, normals);
 }
 
+void MeshActions::QuadraticCurveFit(CommandLineArguments& cmd){
+    std::string inputfname;
+    std::string outputfname="quadraticfit.out";
+    std::string neighbors, MonteCarlo="true", MonteCarloN="50";
+    std::string fit_index="1 2";
+    ParameterPack pack;
+
+    Mesh mesh;
+    Real3 box;
+    curveptr curve;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+    cmd.readString("MonteCarlo", CommandLineArguments::Keys::Optional, MonteCarlo);
+    cmd.readString("MonteCarloN", CommandLineArguments::Keys::Optional, MonteCarloN);
+    cmd.readString("fit_index", CommandLineArguments::Keys::Optional, fit_index);
+    bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // insert the values into parameter pack
+    pack.insert("neighbors", neighbors);
+    pack.insert("MonteCarlo", MonteCarlo);
+    pack.insert("MonteCarloN", MonteCarloN);
+    pack.insert("fit_index", fit_index);
+
+    if (pbcMesh){
+        mesh.setBoxLength(box);
+    }
+
+    // read the mesh
+    MeshTools::readPLYlibr(inputfname, mesh);
+
+    // initialize curvature
+    CurvatureInput input = {{pack}};
+    curve = curveptr(CurvatureRegistry::Factory::instance().create("quadraticfit", input));
+
+    // calculate the curvature 
+    curve->calculate(mesh);
+
+    // print the curvature 
+    curve->printCurvature(outputfname);
+}
+
 void MeshActions::CurveFit(CommandLineArguments& cmd)
 {
     std::string inputfname;
@@ -2117,4 +2160,63 @@ void MeshActions::ShiftMeshWithRef(CommandLineArguments& cmd){
     // MeshTools::IterativeClosestPoint(m, ref);
 
     MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
+    std::string inputfname, datafname;
+    int col, numSteps=21;
+    double min, max;
+    Real3 box;
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("data", CommandLineArguments::Keys::Required, datafname);
+    cmd.readValue("col", CommandLineArguments::Keys::Required, col);
+    cmd.readValue("numSteps", CommandLineArguments::Keys::Optional, numSteps);
+    bool minRead = cmd.readValue("min", CommandLineArguments::Keys::Optional,min); 
+    bool maxRead = cmd.readValue("max", CommandLineArguments::Keys::Optional, max);
+    bool pbc = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // mesh read with my program
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname,m);
+    if (pbc){
+        m.setBoxLength(box);
+    }
+
+    // mesh read with igl
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi F;
+    igl::read_triangle_mesh(inputfname, V, F);
+
+    std::vector<double> data;
+    StringTools::ReadTabulatedData(datafname, col, data);
+
+    if (pbc){
+        const auto& tri = m.gettriangles();
+        std::vector<int> nonPeriodicFace;
+        for (int i=0;i<tri.size();i++){
+            if (! MeshTools::IsPeriodicTriangle(m,i)){
+                nonPeriodicFace.push_back(i);
+            }
+        }
+
+        Eigen::MatrixXi temp(nonPeriodicFace.size(),3);
+        for (int i=0;i<nonPeriodicFace.size();i++){
+            int index = nonPeriodicFace[i];
+            temp.row(i) = F.row(index);
+        }
+
+        F = temp;
+    }
+    
+    Eigen::VectorXd d = Eigen::Map<Eigen::VectorXd>(data.data(), data.size());
+    ASSERT((d.rows() == V.rows()), "The data size " << d.rows() << " does not match the vertics size " << V.rows());
+
+    if (! minRead){min = Algorithm::min(data);}
+    if (! maxRead){max = Algorithm::max(data);}
+
+    igl::opengl::glfw::Viewer viewer;
+    viewer.data().set_mesh(V,F);
+    viewer.data().set_data(d.transpose(), min, max, igl::ColorMapType::COLOR_MAP_TYPE_JET, numSteps);
+    viewer.data().show_lines = false;
+    viewer.launch();
 }

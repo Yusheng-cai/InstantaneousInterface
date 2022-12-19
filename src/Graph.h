@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <list>
 
 namespace Graph
 {
@@ -20,4 +21,7 @@ namespace Graph
     void getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& NearbyIndices, int N, int index, std::vector<int>& NearbyIndicesNVertex);
 
     void getNNearbyIndices(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NearbyIndicesN);
+
+    // BFS k-ring neighbor
+    void BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NNearbyNeighbors);
 };
