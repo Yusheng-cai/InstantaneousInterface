@@ -6,7 +6,6 @@
 
 using Real3  = CommonTypes::Real3;
 using Real   = CommonTypes::Real;
-using Matrix = CommonTypes::Matrix;
 
 // printing statements 
 template <typename T, std::size_t dim>
