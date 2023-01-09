@@ -255,6 +255,7 @@ void Driver::printFinalOutput()
 void Driver::run()
 {
     for (int i=0;i<SimulationFrames_.size();i++){
+        auto stotal = std::chrono::high_resolution_clock::now();
         int ind = SimulationFrames_[i];
 
         std::cout << "Frame = " << ind << std::endl;
@@ -270,7 +271,11 @@ void Driver::run()
         printOutputfileIfOnStep();
         auto end = std::chrono::high_resolution_clock::now();
         auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+
+        auto etotal = std::chrono::high_resolution_clock::now();
+        auto difftotal = std::chrono::duration_cast<std::chrono::milliseconds>(etotal-stotal);
         std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
+        std::cout << "Time it took for total is " << difftotal.count() << " milliseconds." << "\n";
     }
 
     // finish the calculation step
