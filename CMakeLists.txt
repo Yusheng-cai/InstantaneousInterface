@@ -6,7 +6,7 @@ LIST( PREPEND CMAKE_MODULE_PATH
 )
 
 # create the new project
-project(InstantaneousInterface)
+project(InstantaneousInterface LANGUAGES C CXX CUDA)
 
 # libigl
 include(libigl)
@@ -26,6 +26,9 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
+# set an option for using CUDA
+option(ENABLE_CUDA "Using nvidia CUDA" OFF)
+
 # Requires OpenGL
 #find_package(OpenGL REQUIRED)
 #if (OpenGL_FOUND)
@@ -35,11 +38,11 @@ endif()
 #endif()
 
 # Requires glut
-find_package(GLFW3 REQUIRED)
-if (GLFW3_FOUND)
-    message("GLFW FOUND")
-    message("GLFW Library directory = ${GLFW3_LIBRARY}")
-endif()
+#find_package(GLFW3 REQUIRED)
+#if (GLFW3_FOUND)
+#    message("GLFW FOUND")
+#    message("GLFW Library directory = ${GLFW3_LIBRARY}")
+#endif()
 
 find_package(CGAL)
 if (CGAL_FOUND)

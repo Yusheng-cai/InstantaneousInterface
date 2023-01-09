@@ -86,6 +86,9 @@ namespace MeshActions
     // function that constructs a new mesh such that none of the vertices is within a certain distance of the reference mesh 
     void MeshDistanceCutoff(CommandLineArguments& cmd);
 
+    // flatten a certain dimension
+    void FlattenMeshDimension(CommandLineArguments& cmd);
+
     // Find the minimum distance of a mesh against another reference mesh
     void MinimumMeshDistance(CommandLineArguments& cmd);
 
@@ -145,4 +148,13 @@ namespace MeshActions
     void ShiftMeshWithRef(CommandLineArguments& cmd);
 
     void ViewMeshWithData(CommandLineArguments& cmd);
+
+    // view mesh 
+    void ViewMesh(CommandLineArguments& cmd);
+
+    // Calculate Distance between 2 meshes using Ray-Triangle intersection algorithm
+    void DistanceBetweenMeshesMT(CommandLineArguments& cmd);
+
+    // Calculate ICP 
+    void IterativeClosestPoint(CommandLineArguments& cmd);
 };

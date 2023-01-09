@@ -177,4 +177,16 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("ViewMeshWithData", "-op ViewMeshWithData -i input.ply -data data.out -col[int] -numSteps[optional] -min[optional] -max[optional]",\
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::ViewMeshWithData(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("ViewMesh", "-op ViewMesh -i input.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ViewMesh(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("FlattenMeshDimension", "-op FlattenMeshDimension -i input.ply -dim [int] -set [float] -o flat.ply" , \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::FlattenMeshDimension(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("DistanceBetweenMeshesMT", "-op DistanceBetweenMeshesMR -i input1.ply input2.ply -Ray [vec3] -box [vec3] -o output.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::DistanceBetweenMeshesMT(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("IterativeClosestPoint", "-op IterativeClosestPoint -i input1.ply input2.ply -box [vec3] -o output.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::IterativeClosestPoint(cmd);}, \
+                                           mapF, mapU);
 }

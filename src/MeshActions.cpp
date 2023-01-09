@@ -45,7 +45,6 @@ void MeshActions::QuadraticCurveFit(CommandLineArguments& cmd){
     std::string inputfname;
     std::string outputfname="quadraticfit.out";
     std::string neighbors, MonteCarlo="true", MonteCarloN="50";
-    std::string fit_index="1 2";
     ParameterPack pack;
 
     Mesh mesh;
@@ -57,21 +56,18 @@ void MeshActions::QuadraticCurveFit(CommandLineArguments& cmd){
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
     cmd.readString("MonteCarlo", CommandLineArguments::Keys::Optional, MonteCarlo);
     cmd.readString("MonteCarloN", CommandLineArguments::Keys::Optional, MonteCarloN);
-    cmd.readString("fit_index", CommandLineArguments::Keys::Optional, fit_index);
     bool pbcMesh = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
 
     // insert the values into parameter pack
     pack.insert("neighbors", neighbors);
     pack.insert("MonteCarlo", MonteCarlo);
     pack.insert("MonteCarloN", MonteCarloN);
-    pack.insert("fit_index", fit_index);
-
-    if (pbcMesh){
-        mesh.setBoxLength(box);
-    }
 
     // read the mesh
     MeshTools::readPLYlibr(inputfname, mesh);
+    if (pbcMesh){
+        mesh.setBoxLength(box);
+    }
 
     // initialize curvature
     CurvatureInput input = {{pack}};
@@ -375,9 +371,13 @@ void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
     Mesh mesh;
     Real3 Box;
 
+    bool addnewtriangles=true;
+
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readArray("box", CommandLineArguments::Keys::Required, Box);
+    cmd.readBool("AddNewTriangle", CommandLineArguments::Keys::Optional, addnewtriangles);
+
 
     mesh.setBoxLength(Box);
 
@@ -387,7 +387,7 @@ void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
     // output non pbc mesh 
     std::vector<INT3> face;
     std::vector<Real3> verts;
-    MeshTools::ConvertToNonPBCMesh(mesh, verts, face);
+    MeshTools::ConvertToNonPBCMesh(mesh, verts, face, addnewtriangles);
 
     // write the non pbc mesh 
     std::string ext = StringTools::ReadFileExtension(outputfname);
@@ -1546,7 +1546,6 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
     std::string inputfname, outputfname="output.ply";
     Real3 box;
     INT2 translate_index={{1,2}}, array_shape;
-    
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
@@ -1570,13 +1569,14 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
     std::vector<int> PeriodicFaceIndices;
     std::vector<int> NonPeriodicFaceIndices;
     std::vector<triangle> newTriangles;
+
+    // check which ones are periodic triangles 
     for (int i=0;i<f.size();i++){
         if (MeshTools::IsPeriodicTriangle(mesh, i)){
             PeriodicFaceIndices.push_back(i);
         }
         else{
             NonPeriodicFaceIndices.push_back(i);
-            newTriangles.push_back(f[i]);
         }
     }
 
@@ -1588,6 +1588,8 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
         for (int j=0;j<array_shape[1];j++){
             for (int k=0;k<nv;k++){
                 vertex newV = v[k];
+
+                // shift to a new position
                 newV.position_[t1] += i * box[t1];
                 newV.position_[t2] += j * box[t2];
                 newVertices.push_back(newV);
@@ -1605,7 +1607,6 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
                 newt.triangleindices_ = newt.triangleindices_ + num * nv;
                 newTriangles.push_back(newt);
             }
-
         }
     }
 
@@ -1740,14 +1741,20 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
             }
         }
     }
-    
+
 
     v.clear();
     v.insert(v.end(), newVertices.begin(), newVertices.end());
     f.clear();
     f.insert(f.end(), newTriangles.begin(), newTriangles.end());
 
-    MeshTools::writePLY(outputfname, mesh);
+    std::vector<Real3> V;
+    std::vector<INT3> F;
+    MeshTools::RemoveDuplicatedFaces(mesh);
+    MeshTools::RemoveIsolatedFaces(mesh);
+    MeshTools::RemoveIsolatedVertices(mesh);
+    MeshTools::ConvertToNonPBCMesh(mesh, V, F);
+    MeshTools::writePLY(outputfname, V, F);
 }
 
 void MeshActions::TriangleAngleDistribution(CommandLineArguments& cmd){
@@ -1839,7 +1846,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
 
     Real3 box;
     Real edgeLength, angleThreshold=120;
-    int maxiterations=10;
+    int maxiterations=10, min_numneighbors=0, search_ring=5;
     bool verbose=false, preserve_features=true;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("maxiteration", CommandLineArguments::Keys::Optional, maxiterations);
@@ -1847,6 +1854,8 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     cmd.readValue("angleThreshold", CommandLineArguments::Keys::Optional, angleThreshold);
     cmd.readBool("verbose", CommandLineArguments::Keys::Optional, verbose);
     cmd.readBool("preserve_features", CommandLineArguments::Keys::Optional, preserve_features);
+    cmd.readValue("min_numneighbors", CommandLineArguments::Keys::Optional, min_numneighbors);
+    cmd.readValue("search_ring", CommandLineArguments::Keys::Optional, search_ring);
     bool fixed = cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, fixed_index_file);
     bool edgeLengthRead = cmd.readValue("edgeLengthCutoff", CommandLineArguments::Keys::Optional, edgeLength);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
@@ -1958,6 +1967,11 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     MeshTools::RemoveIsolatedVertices(m);
     MeshTools::RemoveDuplicatedFaces(m);
     MeshTools::RemoveIsolatedFaces(m);
+
+    if (min_numneighbors > 0){
+        MeshTools::RemoveMinimumNeighbors(m, search_ring, min_numneighbors);
+    }
+
 
     MeshTools::writePLY(outputfname, m);
 }
@@ -2155,12 +2169,9 @@ void MeshActions::ShiftMeshWithRef(CommandLineArguments& cmd){
     v_COM = v_COM / v.size();
     ref_COM = ref_COM / refv.size();
 
-    std::cout << v_COM << " " << ref_COM << "\n";
-
-    // MeshTools::IterativeClosestPoint(m, ref);
-
     MeshTools::writePLY(outputfname, m);
 }
+
 
 void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
     std::string inputfname, datafname;
@@ -2192,19 +2203,98 @@ void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
 
     if (pbc){
         const auto& tri = m.gettriangles();
+        const auto& v = m.getvertices();
+        std::vector<vertex> newv;
+        newv.insert(newv.end(), v.begin(), v.end());
+
         std::vector<int> nonPeriodicFace;
+        std::vector<triangle> newT;
         for (int i=0;i<tri.size();i++){
-            if (! MeshTools::IsPeriodicTriangle(m,i)){
-                nonPeriodicFace.push_back(i);
+            if (MeshTools::IsPeriodicTriangle(m,i)){
+                // shift with respect to A
+                Real3 AA,BA,CA, AB,BB,CB, AC,BC,CC, centroid_refA, centroid_refB, centroid_refC;
+                Real3 Aref, Bref, Cref;
+                Real d1,d2,d3;
+                Aref = v[tri[i][0]].position_;
+                Bref = v[tri[i][1]].position_;
+                Cref = v[tri[i][2]].position_;
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Aref, AA,BA,CA);
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Bref, AB,BB,CB);
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Cref, AC,BC,CC);
+                d1 = data[tri[i][0]]; d2 = data[tri[i][1]]; d3 = data[tri[i][2]];
+
+                centroid_refA = (AA+BA+CA) / 3.0;
+                centroid_refB = (AB+BB+CB) / 3.0;
+                centroid_refC = (AC+CB+CC) / 3.0;
+
+                // append A
+                int index = newv.size();                
+                vertex v1,v2,v3;
+                v1.position_ = AA; v2.position_=BA; v3.position_=CA;
+                newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                INT3 tIndex = {{index,index+1,index+2}};
+                triangle t;
+                t.triangleindices_ = tIndex;
+                newT.push_back(t);
+                data.push_back(d1); data.push_back(d2); data.push_back(d3);
+
+                // append B
+                Real3 diffAB = centroid_refB - centroid_refA;
+                Real diffsq_AB=0.0;
+                for (int j=0;j<3;j++){
+                    diffsq_AB += (diffAB[i] * diffAB[i]);
+                }
+                diffsq_AB = std::sqrt(diffsq_AB);
+                if (diffsq_AB < 1e-5){
+                    int index = newv.size();                
+                    v1.position_ = AB; v2.position_=BB; v3.position_=CB;
+                    newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                    INT3 tIndex = {{index,index+1,index+2}};
+                    t.triangleindices_ = tIndex;
+                    newT.push_back(t);
+                    data.push_back(d1); data.push_back(d2); data.push_back(d3);
+                }
+
+                // append C
+                Real3 diffCB = centroid_refC - centroid_refB;
+                Real diffsq_CB=0.0;
+                for (int j=0;j<3;j++){
+                    diffsq_CB += (diffCB[i] * diffCB[i]);
+                }
+                diffsq_CB = std::sqrt(diffsq_CB);
+                if (diffsq_CB < 1e-5){
+                    int index = newv.size();                
+                    v1.position_ = AC; v2.position_=BC; v3.position_=CC;
+                    newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                    INT3 tIndex = {{index,index+1,index+2}};
+                    triangle t;
+                    t.triangleindices_ = tIndex;
+                    newT.push_back(t);
+                    data.push_back(d1); data.push_back(d2); data.push_back(d3);
+                }
+            }
+            else{
+                newT.push_back(tri[i]);
+            }
+
+        }
+
+        Eigen::MatrixXi temp(newT.size(),3);
+        for (int i=0;i<newT.size();i++){
+            for (int j=0;j<3;j++){
+                temp(i,j) = newT[i].triangleindices_[j];
             }
         }
 
-        Eigen::MatrixXi temp(nonPeriodicFace.size(),3);
-        for (int i=0;i<nonPeriodicFace.size();i++){
-            int index = nonPeriodicFace[i];
-            temp.row(i) = F.row(index);
+        Eigen::MatrixXd newM(newv.size(),3);
+        for (int i=0;i<newv.size();i++){
+            for (int j=0;j<3;j++){
+                newM(i,j) = newv[i].position_[j];
+
+            }
         }
 
+        V = newM;
         F = temp;
     }
     
@@ -2214,9 +2304,359 @@ void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
     if (! minRead){min = Algorithm::min(data);}
     if (! maxRead){max = Algorithm::max(data);}
 
+    // set up viewer
     igl::opengl::glfw::Viewer viewer;
     viewer.data().set_mesh(V,F);
     viewer.data().set_data(d.transpose(), min, max, igl::ColorMapType::COLOR_MAP_TYPE_JET, numSteps);
     viewer.data().show_lines = false;
     viewer.launch();
+}
+
+void MeshActions::ViewMesh(CommandLineArguments& cmd){
+    std::string inputfname;
+    Real3 box;
+    cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
+    bool pbc = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // mesh read with my program
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname,m);
+    if (pbc){
+        m.setBoxLength(box);
+    }
+
+    // mesh read with igl
+    Eigen::MatrixXd V;
+    Eigen::MatrixXi F;
+    igl::readPLY(inputfname, V, F);
+
+    if (pbc){
+        const auto& tri = m.gettriangles();
+        const auto& v = m.getvertices();
+        std::vector<vertex> newv;
+        newv.insert(newv.end(), v.begin(), v.end());
+
+        std::vector<int> nonPeriodicFace;
+        std::vector<triangle> newT;
+        for (int i=0;i<tri.size();i++){
+            if (MeshTools::IsPeriodicTriangle(m,i)){
+                // shift with respect to A
+                Real3 AA,BA,CA, AB,BB,CB, AC,BC,CC, centroid_refA, centroid_refB, centroid_refC;
+                Real3 Aref, Bref, Cref;
+                Real d1,d2,d3;
+                Aref = v[tri[i][0]].position_;
+                Bref = v[tri[i][1]].position_;
+                Cref = v[tri[i][2]].position_;
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Aref, AA,BA,CA);
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Bref, AB,BB,CB);
+                MeshTools::ShiftPeriodicTriangle(v, tri[i].triangleindices_, m.getBoxLength(),Cref, AC,BC,CC);
+
+                centroid_refA = (AA+BA+CA) / 3.0;
+                centroid_refB = (AB+BB+CB) / 3.0;
+                centroid_refC = (AC+CB+CC) / 3.0;
+
+                // append A
+                int index = newv.size();                
+                vertex v1,v2,v3;
+                v1.position_ = AA; v2.position_=BA; v3.position_=CA;
+                newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                INT3 tIndex = {{index,index+1,index+2}};
+                triangle t;
+                t.triangleindices_ = tIndex;
+                newT.push_back(t);
+
+                // append B
+                Real3 diffAB = centroid_refB - centroid_refA;
+                Real diffsq_AB=0.0;
+                for (int j=0;j<3;j++){
+                    diffsq_AB += (diffAB[i] * diffAB[i]);
+                }
+                diffsq_AB = std::sqrt(diffsq_AB);
+                if (diffsq_AB < 1e-5){
+                    int index = newv.size();                
+                    v1.position_ = AB; v2.position_=BB; v3.position_=CB;
+                    newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                    INT3 tIndex = {{index,index+1,index+2}};
+                    t.triangleindices_ = tIndex;
+                    newT.push_back(t);
+                }
+
+                // append C
+                Real3 diffCB = centroid_refC - centroid_refB;
+                Real diffsq_CB=0.0;
+                for (int j=0;j<3;j++){
+                    diffsq_CB += (diffCB[i] * diffCB[i]);
+                }
+                diffsq_CB = std::sqrt(diffsq_CB);
+                if (diffsq_CB < 1e-5){
+                    int index = newv.size();                
+                    v1.position_ = AC; v2.position_=BC; v3.position_=CC;
+                    newv.push_back(v1); newv.push_back(v2); newv.push_back(v3);
+                    INT3 tIndex = {{index,index+1,index+2}};
+                    triangle t;
+                    t.triangleindices_ = tIndex;
+                    newT.push_back(t);
+                }
+            }
+            else{
+                newT.push_back(tri[i]);
+            }
+
+        }
+
+        Eigen::MatrixXi temp(newT.size(),3);
+        for (int i=0;i<newT.size();i++){
+            for (int j=0;j<3;j++){
+                temp(i,j) = newT[i].triangleindices_[j];
+            }
+        }
+
+        Eigen::MatrixXd newM(newv.size(),3);
+        for (int i=0;i<newv.size();i++){
+            for (int j=0;j<3;j++){
+                newM(i,j) = newv[i].position_[j];
+
+            }
+        }
+
+        V = newM;
+        F = temp;
+    }
+
+    
+    igl::opengl::glfw::Viewer viewer;
+    viewer.data().set_mesh(V,F);
+    viewer.data().show_lines = false;
+
+    int err = viewer.launch();
+}
+
+void MeshActions::FlattenMeshDimension(CommandLineArguments& cmd)
+{
+    std::string inputfname, outputfname="flat.ply";
+    int dim;
+    Real set_value=0.0;
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("dim", CommandLineArguments::Keys::Required, dim);
+    cmd.readValue("set", CommandLineArguments::Keys::Optional, set_value);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    auto& v = m.accessvertices();
+
+    for (int i=0;i<v.size();i++){
+        v[i].position_[dim] = set_value;
+    }
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::DistanceBetweenMeshesMT(CommandLineArguments& cmd){
+    std::array<std::string,2> inputfnames;
+    std::string outputfname;
+    Real3 box, RayDirection, oppositeRay;
+
+    // read the inputs
+    cmd.readArray("i", CommandLineArguments::Keys::Required,inputfnames);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("RayDirection", CommandLineArguments::Keys::Required, RayDirection);
+    oppositeRay = -1 * RayDirection;
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+
+    Mesh m1, m2;
+    MeshTools::readPLYlibr(inputfnames[0], m1); MeshTools::readPLYlibr(inputfnames[1], m2);
+
+    // set the box length if is pbc
+    if (isPBC){
+        m1.setBoxLength(box);
+        m2.setBoxLength(box);
+    }
+
+    // obtain the vertices and triangles 
+    const auto& v1 = m1.getvertices();
+    const auto& f1 = m1.gettriangles();
+    const auto& v2 = m2.getvertices();
+    const auto& f2 = m2.gettriangles();
+
+    // first we check the boundary vertices --> if boundary vertices, then we don't calculate the difference 
+    std::map<INT2, std::vector<int>> MapEdgeToFace;
+    std::vector<bool> boundaryIndicator;
+    MeshTools::MapEdgeToFace(m1, MapEdgeToFace);
+    MeshTools::CalculateBoundaryVertices(m1, MapEdgeToFace, boundaryIndicator);
+
+    std::vector<Real> VecDist(v1.size(),-1);
+
+    #pragma omp parallel for
+    for (int i=0;i<v1.size();i++){
+        Real minDist = std::numeric_limits<Real>::max();
+        Real3 O = v1[i].position_;
+        bool hitOnce = false;
+        if (! boundaryIndicator[i]){
+            for (int j=0;j<f2.size();j++){
+                Real3 A,B,C;
+                if (isPBC){
+                    MeshTools::ShiftPeriodicTriangle(v2, f2[j].triangleindices_, box, v1[i].position_, A, B, C);
+                }
+                else{
+                    A = v2[f2[j][0]].position_; B = v2[f2[j][1]].position_; C = v2[f2[j][2]].position_;
+                }
+
+                Real t,u,v;
+
+                // see if Ray Direction hits 
+                bool hit = MeshTools::MTRayTriangleIntersection(A,B,C, O, RayDirection, t, u, v);
+                // if not try the opposite ray
+                if (! hit){
+                    hit = MeshTools::MTRayTriangleIntersection(A,B,C,O,oppositeRay,t,u,v);
+                }
+
+                if (hit && std::abs(t) < minDist){
+                    minDist = std::abs(t);
+                    hitOnce = true;
+                }
+            }
+
+            ASSERT((hitOnce), "The vertex " << O << " did not hit any triangles.");
+            VecDist[i] = minDist;
+        }
+    }
+
+    std::ofstream ofs;
+    ofs.open(outputfname);
+
+    for (Real vec : VecDist){
+        ofs << vec << "\n";
+    }
+
+    ofs.close();
+}
+
+void MeshActions::IterativeClosestPoint(CommandLineArguments& cmd){
+    std::array<std::string,2> inputfnames;
+    Real3 box;
+
+    cmd.readArray("i", CommandLineArguments::Keys::Required, inputfnames);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m1, m2;
+    MeshTools::readPLYlibr(inputfnames[0], m1); MeshTools::readPLYlibr(inputfnames[1], m2);
+
+    if (isPBC){
+        m1.setBoxLength(box);
+        m2.setBoxLength(box);
+    }
+
+    const auto& v1 = m1.getvertices();
+    const auto& v2 = m2.getvertices();
+
+    ASSERT((v1.size() == v2.size()), "The number of vertex must be equal for now.");
+    std::vector<Real3> pos1(v1.size()), pos2(v2.size());
+
+    for (int i=0;i<v1.size();i++){
+        pos1[i] = v1[i].position_; pos2[i] = v2[i].position_;
+    }
+
+    Real3 COM1={0,0,0}, COM2={0,0,0};
+    for (int i=0;i<pos2.size();i++){
+        COM2 = COM2 + pos2[i];
+    }
+
+    COM2 = COM2 / pos2.size();
+
+    for (int i=0;i<pos2.size();i++){
+        pos2[i] = pos2[i] - COM2;
+    }
+
+    int iteration=0;
+    while (true){
+        // first subtract the COM
+        COM1={0,0,0};
+        for (int i=0;i<pos1.size();i++){
+            COM1 = COM1 + pos1[i];
+        }
+
+        COM1 = COM1 / pos1.size();
+
+        // subtract COM1 from pos1, COM2 from pos2
+        std::vector<Real3> pos1_centered(pos1.size());
+        for (int i=0;i<pos1.size();i++){
+            pos1_centered[i] = pos1[i] - COM1;
+        }
+
+        // then find some kind of correspondence between pos1 and pos2
+        std::vector<int> Association(pos1.size(),-1);
+        Real total_dist=0.0;
+        #pragma omp parallel
+        {
+            Real local_dist=0.0;
+            #pragma omp for
+            for (int i=0;i<pos1_centered.size();i++){
+                Real min = std::numeric_limits<Real>::max();
+                int minIndex = -1;
+                for (int j=0;j<pos2.size();j++){
+                    Real3 distVec;
+                    Real dist;
+                    m1.getVertexDistance(pos1_centered[i], pos2[j], distVec, dist);
+
+                    if (dist < min){
+                        minIndex = j;
+                        min = dist;
+                    }
+                }
+
+                ASSERT((minIndex != -1), "Something went wrong.");
+                Association[i] = minIndex;
+                local_dist += min;
+            }
+
+            #pragma omp critical
+            {
+                total_dist += local_dist;
+            }
+        }
+
+        Real RMSD = total_dist / pos1.size();
+
+        // then calculate covariance
+        LinAlg3x3::Matrix cov = {};
+        for (int i=0;i<Association.size();i++){
+            int associated_index = Association[i];
+            auto mat = LinAlg3x3::dyad(pos1_centered[i], pos2[associated_index]);
+
+            cov = cov + mat;
+        }
+
+        Eigen::Matrix3f m;
+        m << cov[0][0], cov[0][1], cov[0][2], cov[1][0], cov[1][1], cov[1][2], cov[2][0], cov[2][1], cov[2][2];
+        Eigen::JacobiSVD<Eigen::Matrix3f> svd(m, Eigen::ComputeFullU | Eigen::ComputeFullV);
+        auto U = svd.matrixU();
+        auto V = svd.matrixV();
+
+        auto R_found = U * V.transpose();
+        Eigen::Vector3f P_center, Q_center;
+        P_center << COM1[0], COM1[1], COM1[2];
+        Q_center << COM2[0], COM2[1], COM2[2];
+        auto t_found = Q_center - R_found * P_center;
+
+        // start shifting
+        for (int i=0;i<pos1.size();i++){
+            Eigen::Vector3f vec;
+            vec << pos1[i][0], pos1[i][1], pos1[i][2];
+
+            vec = R_found * vec + t_found;
+
+            pos1[i][0] = vec(0);
+            pos1[i][1] = vec(1);
+            pos1[i][2] = vec(2);
+        }
+
+        iteration++;
+
+        if (iteration > 100){
+            break;
+        }
+    }
 }
