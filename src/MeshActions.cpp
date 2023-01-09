@@ -2174,6 +2174,7 @@ void MeshActions::ShiftMeshWithRef(CommandLineArguments& cmd){
 
 
 void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
+    #ifdef IGL_ENABLED
     std::string inputfname, datafname;
     int col, numSteps=21;
     double min, max;
@@ -2310,9 +2311,13 @@ void MeshActions::ViewMeshWithData(CommandLineArguments& cmd){
     viewer.data().set_data(d.transpose(), min, max, igl::ColorMapType::COLOR_MAP_TYPE_JET, numSteps);
     viewer.data().show_lines = false;
     viewer.launch();
+    #else
+    std::cout << "IGL is not enabled." << "\n";
+    #endif
 }
 
 void MeshActions::ViewMesh(CommandLineArguments& cmd){
+    #ifdef IGL_ENABLED
     std::string inputfname;
     Real3 box;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
@@ -2429,6 +2434,9 @@ void MeshActions::ViewMesh(CommandLineArguments& cmd){
     viewer.data().show_lines = false;
 
     int err = viewer.launch();
+    #else
+    std::cout << "IGL is not enabled." << "\n";
+    #endif
 }
 
 void MeshActions::FlattenMeshDimension(CommandLineArguments& cmd)

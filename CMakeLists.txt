@@ -5,18 +5,29 @@ LIST( PREPEND CMAKE_MODULE_PATH
   ${CMAKE_SOURCE_DIR}/cmake/
 )
 
-# create the new project
-project(InstantaneousInterface LANGUAGES C CXX CUDA)
+# set an option for using CUDA
+option(ENABLE_CUDA "Using nvidia CUDA" OFF)
+option(ENABLE_IGL, "Using igl library" OFF)
 
-# libigl
-include(libigl)
-igl_include(glfw)
+# create the new project
+if (ENABLE_CUDA)
+  project(InstantaneousInterface LANGUAGES C CXX CUDA)
+else()
+  project(InstantaneousInterface LANGUAGES C CXX)
+endif()
 
 # Require C++11
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DMY_DEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math")
+
+# libigl
+if (ENABLE_IGL)
+  include(libigl)
+  igl_include(glfw)
+  add_compile_options(-DIGL_ENABLED)
+endif()
 
 # Requires OpenMP
 find_package(OpenMP REQUIRED)
@@ -26,8 +37,6 @@ if (OPENMP_FOUND)
     set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-# set an option for using CUDA
-option(ENABLE_CUDA "Using nvidia CUDA" OFF)
 
 # Requires OpenGL
 #find_package(OpenGL REQUIRED)

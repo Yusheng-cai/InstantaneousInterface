@@ -100,7 +100,12 @@ if (ENABLE_CUDA)
    target_include_directories(IIsrc PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
 
-target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw)
+if (ENABLE_IGL)
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw)
+else()
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL)
+endif()
+
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIsrc 

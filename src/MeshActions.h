@@ -5,8 +5,11 @@
 #include <array>
 #include <memory>
 
+#ifdef IGL_ENABLED
 #include "igl/opengl/glfw/Viewer.h"
 #include "igl/read_triangle_mesh.h"
+#endif
+
 #include "Eigen/Core"
 
 #include "tools/Assert.h"
