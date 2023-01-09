@@ -183,8 +183,8 @@ void Graph::BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndice
             queue.pop_front();
             vv.push_back(toVisit);
             if (distance < N){
-                for (int j=0;j<NearbyIndices[i].size();j++){
-                    int neighbor = NearbyIndices[i][j];
+                for (int j=0;j<NearbyIndices[toVisit].size();j++){
+                    int neighbor = NearbyIndices[toVisit][j];
                     if (! visited[neighbor]){
                         queue.push_back(std::pair<int,int>(neighbor, distance+1));
                         visited[neighbor] = true;

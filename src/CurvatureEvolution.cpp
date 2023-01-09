@@ -166,6 +166,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
     // Start refining , initialize err and iteration
     err_ = std::numeric_limits<Real>::max();
     iteration_=1;
+    Real last_max_err=std::numeric_limits<Real>::max();
 
     while (err_ >= tol_){
         // set max error numeric min
@@ -185,7 +186,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
         Real avgE=0.0;
         #pragma omp parallel
         {
-            Real e=maxerr;
+            Real e=-std::numeric_limits<Real>::max();
             Real avgElocal = 0.0;
 
             #pragma omp for
@@ -223,9 +224,18 @@ void CurvatureEvolution::refine(Mesh& mesh){
         }
 
         avgE = avgE / VertexIndices_.size();
+        err_ = std::abs(maxerr);
 
-        if (meanCurvature_ == 0){err_ = maxerr;}
-        else{err_ = std::abs(maxerr);}
+        if ((err_- last_max_err) > 1e-5){
+            StepSize_ /= 2;
+        }
+
+        last_max_err = err_;
+
+        if (StepSize_ < 1e-5){
+            std::cout << "Stepsize has become too small, stepsize = " << StepSize_ << ". Exiting...." << "\n";
+            break;
+        }
 
         std::cout << "Max error is " << err_ << std::endl;
         std::cout << "average error is " << avgE << "\n";

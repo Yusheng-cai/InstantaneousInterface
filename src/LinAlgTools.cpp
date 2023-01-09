@@ -30,12 +30,7 @@ LinAlg3x3::Real LinAlg3x3::MatrixDeterminant(Matrix& mat){
 }
 
 LinAlg3x3::Real LinAlg3x3::norm(const Real3& v1){
-    Real ret = 0.0;
-
-    for (int i=0;i<3;i++){
-        ret += v1[i]*v1[i];
-    }
-
+    Real ret = DotProduct(v1,v1);
     ret = std::sqrt(ret);
 
     return ret;
