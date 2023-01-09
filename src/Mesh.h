@@ -10,6 +10,7 @@
 #include "tools/Constants.h"
 #include "tools/Algorithm.h"
 #include "happly.h"
+#include "Graph.h"
 #include "ICP/ICP.h"
 
 #include <vector>
@@ -226,14 +227,17 @@ namespace MeshTools
     bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);
 
     // convert a PBC mesh to non PBC mesh --> usually for visualization purposes
-    void ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& faces);
+    void ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& faces, bool AddNewTriangles=false);
 
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
     bool IsPeriodicTriangle(const Mesh& mesh, int faceindex);
 
     // shift a triangle 
-    void ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& faces, Real3 BoxLength, Real3& A, Real3& B, Real3& C);
+    void ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& faces, Real3 BoxLength, Real3& A, Real3& B, Real3& C);
+
+    // shift a triangle based on a certain point
+    void ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& faces, Real3 BoxLength, const Real3& point, Real3& A, Real3& B, Real3& C);
 
     // make an Edge, edge is simply the 2 indices of {{minIndex, maxIndex}}
     INT2 makeEdge(int i, int j);
@@ -270,6 +274,9 @@ namespace MeshTools
 
     // regenerate mesh after some faces are cut
     void ReconstructMeshAfterFaceCut(Mesh& mesh);
+
+    // remove vertices that does not meet the minimum criteria of neighbors
+    void RemoveMinimumNeighbors(Mesh& mesh, int num_search, int min_num_neighbors);
 
     // get a sense of the triangular angles 
     void FindTriangleAngles(const Mesh& mesh, std::vector<Real>& angles);

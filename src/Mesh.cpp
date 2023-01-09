@@ -967,7 +967,7 @@ bool MeshTools::IsBoundary(int index, const std::vector<bool>& boundaryIndicator
     return boundaryIndicator[index];
 }
 
-void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& triangles)
+void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& triangles, bool AddNewTriangles)
 {
     // if periodic, then do something, else do nothing 
     if (mesh.isPeriodic()){
@@ -991,41 +991,43 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
             }
             // if it's periodic triangle, then we push back 3 new vertices 
             else{
-                Real3 verticesNew1;
-                Real3 verticesNew2, verticesDiff2;
-                Real distsq2;
-                Real3 verticesNew3, verticesDiff3;
-                Real distsq3;
-                int idx1 = t[0];
-                int idx2 = t[1];
-                int idx3 = t[2];
+                if (AddNewTriangles){
+                    Real3 verticesNew1;
+                    Real3 verticesNew2, verticesDiff2;
+                    Real distsq2;
+                    Real3 verticesNew3, verticesDiff3;
+                    Real distsq3;
+                    int idx1 = t[0];
+                    int idx2 = t[1];
+                    int idx3 = t[2];
 
-                // get the pbc corrected distance 
-                mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
-                mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
+                    // get the pbc corrected distance 
+                    mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
+                    mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
 
-                // get the new vertices --> with respect to position 1
-                verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
-                verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
+                    // get the new vertices --> with respect to position 1
+                    verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
+                    verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
 
-                // Find approximately the center of the triangle
-                Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
-                Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
+                    // Find approximately the center of the triangle
+                    Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
+                    Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
 
-                // update the vertices
-                verticesNew1 = MeshVertices[idx1].position_ + shift;
-                verticesNew2 = verticesNew2 + shift;
-                verticesNew3 = verticesNew3 + shift;
+                    // update the vertices
+                    verticesNew1 = MeshVertices[idx1].position_ + shift;
+                    verticesNew2 = verticesNew2 + shift;
+                    verticesNew3 = verticesNew3 + shift;
 
-                int NewIndex1 = vertices.size();
-                vertices.push_back(verticesNew1);
-                int NewIndex2 = vertices.size();
-                vertices.push_back(verticesNew2);
-                int NewIndex3 = vertices.size();
-                vertices.push_back(verticesNew3);
+                    int NewIndex1 = vertices.size();
+                    vertices.push_back(verticesNew1);
+                    int NewIndex2 = vertices.size();
+                    vertices.push_back(verticesNew2);
+                    int NewIndex3 = vertices.size();
+                    vertices.push_back(verticesNew3);
 
-                INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
-                triangles.push_back(NewT);
+                    INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
+                    triangles.push_back(NewT);
+                }
             }
         }
     }
@@ -1069,7 +1071,7 @@ bool MeshTools::IsPeriodicTriangle(const Mesh& mesh, int faceIndex){
     return false;
 }
 
-void MeshTools::ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& face, Real3 BoxLength, Real3& A, Real3& B, Real3& C)
+void MeshTools::ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& face, Real3 BoxLength, Real3& A, Real3& B, Real3& C)
 {
     // half box
     Real3 half_box = BoxLength * 0.5;
@@ -1092,6 +1094,21 @@ void MeshTools::ShiftPeriodicTriangle(std::vector<vertex>& Vertices, INT3& face,
     A = A + shiftTriangle;
     B = B + shiftTriangle;
     C = C + shiftTriangle;
+}
+
+void MeshTools::ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& face, Real3 BoxLength, const Real3& point, Real3& A, Real3& B, Real3& C){
+    // half box
+    Real3 half_box = BoxLength * 0.5;
+
+    // first shift B C wrt to A
+    A = Vertices[face[0]].position_;
+    B = Vertices[face[1]].position_;
+    C = Vertices[face[2]].position_;
+    Real3 shiftA = MeshTools::calculateShift(A, point, BoxLength);
+    Real3 shiftB = MeshTools::calculateShift(B, point, BoxLength);
+    Real3 shiftC = MeshTools::calculateShift(C, point, BoxLength);
+
+    A = A + shiftA; B = B + shiftB; C = C+ shiftC;
 }
 
 MeshTools::INT2 MeshTools::makeEdge(int i, int j)
@@ -1801,4 +1818,55 @@ void MeshTools::IterativeClosestPoint(Mesh& m, const Mesh& ref){
     }
 
     m.CalcVertexNormals();
+}
+
+void MeshTools::RemoveMinimumNeighbors(Mesh& m, int num_search, int min_num_neighbors)
+{
+    std::vector<std::vector<int>> vertex_neighbors;
+    MeshTools::CalculateVertexNeighbors(m, vertex_neighbors);
+
+    std::vector<std::vector<int>> NearbyNeighbors;
+    Graph::BFS_kring_neighbor(vertex_neighbors, num_search, NearbyNeighbors);
+
+    // check whether or not the nearby neighbors exceed a certain threshold
+    const auto& Oldv = m.getvertices();
+    const auto& Oldt = m.gettriangles();
+    std::vector<int> MapOldToNew(Oldv.size(),-1);
+    int index = 0;
+
+    // construct a mapping from old to new
+    for (int i=0;i<NearbyNeighbors.size();i++){
+        if (NearbyNeighbors[i].size() >= min_num_neighbors){
+            MapOldToNew[i] = index;
+            index++;
+        }
+    }
+
+    std::vector<vertex> Newv;
+    std::vector<triangle> Newt;
+    // then let construct the new vertex and triangles
+    for (int i=0;i<Oldv.size();i++){
+        if (MapOldToNew[i] != -1){
+            Newv.push_back(Oldv[i]);
+        }
+    }
+
+    for (int i=0;i<Oldt.size();i++){
+        bool isValidTriangle=true;
+        triangle newtriangle;
+        for (int j=0;j<3;j++){
+            if (MapOldToNew[Oldt[i][j]] == -1){
+                isValidTriangle = false;
+            }
+            else{
+                newtriangle[j] = MapOldToNew[Oldt[i][j]];
+            }
+        }
+
+        if (isValidTriangle){
+            Newt.push_back(newtriangle);
+        }
+    }
+
+    m.SetVerticesAndTriangles(Newv, Newt);
 }
