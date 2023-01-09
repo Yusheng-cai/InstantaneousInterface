@@ -50,7 +50,7 @@ void CurvatureJetFit::calculate(Mesh& mesh)
 
     if (foundnumneighrs_){
         std::cout << "Using number of vertices." << std::endl;
-        Graph::getNearbyIndicesNVertexAway(VertexNeighbors,numneighbors_,NeighborIndicesNVertex_);
+        Graph::BFS_kring_neighbor(VertexNeighbors, numneighbors_, NeighborIndicesNVertex_);
     }
     else{
         std::cout << "Using number of neighbors." << std::endl;

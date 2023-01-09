@@ -12,18 +12,11 @@ CurvatureQuadraticFit::CurvatureQuadraticFit(CurvatureInput& input)
         pack_.ReadNumber("MonteCarloN", ParameterPack::KeyType::Required, MonteCarloN_);
     }   
     pack_.ReadNumber("neighbors", ParameterPack::KeyType::Required, N_ring_);
-
-    // fit index
-    pack_.ReadArrayNumber("fit_index", ParameterPack::KeyType::Optional, fit_index_);
-    for (int i=0;i<3;i++){
-        if (! std::find(fit_index_.begin(), fit_index_.end(), i)){
-            f_ = i;
-            break;
-        }
-    }
 }
 
 void CurvatureQuadraticFit::calculate(Mesh& m){
+    srand(time(NULL));
+
     // set the mesh pointer
     m_ = &m;
 
@@ -42,25 +35,31 @@ void CurvatureQuadraticFit::calculate(Mesh& m){
     Graph::BFS_kring_neighbor(neighborIndices, N_ring_, NearbyNeighbors);
 
     const auto& v = m.getvertices();
+    CurvaturePerVertex_.resize(v.size());
+    avgCurvaturePerVertex_.resize(v.size());
+    GaussCurvaturePerVertex_.resize(v.size());
 
     for (int i=0;i<v.size();i++){
-        ASSERT((neighborIndices[i].size() >= 6), "Must have at least 6 points for curvature quadratic fit.");
-        std::vector<int> neighbors = neighborIndices[i];
+        ASSERT((NearbyNeighbors[i].size() >= 6), "Must have at least 6 points for curvature quadratic fit while neighbors of vertex " << i << " is " << neighborIndices[i].size());
+        std::vector<int> neighbors = NearbyNeighbors[i];
 
         // make sure all the points have the same orientation as the middle one
         std::vector<int> new_neighbors;
         applyProjOnPlane(v, i, neighbors, new_neighbors);
-        if (new_neighbors.size() >= 6 && new_neighbors.size() < neighborIndices[i].size()){
+        if (new_neighbors.size() >= 6 && new_neighbors.size() < neighbors.size()){
             neighbors = new_neighbors;
         }
 
         // projecting
-        Real3 avg_normal;
-        getAverageNormal(v, i, neighbors, avg_normal);
+        Real3 avg_normal = v[i].normals_;
+
+        std::vector<int> sampled_points;
+        MonteCarloSample(neighbors, sampled_points);
+        neighbors = sampled_points;
 
         // compute reference frame --> based on the average normal in the frame
         std::vector<Real3> ref;
-        computeReferenceFrame(i, neighbors, avg_normal, ref);
+        computeReferenceFrame(i, neighborIndices[i], avg_normal, ref);
 
         // perform quadratic fit
         QuadraticFit(i, ref, neighbors);
@@ -84,17 +83,24 @@ void CurvatureQuadraticFit::calculate(Mesh& m){
 void CurvatureQuadraticFit::QuadraticFit(int i, const std::vector<Real3>& ref, const std::vector<int>& neighbors){
     std::vector<Real3> shifted_points;
     const auto& v = m_->getvertices();
+
+    for (auto r : ref){
+        std::cout << r << "\n";
+    }
     for (int j=0;j<neighbors.size();j++){
         Real3 cp = v[neighbors[j]].position_;
 
-        Real3 vTang = cp - v[i].position_;
+        Real3 vTang;
+        Real temp;
+        m_->getVertexDistance(cp, v[i].position_, vTang, temp);
 
         Real x,y,z;
         x = LinAlg3x3::DotProduct(vTang, ref[0]);
         y = LinAlg3x3::DotProduct(vTang, ref[1]);
         z = LinAlg3x3::DotProduct(vTang, ref[2]);
+        Real3 shift = {x,y,z};
 
-        shifted_points.push_back({x,y,z});
+        shifted_points.push_back(shift);
     }
 
     Eigen::MatrixXd A(neighbors.size(),5);
@@ -102,9 +108,9 @@ void CurvatureQuadraticFit::QuadraticFit(int i, const std::vector<Real3>& ref, c
     Eigen::MatrixXd sol(5,1);
 
     for (int c=0;c<neighbors.size();c++){
-        Real u = shifted_points[c][fit_index_[0]];
-        Real v = shifted_points[c][fit_index_[1]];
-        Real n = shifted_points[c][f_];
+        Real u = shifted_points[c][0];
+        Real v = shifted_points[c][1];
+        Real n = shifted_points[c][2];
 
         A(c,0) = u * u;
         A(c,1) = u * v;
@@ -132,7 +138,7 @@ void CurvatureQuadraticFit::QuadraticFit(int i, const std::vector<Real3>& ref, c
 
     Real L = 2.0 * a * n[2];
     Real M = bb * n[2];
-    Real N = 2 * c * n[2];
+    Real N = 2.0 * c * n[2];
 
     Eigen::Matrix2d m;
     m << L * G - M * F, M*E-L*F, M*E-L*F, N*E-M*F;
@@ -140,22 +146,12 @@ void CurvatureQuadraticFit::QuadraticFit(int i, const std::vector<Real3>& ref, c
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix2d> eig(m);
 
     Eigen::Vector2d c_Val = eig.eigenvalues();
+    c_Val = -c_Val;
     Real2 c_V = {{c_Val[0], c_Val[1]}};
     Algorithm::sort(c_V);
 
+    // write to curvature per vertex 
     CurvaturePerVertex_[i] = c_V;
-}
-
-void CurvatureQuadraticFit::getAverageNormal(const std::vector<vertex>& v, int j, const std::vector<int>& neighbors, Real3& normals){
-    normals = {{0,0,0}};
-
-    for (int i=0;i<neighbors.size();i++){
-        int idx = neighbors[i];
-
-        normals = normals + v[idx].normals_;
-    }
-
-    LinAlg3x3::normalize(normals);
 }
 
 void CurvatureQuadraticFit::MonteCarloSample(const std::vector<int>& neighbors, std::vector<int>& sampled_points)
@@ -170,7 +166,7 @@ void CurvatureQuadraticFit::MonteCarloSample(const std::vector<int>& neighbors, 
     Real p =  (Real)MonteCarloN_ / (Real)neighbors.size();
 
     for (int i=0;i<neighbors.size();i++){
-        Real r = rand() / RAND_MAX;
+        Real r = (Real)rand() / (Real)RAND_MAX;
 
         if (r < p){
             sampled_points.push_back(neighbors[i]);

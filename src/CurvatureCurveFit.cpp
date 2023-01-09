@@ -27,7 +27,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
     // calculate neighbor vertices that are N vertex away 
     std::vector<std::vector<int>> NeighborIndicesNVertex;
-    Graph::getNearbyIndicesNVertexAway(VertexNeighbors, NumNeighbors_,NeighborIndicesNVertex);
+    Graph::BFS_kring_neighbor(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);
 
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,1}};

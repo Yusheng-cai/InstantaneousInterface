@@ -14,9 +14,6 @@ class CurvatureQuadraticFit : public Curvature
 
         void MonteCarloSample(const std::vector<int>& neighbors, std::vector<int>& sampled_points);
 
-        // calculate local normal 
-        void getAverageNormal(const std::vector<vertex>& v, int j, const std::vector<int>& neighbors, Real3& normals);
-
         // check whether or not all the normals pointing in the same direction as the center one
         void applyProjOnPlane(const std::vector<vertex>& v, int j, const std::vector<int>& neighbors, std::vector<int>& new_neighbors);
 
@@ -35,6 +32,5 @@ class CurvatureQuadraticFit : public Curvature
 
         Mesh* m_=nullptr;
 
-        INT2 fit_index_={{1,2}};
         int f_=0;
 };
