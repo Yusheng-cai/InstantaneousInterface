@@ -1,6 +1,6 @@
 add_library(IIsrc SHARED)
 
-target_sources(IIsrc PRIVATE
+set(IIsrc_CPU_source 
     "AtomGroup.cpp"
     "AtomGroupParsingStrategy.cpp"
     "Bin.cpp"
@@ -33,6 +33,21 @@ target_sources(IIsrc PRIVATE
     "LongEdgeRemoval.cpp"
     "CurvatureQuadraticFit.cpp"
 )
+
+set(IIsrc_GPU_source 
+   "DensityFieldKernel.cu"
+   "Driver.cu"
+)
+
+if (ENABLE_CUDA)
+    message("Compiling CPU and CUDA.")
+    target_sources(IIsrc PRIVATE
+        ${IIsrc_CPU_source} ${IIsrc_GPU_source}
+    )
+else()
+    message("Only compiling CPU code.")
+    target_sources(IIsrc PRIVATE ${IIsrc_CPU_source})
+endif()
 
 set(IIsrc_HEADER
     "AtomGroup.h"
@@ -80,6 +95,11 @@ add_subdirectory(ICP)
 if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
+
+if (ENABLE_CUDA)
+   target_include_directories(IIsrc PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+endif()
+
 target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw)
 
 include(InstallLibraryWithStandardSetup)
