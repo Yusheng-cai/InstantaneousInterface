@@ -25,10 +25,15 @@ class AtomGroupParsingStrategy
         virtual void update(std::vector<int>& indices, int FrameNum){};
 
         void SortAndCheckNoDuplicate(std::vector<int>& indices);
+
+        virtual int getMaxNumAtoms() {ASSERT((parsed), "Trying to get the max length before parsing the file."); return MaxNumAtoms_;}
+
     protected:
         GroFile& grofile_;
         std::vector<std::string>& selection_str_;
         std::vector<std::string> index_str_;
+        int MaxNumAtoms_;
+        bool parsed=false;
 };
 
 class AtomIndexParsing:public AtomGroupParsingStrategy
@@ -38,7 +43,6 @@ class AtomIndexParsing:public AtomGroupParsingStrategy
         virtual ~AtomIndexParsing(){};
 
         virtual void Parse(std::vector<int>& indices);
-
 };
 
 class ResidueNumberParsing:public AtomGroupParsingStrategy

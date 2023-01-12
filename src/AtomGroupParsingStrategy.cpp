@@ -92,6 +92,10 @@ void AtomIndexParsing::Parse(std::vector<int>& indices)
 
     // sort the indices vector
     SortAndCheckNoDuplicate(indices); 
+
+    MaxNumAtoms_ = indices.size();
+
+    parsed=true;
 }
 
 void ResidueNumberParsing::Parse(std::vector<int>& indices)
@@ -182,6 +186,9 @@ void ResidueNumberParsing::Parse(std::vector<int>& indices)
 
     // sort the indices vector
     SortAndCheckNoDuplicate(indices); 
+
+    MaxNumAtoms_ = indices.size();
+    parsed=true;
 }
 
 void AtomTypeParsing::Parse(std::vector<int>& indices)
@@ -222,6 +229,9 @@ void AtomTypeParsing::Parse(std::vector<int>& indices)
 
     // sort the indices vector
     SortAndCheckNoDuplicate(indices); 
+
+    MaxNumAtoms_ = indices.size();
+    parsed=true;
 }
 
 void ResidueNameParsing::Parse(std::vector<int>& indices)
@@ -262,6 +272,9 @@ void ResidueNameParsing::Parse(std::vector<int>& indices)
 
     // sort the indices vector
     SortAndCheckNoDuplicate(indices);
+
+    MaxNumAtoms_=indices.size();
+    parsed =true;
 }
 
 IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
@@ -309,6 +322,15 @@ IndexFileParsing::IndexFileParsing(AtomGroupParsingInput& input)
     ifs_.close(); 
 
     totalFrames_ = Fileindices_.size();
+
+    MaxNumAtoms_=-1000000;
+    for (int i=0;i<totalFrames_;i++){
+        if ((int)Fileindices_[i].size() > MaxNumAtoms_){
+            MaxNumAtoms_ = Fileindices_[i].size();
+        }
+    }
+
+    parsed = true;
 }
 
 bool IndexFileParsing::isOpen()
