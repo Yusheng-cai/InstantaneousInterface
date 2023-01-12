@@ -21,6 +21,7 @@ class AverageField:public DensityField
         virtual void update() override{};
         virtual void finishCalculate() override;
         virtual void printOutputIfOnStep() override {};
+        void average();
 
         // print the entire 3d field (xyz)
         void printField(std::string name);
