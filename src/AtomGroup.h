@@ -58,6 +58,7 @@ class AtomGroup
         OP::Atom accessAtomByIndex(int index) {return atoms_[index];}
         const std::vector<OP::Atom>& getAtoms() const {return atoms_;}
         std::vector<OP::Atom>& accessAtoms() {return atoms_;}
+        int getMaxAtoms() const {return strategy_->getMaxNumAtoms();}
 
     private:
         // Indices of the AtomGroup
