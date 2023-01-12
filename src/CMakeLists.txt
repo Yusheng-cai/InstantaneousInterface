@@ -36,7 +36,6 @@ set(IIsrc_CPU_source
 
 set(IIsrc_GPU_source 
    "DensityFieldKernel.cu"
-   "Driver.cu"
 )
 
 if (ENABLE_CUDA)
