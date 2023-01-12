@@ -280,6 +280,10 @@ void MarchingCubes::CorrectPBCposition(Point& p)
 void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, bool pbc)
 {
     // field does the following thing * * * | --> 3 lattice points and 3 segments
+    triangles_.clear();
+    MapFromCellGridIndexToIndex_.clear();
+    MapFromIndexToCellGridIndex_.clear();
+    offsets_.clear();
 
     // whether or not we are performing periodic mesh
     pbc_ = pbc;

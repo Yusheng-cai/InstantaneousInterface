@@ -51,12 +51,15 @@ class Driver
 
         void printOutputfileIfOnStep();
 
-        void printFinalOutput();
+        void printFinalOutput(bool bootstrap=false, int numTimes=0);
 
         void finishCalculate();
 
         // now run from driver directly, nothing in main
         void run();
+
+        // reset 
+        void reset();
 
         // get num frames
         int getNumFrames() const {return xdrfile_->getNframes();}
@@ -110,10 +113,12 @@ class Driver
         // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3
         int skip_ = 1;
         std::vector<int> SimulationFrames_;
+        std::vector<std::vector<int>> BootStrapFrames_;
 
         // Randomly Sample from the simulation frames to be averaged 
-        bool RandomSample_=false;
+        bool bootstrap_=false;
         int numRandomSample_;
+        int numSamples_;
 
         // whether we are being verbose
         bool verbose_=true;

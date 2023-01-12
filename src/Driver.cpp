@@ -9,14 +9,22 @@ Driver::Driver(const ParameterPack& pack, const CommandLineArguments& cmd)
         abs_path_ = FileSystem::getCurrentPath();
     }
 
+    auto xdrs = std::chrono::high_resolution_clock::now();
     // required xdr file input
     initializeXdrFile();
+    auto xdre = std::chrono::high_resolution_clock::now();
+    auto durationxdr = std::chrono::duration_cast<std::chrono::microseconds>(xdre-xdrs);
+    std::cout << "Reading xdr file took " << durationxdr.count() << " us " << "\n";
 
     // find gro file input
     initializeGroFile();
 
+    auto ags = std::chrono::high_resolution_clock::now();
     // find all the atomgroup packs
     initializeAtomGroups();
+    auto age = std::chrono::high_resolution_clock::now();
+    auto durationag = std::chrono::duration_cast<std::chrono::microseconds>(age - ags);
+    std::cout << "initializing atom group took " << durationag.count() << " us." << "\n";
 
     // Find the bounding box
     initializeBoundingBox();
@@ -35,13 +43,12 @@ void Driver::initializeDriver()
 {
     auto driverPack = pack_.findParamPack("driver", ParameterPack::KeyType::Optional);
 
-    if (driverPack != nullptr)
-    {
-        driverPack -> Readbool("RandomSample", ParameterPack::KeyType::Optional, RandomSample_);
+    if (driverPack != nullptr){
+        driverPack -> Readbool("bootstrap", ParameterPack::KeyType::Optional, bootstrap_);
     }
 
     // if not bootstrap, then we read different stuff from driver pack 
-    if (! RandomSample_)
+    if (! bootstrap_)
     {
         if (driverPack != nullptr)
         {
@@ -61,8 +68,9 @@ void Driver::initializeDriver()
     }
     else
     {
+        driverPack -> ReadNumber("NumberSample", ParameterPack::KeyType::Required, numSamples_);
         driverPack -> ReadNumber("NumberRandomSample", ParameterPack::KeyType::Required, numRandomSample_);
-        Algorithm::Permutation(Totalframes_, numRandomSample_, SimulationFrames_);
+        Algorithm::Permutation(Totalframes_, numRandomSample_, numSamples_, BootStrapFrames_);
         simstate_.setTotalFramesToBeCalculated(numRandomSample_);
     }
 }
@@ -238,6 +246,12 @@ void Driver::finishCalculate(){
     }
 }
 
+void Driver::reset(){
+    for (int i=0;i<densityfields_.size();i++){
+        densityfields_[i]->reset();
+    }
+}
+
 void Driver::printOutputfileIfOnStep()
 {
     for (int i=0;i<densityfields_.size();i++){
@@ -245,42 +259,89 @@ void Driver::printOutputfileIfOnStep()
     }
 }
 
-void Driver::printFinalOutput()
+void Driver::printFinalOutput(bool bootstrap, int numTimes)
 {
     for (int i=0;i<densityfields_.size();i++){
-        densityfields_[i]->printFinalOutput();
+        densityfields_[i]->printFinalOutput(bootstrap, numTimes);
     }
 }
 
 void Driver::run()
 {
-    for (int i=0;i<SimulationFrames_.size();i++){
-        auto stotal = std::chrono::high_resolution_clock::now();
-        int ind = SimulationFrames_[i];
+    if (bootstrap_)
+    {
+        for (int i=0;i<numSamples_;i++){
+            for (int j=0;j<numRandomSample_;j++){
+                auto stotal = std::chrono::high_resolution_clock::now();
+                int ind = BootStrapFrames_[i][j];
 
-        std::cout << "Frame = " << ind << std::endl;
+                std::cout << "Frame = " << ind << std::endl;
 
-        // perform an update on the atom positions etc.
-        update(ind);
+                // perform an update on the atom positions etc.
+                update(ind);
 
-        auto start = std::chrono::high_resolution_clock::now();
+                auto start = std::chrono::high_resolution_clock::now();
 
-        // perform the calculations
-        calculate();
+                // perform the calculations
+                calculate();
+                auto end = std::chrono::high_resolution_clock::now();
+                auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
 
-        printOutputfileIfOnStep();
-        auto end = std::chrono::high_resolution_clock::now();
-        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+                auto etotal = std::chrono::high_resolution_clock::now();
+                auto difftotal = std::chrono::duration_cast<std::chrono::milliseconds>(etotal-stotal);
+                std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
+                std::cout << "Time it took for total is " << difftotal.count() << " milliseconds." << "\n";
+            }
 
-        auto etotal = std::chrono::high_resolution_clock::now();
-        auto difftotal = std::chrono::duration_cast<std::chrono::milliseconds>(etotal-stotal);
-        std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
-        std::cout << "Time it took for total is " << difftotal.count() << " milliseconds." << "\n";
+            // finish the calculation step
+            finishCalculate();
+
+            auto ps = std::chrono::high_resolution_clock::now();
+            // print the final output
+            printFinalOutput(bootstrap_, i);
+            auto pe = std::chrono::high_resolution_clock::now();
+            auto pd = std::chrono::duration_cast<std::chrono::microseconds>(pe - ps);
+            std::cout << "Time it took to print is " << pd.count() << " microseconds." << "\n";
+
+            auto rs = std::chrono::high_resolution_clock::now();
+            // reset 
+            reset();
+            auto re = std::chrono::high_resolution_clock::now();
+            auto rd = std::chrono::duration_cast<std::chrono::microseconds>(re - rs);
+            std::cout << "Time it took to reset = " << rd.count() << " microseconds." << "\n";
+        }
+
     }
+    else
+    {
+        for (int i=0;i<SimulationFrames_.size();i++){
+            auto stotal = std::chrono::high_resolution_clock::now();
+            int ind = SimulationFrames_[i];
 
-    // finish the calculation step
-    finishCalculate();
+            std::cout << "Frame = " << ind << std::endl;
 
-    // print the final output
-    printFinalOutput();
+            // perform an update on the atom positions etc.
+            update(ind);
+
+            auto start = std::chrono::high_resolution_clock::now();
+
+            // perform the calculations
+            calculate();
+
+            printOutputfileIfOnStep();
+            auto end = std::chrono::high_resolution_clock::now();
+            auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(end-start);
+
+            auto etotal = std::chrono::high_resolution_clock::now();
+            auto difftotal = std::chrono::duration_cast<std::chrono::milliseconds>(etotal-stotal);
+            std::cout << "Time it took for calculate is " << diff.count() << " milliseconds." << std::endl;
+            std::cout << "Time it took for total is " << difftotal.count() << " milliseconds." << "\n";
+        }
+
+        // finish the calculation step
+        finishCalculate();
+
+        // print the final output
+        printFinalOutput(bootstrap_,0);
+    }
 }

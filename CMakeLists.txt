@@ -9,18 +9,19 @@ LIST( PREPEND CMAKE_MODULE_PATH
 option(ENABLE_CUDA "Using nvidia CUDA" OFF)
 option(ENABLE_IGL, "Using igl library" OFF)
 
-# create the new project
-if (ENABLE_CUDA)
-  project(InstantaneousInterface LANGUAGES C CXX CUDA)
-else()
-  project(InstantaneousInterface LANGUAGES C CXX)
-endif()
-
 # Require C++11
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -DMY_DEBUG")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -ffast-math")
+
+# create the new project
+if (ENABLE_CUDA)
+  project(InstantaneousInterface LANGUAGES C CXX CUDA)
+  add_compile_options(-DCUDA_ENABLED)
+else()
+  project(InstantaneousInterface LANGUAGES C CXX)
+endif()
 
 # libigl
 if (ENABLE_IGL)

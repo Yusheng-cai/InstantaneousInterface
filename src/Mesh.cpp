@@ -1195,6 +1195,42 @@ void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>
     }
 }
 
+void MeshTools::CutMesh(Mesh& mesh, Real3& volume){
+    const auto& verts = mesh.getvertices();
+    const auto& tri   = mesh.gettriangles();
+    std::vector<vertex> newV;
+    std::vector<triangle> newT;
+
+    int index=0;
+    std::map<int,int> MapOldIndexToNew;
+    for (int i=0;i<verts.size();i++){
+        auto& v = verts[i];
+        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
+            newV.push_back(v);
+            MapOldIndexToNew.insert(std::make_pair(i, index));
+            index ++;
+        }
+    }
+
+    for (auto& t : tri){
+        bool it1 = MapOldIndexToNew.find(t.triangleindices_[0]) != MapOldIndexToNew.end();
+        bool it2 = MapOldIndexToNew.find(t.triangleindices_[1]) != MapOldIndexToNew.end();
+        bool it3 = MapOldIndexToNew.find(t.triangleindices_[2]) != MapOldIndexToNew.end();
+
+        if (it1 && it2 && it3){
+            triangle newt;
+            for (int i=0;i<3;i++){
+                newt.triangleindices_[0] = MapOldIndexToNew[t.triangleindices_[0]];
+                newt.triangleindices_[1] = MapOldIndexToNew[t.triangleindices_[1]];
+                newt.triangleindices_[2] = MapOldIndexToNew[t.triangleindices_[2]];
+            }
+            newT.push_back(newt);
+        }
+    }
+
+    mesh.SetVerticesAndTriangles(newV, newT);
+}
+
 void MeshTools::CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, std::vector<Real>& VertexArea)
 {
     const auto& vertices = mesh.getvertices();
