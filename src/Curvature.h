@@ -36,7 +36,7 @@ class Curvature{
                                                 const std::vector<Real2>& CurvaturePerVertex, \
                                                 std::vector<std::array<Real,4>>& FaceCurvature);
 
-        virtual void printOutput();
+        virtual void printOutput(bool bootstrap=false, int numTimes=0);
         virtual void printCurvature(std::string name);
         virtual void printPrincipalDir(std::string name);
         virtual void printFaceCurvature(std::string name);

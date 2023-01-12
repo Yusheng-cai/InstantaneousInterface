@@ -3,7 +3,7 @@
 Curvature::Curvature(CurvatureInput& input)
 :pack_(input.pack){
     input.pack.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
-    input.pack.ReadVectorString("outputNames", ParameterPack::KeyType::Optional, OutputFileNames_);
+    input.pack.ReadVectorString("outputFiles", ParameterPack::KeyType::Optional, OutputFileNames_);
     input.pack.ReadString("name", ParameterPack::KeyType::Optional, name_);
 
     outputs_.registerOutputFunc("curvature", [this](std::string name) -> void { this -> printCurvature(name);});
@@ -33,9 +33,18 @@ void Curvature::initialize(Mesh& mesh){
     principalDir2_.resize(nv);
 }
 
-void Curvature::printOutput(){
-    for (int i=0;i<OutputNames_.size();i++){
-        outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
+void Curvature::printOutput(bool bootstrap, int numTimes){
+
+    if (bootstrap){
+        for (int i=0;i<OutputNames_.size();i++){
+            std::string name = StringTools::AppendIndexToFileName(OutputFileNames_[i], numTimes);
+            outputs_.getOutputFuncByName(OutputNames_[i])(name);
+        }
+    }
+    else{
+        for (int i=0;i<OutputNames_.size();i++){
+            outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
+        }
     }
 }
 
