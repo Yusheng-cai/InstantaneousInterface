@@ -8,15 +8,15 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // Read the atomgroup names of the system
     input.pack_.ReadVectorString("atomgroups", ParameterPack::KeyType::Required, atomGroupNames_);
-    for (auto ag : atomGroupNames_)
-    {
+    for (auto ag : atomGroupNames_){
         addAtomGroup(ag);
     }
 
     // Read in the sigma value for the gaussian smoothing function
     input.pack_.ReadNumber("sigma", ParameterPack::KeyType::Required, sigma_);
     sigmasq_ = sigma_ * sigma_;
-    prefactor_ = std::pow(2*Constants::PI*sigmasq_, -1.5);
+    inv_sigmasq2_ = -1.0 / (2.0 * sigmasq_);
+    prefactor_ = std::pow(2.0*Constants::PI*sigmasq_, -1.5);
 
     // Read in the cut off value (n*sigma_)
     input.pack_.ReadNumber("cutoff", ParameterPack::KeyType::Optional, n_);
@@ -34,6 +34,9 @@ DensityField::DensityField(const DensityFieldInput& input)
     x_range_ = bound_box_->getXrange();
     y_range_ = bound_box_->getYrange();
     z_range_ = bound_box_->getZrange();
+
+    // read whether or not we are cutting the mesh
+    cut_mesh_ = input.pack_.ReadArrayNumber("cut_volume", ParameterPack::KeyType::Optional,cut_vec_);
 
     // read in the output names 
     input.pack_.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);
@@ -65,6 +68,45 @@ DensityField::DensityField(const DensityFieldInput& input)
     // initialize the refinement process
     initializeRefinement();
 
+    #ifdef CUDA_ENABLED
+    // get the maximum number of atoms in each group 
+    int size=0;
+    int num_neighbors = offsetIndex_.size();
+    for (auto ag : atomGroupNames_){
+        size += getAtomGroup(ag).getMaxAtoms();
+    }
+
+    // resize all the gpu arrays
+    _atom_positions.resize(size,3);
+    _vector_field_neighbors.resize(size,num_neighbors);
+    _vector_field_neighbor_index.resize(size, num_neighbors);
+    _instantaneous_field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
+    _field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
+    _NeighborIndex.resize(offsetIndex_.size(),3);
+    _box.resize(3);
+    _dx.resize(3);
+    _N.resize(3);
+
+    // transfer to CUDA
+    for (int i=0;i<3;i++){
+        _N(i) = dimensions_[i];
+    }
+
+    // copy to neighbor index 
+    for (int i=0;i<offsetIndex_.size();i++){
+        for (int j=0;j<3;j++){
+            _NeighborIndex(i,j) = offsetIndex_[i][j];
+        }
+    }
+
+    _N.memcpyHostToDevice();
+    _instantaneous_field.memcpyHostToDevice();
+    _field.memcpyHostToDevice();
+    _vector_field_neighbors.memcpyHostToDevice();
+    _vector_field_neighbor_index.memcpyHostToDevice();
+    _NeighborIndex.memcpyHostToDevice();
+    #endif
+
     outputs_.registerOutputFunc("ply", [this](std::string name)-> void {this -> printPLY(name);});
     outputs_.registerOutputFunc("stl", [this](std::string name)-> void {this -> printSTL(name);});
     outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printnonPBCMesh(name);});
@@ -92,13 +134,31 @@ void DensityField::initializeCurvature()
     }
 }
 
-void DensityField::printFinalOutput(){
-    for (int i=0;i<OutputNames_.size();i++){
-        outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
+void DensityField::reset(){
+    // reset the instantaneous field to be zero --> no need to resize 
+    #ifdef CUDA_ENABLED
+    DensityKernel::FillGPUArray(_field, 0.0);
+    #else
+    auto& fVec =  field_.accessField();
+    std::fill(fVec.begin(), fVec.end(), 0.0);
+    #endif
+}
+
+void DensityField::printFinalOutput(bool bootstrap, int numTimes){
+    if (bootstrap){
+        for (int i=0;i<OutputNames_.size();i++){
+            std::string name = StringTools::AppendIndexToFileName(OutputFileNames_[i], numTimes);
+            outputs_.getOutputFuncByName(OutputNames_[i])(name);
+        }
+    }
+    else{
+        for (int i=0;i<OutputNames_.size();i++){
+            outputs_.getOutputFuncByName(OutputNames_[i])(OutputFileNames_[i]);
+        }
     }
 
     for (int i=0;i<curvatures_.size();i++){
-        curvatures_[i]->printOutput();
+        curvatures_[i]->printOutput(bootstrap, numTimes);
     }
 }
 
@@ -210,9 +270,43 @@ void DensityField::findAtomsIndicesInBoundingBox(){
 
         AtomIndicesInside_.push_back(indices_ag);
     }
+
+    #ifdef CUDA_ENABLED
+    _num_atoms=0;
+    for (int i=0;i<AtomIndicesInside_.size();i++){
+        const auto& atomgroup = getAtomGroup(atomGroupNames_[i]);
+        auto& atoms = atomgroup.getAtoms();
+        for (int j=0;j<AtomIndicesInside_[i].size();j++){
+            int ind = AtomIndicesInside_[i][j];
+            Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[ind].position);
+            for (int k=0;k<3;k++){
+                _atom_positions(_num_atoms,k) = correctedPos[k];
+            }
+            _num_atoms++;
+        }
+    }
+
+    #endif
 }
 
 void DensityField::CalculateInstantaneousField(){
+    // find all the atom groups indices that are in the bounding box
+    findAtomsIndicesInBoundingBox(); 
+
+    #ifdef CUDA_ENABLED
+    // get the simulation box 
+    for (int i=0;i<3;i++){
+        _box(i) = simstate_.getSimulationBox().getSides()[i];
+        _dx(i)  = _box(i) / _N(i);
+    }
+
+    _box.memcpyHostToDevice();
+    _dx.memcpyHostToDevice();
+    _atom_positions.memcpyHostToDevice();
+    DensityKernel::CalculateInstantaneousField(_vector_field_neighbors, _atom_positions, _vector_field_neighbor_index,\
+                                                inv_sigmasq2_, prefactor_, _box, \
+                                               _dx, _N, _instantaneous_field, _field,_NeighborIndex, _num_atoms);
+    #else
     // the master object will not be zero'd
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
         it -> zero();
@@ -220,9 +314,6 @@ void DensityField::CalculateInstantaneousField(){
 
     // set up the omp buffers
     FieldBuffer_.set_master_object(field_);
-
-    // find all the atom groups indices that are in the bounding box
-    findAtomsIndicesInBoundingBox(); 
 
     // start calculating InstantaneousInterface
     for (int i=0;i<atomGroupNames_.size();i++)
@@ -270,6 +361,7 @@ void DensityField::CalculateInstantaneousField(){
             }
         }
     }
+    #endif
 }
 
 void DensityField::printSTL(std::string name){

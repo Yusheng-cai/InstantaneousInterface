@@ -1,4 +1,10 @@
 #pragma once
+
+#ifdef CUDA_ENABLED
+#include "GPUArray.cuh"
+#include "DensityFieldKernel.h"
+#endif
+
 #include "AtomGroup.h"
 #include "tools/InputParser.h"
 #include "tools/CommonTypes.h"
@@ -50,7 +56,7 @@ class DensityField
         virtual void calculate() = 0;
         virtual void finishCalculate() {};
         virtual void printOutputIfOnStep() {};
-        virtual void printFinalOutput();
+        virtual void printFinalOutput(bool bootstrap=false, int numTimes=0);
 
         // initialize curvature calculations 
         void initializeCurvature();
@@ -86,6 +92,9 @@ class DensityField
         // access the mesh object 
         Mesh& accessMesh() {return *mesh_;}
 
+        // density reset 
+        void reset();
+
         // inline function that coarse grains the concentration
         inline Real GaussianCoarseGrainFunction(const Real3& dx);
 
@@ -111,6 +120,7 @@ class DensityField
         Real sigma_;
         Real sigmasq_;
         Real prefactor_;
+        Real inv_sigmasq2_;
 
         // we cut off n sigmas away
         Real n_ = 2.5;
@@ -164,6 +174,24 @@ class DensityField
 
         // mesh refinement 
         std::vector<MeshRefineStrategy*> refinementstrat_;
+
+        // check whether or not we are cutting a mesh 
+        Real3 cut_vec_;
+        bool cut_mesh_=false;
+
+        // CUDA stuff --> only defined if cuda is enabled 
+        #ifdef CUDA_ENABLED
+        GPUArray2d<Real> _vector_field_neighbors;
+        GPUArray2d<int> _vector_field_neighbor_index;
+        GPUArray2d<Real> _atom_positions;
+        GPUArray3d<Real> _instantaneous_field;
+        GPUArray3d<Real> _field;
+        GPUArray1d<Real> _box;
+        GPUArray1d<Real> _dx;
+        GPUArray1d<int> _N;
+        GPUArray2d<int> _NeighborIndex;
+        int _num_atoms;
+        #endif
 };
 
 namespace DensityFieldRegistry
