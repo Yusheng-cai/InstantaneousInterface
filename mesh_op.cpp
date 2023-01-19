@@ -189,4 +189,10 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("IterativeClosestPoint", "-op IterativeClosestPoint -i input1.ply input2.ply -box [vec3] -o output.out", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::IterativeClosestPoint(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("ChangeWindingNumber", "-op ChangeWindingNumber -i input.ply -o output.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ChangeMeshWindingOrder(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("ClipMesh", "-op ClipMesh -i input.ply -plane x y z -point x y z", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::ClipMesh(cmd);}, \
+                                           mapF, mapU);
 }
