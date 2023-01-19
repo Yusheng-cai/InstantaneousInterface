@@ -1085,13 +1085,58 @@ void MeshActions::MinimumMeshDistance(CommandLineArguments& cmd)
     ofs.close();
 }
 
+void MeshActions::ClipMesh(CommandLineArguments& cmd){
+    using Intersector = MeshPlaneIntersect<Real, int>;
+
+    std::vector<Intersector::Vec3D> vertices, normals;
+    std::vector<Intersector::Face> faces;
+    Real3 p, o;
+    int skip=1;
+
+    std::string inputfname;
+    std::string outputfname="intersect.out";
+
+    cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("plane", CommandLineArguments::Keys::Required, p);
+    cmd.readArray("points", CommandLineArguments::Keys::Required, o);
+    cmd.readValue("skip", CommandLineArguments::Keys::Optional, skip);
+
+    Mesh mesh;
+    MeshTools::readPLYlibr(inputfname, mesh);
+    mesh.CalcVertexNormals();
+
+    const auto& v = mesh.getvertices();
+    const auto& f = mesh.gettriangles();
+
+    // copy the data to mesh plane intersection code 
+    for (int i=0;i<v.size();i++){
+        vertices.push_back(v[i].position_);
+        normals.push_back(v[i].normals_);
+    }
+
+    for (int i=0;i<f.size();i++){
+        faces.push_back(f[i].triangleindices_);
+    }
+
+    // create the mesh for mesh-plane intersection
+    Intersector::Mesh m(vertices, faces, normals);
+    Intersector::Plane plane;
+    plane.normal = p;
+    plane.origin = o;
+
+    auto result = m.Clip(plane);
+    std::cout << "result size = " << result.size() << "\n";
+    std::cout << "result[0] points size = " << result[0].points.size() << "\n";
+}
+
 void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
 {
     using Intersector = MeshPlaneIntersect<Real, int>;
 
-    std::vector<Intersector::Vec3D> vertices;
+    std::vector<Intersector::Vec3D> vertices, normals;
     std::vector<Intersector::Face> faces;
     Real3 p, o;
+    int skip=1;
 
     std::string inputfname;
     std::string outputfname="intersect.out";
@@ -1100,9 +1145,11 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readArray("plane", CommandLineArguments::Keys::Required, p);
     cmd.readArray("points", CommandLineArguments::Keys::Required, o);
+    cmd.readValue("skip", CommandLineArguments::Keys::Optional, skip);
 
     Mesh mesh;
     MeshTools::readPLYlibr(inputfname, mesh);
+    mesh.CalcVertexNormals();
 
     const auto& v = mesh.getvertices();
     const auto& f = mesh.gettriangles();
@@ -1110,6 +1157,7 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
     // copy the data to mesh plane intersection code 
     for (int i=0;i<v.size();i++){
         vertices.push_back(v[i].position_);
+        normals.push_back(v[i].normals_);
     }
 
     for (int i=0;i<f.size();i++){
@@ -1117,7 +1165,7 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
     }
 
     // create the mesh for mesh-plane intersection
-    Intersector::Mesh m(vertices, faces);
+    Intersector::Mesh m(vertices, faces, normals);
     Intersector::Plane plane;
     plane.normal = p;
     plane.origin = o;
@@ -1126,9 +1174,14 @@ void MeshActions::MeshPlaneIntersection(CommandLineArguments& cmd)
 
     std::ofstream ofs;
     ofs.open(outputfname);
-    for (int i=0;i<result[0].points.size();i++){
+    ofs << "# vx vy vz nx ny nz\n";
+    for (int i=0;i<result[0].points.size();i+=skip){
         for (int j=0;j<3;j++){
             ofs << result[0].points[i][j] << " ";
+        }
+
+        for (int j=0;j<3;j++){
+            ofs << result[0].normals[i][j] << " ";
         }
         ofs << "\n";
     }
@@ -1442,7 +1495,7 @@ void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
     MeshTools::readPLYlibr(inputfname, m);
     if (isPBC){m.setBoxLength(box);}
 
-    // refine the mesh
+    // refine the m1.0
     r->refine(m);
 
     // output the mesh
@@ -1923,7 +1976,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             for (int i=0;i<verticesbefore;i++){
                 if (MeshTools::IsBoundary(i, boundaryIndicator)){
                     // high importance 
-                    importance[i] = -1;
+                    importance[i] = 100;
                 }
             }
         }
@@ -1971,6 +2024,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     if (min_numneighbors > 0){
         MeshTools::RemoveMinimumNeighbors(m, search_ring, min_numneighbors);
     }
+    m.CalcVertexNormals();
 
 
     MeshTools::writePLY(outputfname, m);
@@ -2335,6 +2389,27 @@ void MeshActions::ViewMesh(CommandLineArguments& cmd){
     Eigen::MatrixXi F;
     igl::readPLY(inputfname, V, F);
 
+    Eigen::MatrixXd N_vertices, N_faces, N_corners; 
+
+    // This function is called every time a keyboard button is pressed
+    auto key_down = [N_vertices, N_faces, N_corners](igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier) -> bool
+    {
+        switch(key)
+        {
+            case '1':
+            viewer.data().set_normals(N_faces);
+            return true;
+            case '2':
+            viewer.data().set_normals(N_vertices);
+            return true;
+            case '3':
+            viewer.data().set_normals(N_corners);
+            return true;
+            default: break;
+        }
+    return false;
+    };
+
     if (pbc){
         const auto& tri = m.gettriangles();
         const auto& v = m.getvertices();
@@ -2428,9 +2503,17 @@ void MeshActions::ViewMesh(CommandLineArguments& cmd){
         F = temp;
     }
 
-    
+
     igl::opengl::glfw::Viewer viewer;
+    igl::per_face_normals(V,F,N_faces);
+    igl::per_vertex_normals(V,F,N_vertices);
+    viewer.callback_key_down = key_down;
+      std::cout<<
+    "Press '1' for per-face normals."<<std::endl<<
+    "Press '2' for per-vertex normals."<<std::endl<<
+    "Press '3' for per-corner normals."<<std::endl;
     viewer.data().set_mesh(V,F);
+    viewer.data().set_normals(N_faces);
     viewer.data().show_lines = false;
 
     int err = viewer.launch();
@@ -2438,6 +2521,8 @@ void MeshActions::ViewMesh(CommandLineArguments& cmd){
     std::cout << "IGL is not enabled." << "\n";
     #endif
 }
+
+
 
 void MeshActions::FlattenMeshDimension(CommandLineArguments& cmd)
 {
@@ -2667,4 +2752,18 @@ void MeshActions::IterativeClosestPoint(CommandLineArguments& cmd){
             break;
         }
     }
+}
+
+void MeshActions::ChangeMeshWindingOrder(CommandLineArguments& cmd){
+    std::string inputfname, outputfname;
+
+    cmd.readString("i", CommandLineArguments::Keys::Optional, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    MeshTools::ChangeWindingOrder(m);
+    m.CalcVertexNormals();
+
+    MeshTools::writePLY(outputfname, m);
 }

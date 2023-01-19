@@ -3,6 +3,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <functional>
 #include <memory>
 
 #ifdef IGL_ENABLED
@@ -70,6 +71,9 @@ namespace MeshActions
 
     // cut the mesh 
     void CutMesh(CommandLineArguments& cmd);
+
+    // clip the mesh
+    void ClipMesh(CommandLineArguments& cmd);
 
     // convert To STL file
     void ConvertToStL(CommandLineArguments& cmd);
@@ -160,4 +164,7 @@ namespace MeshActions
 
     // Calculate ICP 
     void IterativeClosestPoint(CommandLineArguments& cmd);
+
+    // change winding order
+    void ChangeMeshWindingOrder(CommandLineArguments& cmd);
 };
