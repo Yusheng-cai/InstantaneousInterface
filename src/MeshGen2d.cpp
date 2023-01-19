@@ -228,7 +228,7 @@ void MeshGen2d::updateMesh()
 
     mesh_.update();
     if (isPBC()){
-        Real3 box2d = {{box_length_[0], box_length_[1], 0.0}};
+        Real3 box2d = {{100.0,box_length_[0], box_length_[1]}};
         mesh_.setBoxLength(box2d);
     }
     mesh_.CalcVertexNormals();
@@ -283,7 +283,7 @@ void MeshGen2d::generate()
     for (auto it = cdt_.finite_vertices_begin(); it != cdt_.finite_vertices_end(); it++)
     {
         MapFromVertexToIndex_.insert(std::make_pair(it, index));
-        Real3 point = {{it->point()[0], it->point()[1], 0.0}};
+        Real3 point = {{1.0,it->point()[0], it->point()[1]}};
         OutputVertices_.push_back(point);
         index++;
     }
