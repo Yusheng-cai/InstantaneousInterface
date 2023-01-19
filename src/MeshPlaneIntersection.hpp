@@ -19,13 +19,14 @@ public:
 
 	struct Path3D {
 		std::vector<Vec3D> points;
+		std::vector<Vec3D> normals;
 		bool isClosed = false;
 	};
 
 	class Mesh {
 	public:
-		Mesh(const std::vector<Vec3D>& vertices, const std::vector<Face>& faces) :
-			vertices(vertices), faces(faces) {}
+		Mesh(const std::vector<Vec3D>& vertices, const std::vector<Face>& faces, const std::vector<Vec3D>& normals) :
+			vertices(vertices), faces(faces) , normals(normals){}
 
 		std::vector<Path3D> Intersect(const Plane& plane) const {
 			return _Execute(*this, plane, false);
@@ -37,6 +38,7 @@ public:
 
 	private:
 		const std::vector<Vec3D>& vertices;
+		const std::vector<Vec3D>& normals;
 		const std::vector<Face>& faces;
 
 		typedef std::pair<int, int> Edge;
@@ -77,18 +79,44 @@ public:
 					}
 					else if (edge.first == edge.second) {
 						path.points.push_back(mesh.vertices.at(edge.first));
+						// BEGIN YC EDIT
+						path.normals.push_back(mesh.normals.at(edge.first));
+						// END YC EDIT
 					}
 					else {
 						const auto& offset1(vertexOffsets[edge.first]);
 						const auto& offset2(vertexOffsets[edge.second]);
+						// BEGIN YC EDIT
+						const auto& normal1(mesh.normals.at(edge.first));
+						const auto& normal2(mesh.normals.at(edge.second));
+						// END YC EDIT
 						const auto factor = offset1 / (offset1 - offset2);
 						const auto& edgeStart(mesh.vertices.at(edge.first));
 						const auto& edgeEnd(mesh.vertices.at(edge.second));
-						Vec3D newPoint;
+						// BEGIN YC EDIT
+						Vec3D newPoint, newNormal;
+						FloatType sum=0.0;
+						// END YC EDIT
 						for (int i(0); i < 3; ++i) {
 							newPoint[i] = edgeStart[i] + (edgeEnd[i] - edgeStart[i]) * factor;
+							// BEGIN YC EDIT
+							newNormal[i] = normal1[i] * factor + normal2[i] * (1-factor);
+							sum+=(newNormal[i] * newNormal[i]);
+							// END YC EDIT
 						}
+
+						sum = std::sqrt(sum);
+
+						// BEGIN YC EDIT
+						for (int i=0;i<3;i++){
+							newNormal[i] /= sum;
+						}
+						// END YC EDIT
 						path.points.push_back(newPoint);
+
+						// BEGIN YC EDIT
+						path.normals.push_back(newNormal);
+						// END YC EDIT
 					}
 				}
 				paths.push_back(path);
