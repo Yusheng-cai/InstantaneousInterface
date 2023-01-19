@@ -298,4 +298,10 @@ namespace MeshTools
 
     // translate mesh from one to another
     void IterativeClosestPoint(Mesh& m, const Mesh& ref);
+
+    // change winding order of a mesh
+    void ChangeWindingOrder(Mesh& m);
+
+    // mesh plane clipping 
+    void MeshPlaneClipping(Mesh& m, Real3& point, Real3& normal);
 };

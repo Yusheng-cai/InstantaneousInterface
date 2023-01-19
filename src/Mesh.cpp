@@ -546,30 +546,7 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
     happly::PLYData plydata(filename);
     std::vector<std::array<double,3>> vPos = plydata.getVertexPositions();
     std::vector<std::vector<size_t>> fInd = plydata.getFaceIndices<size_t>();
-    std::vector<std::string> normalNames = {"nx", "ny", "nz"};
-    std::vector<bool> hasProperty_(3, false);
-    std::vector<Real3> normals_;
-    normals_.resize(vPos.size());
-
     auto names = plydata.getElement("vertex").getPropertyNames();
-    bool hasnormals=false;
-    for (int i=0;i<3;i++){
-        hasProperty_[i] = std::find(names.begin(), names.end(), normalNames[i]) != names.end();
-    }
-
-    if (hasProperty_[0] && hasProperty_[1] && hasProperty_[2]){
-        hasnormals=true;
-    }
-
-    // do something when it does have normals
-    if (hasnormals){
-        for (int i=0;i<3;i++){
-            const auto& n = plydata.getElement("vertex").getProperty<double>(normalNames[i]);
-            ASSERT((n.size() == vPos.size()), "The size of nx must equal to the number of vertices.");
-
-            for (int j=0;j<vPos.size();j++){normals_[j][i] = n[j];}
-        }
-    }
 
     // first we update the mesh
     auto& vertices = mesh.accessvertices();
@@ -584,7 +561,6 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
         auto& v = vertices[i];
         for (int j=0;j<3;j++){
             v.position_[j] = vPos[i][j];
-            v.normals_[j]  = normals_[i][j];
         }
     }
 
@@ -599,12 +575,8 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
         }
     }
 
-    if ( ! hasnormals){
-        std::cout << "Calculating normals by myself." << std::endl;
-        mesh.CalcVertexNormals();
-
-        mesh.update();
-    }
+    mesh.CalcVertexNormals();
+    mesh.update();
 
     return true;
 }
@@ -1905,4 +1877,88 @@ void MeshTools::RemoveMinimumNeighbors(Mesh& m, int num_search, int min_num_neig
     }
 
     m.SetVerticesAndTriangles(Newv, Newt);
+}
+
+void MeshTools::ChangeWindingOrder(Mesh& m){
+    auto& tri = m.accesstriangles();
+
+    std::vector<triangle> newT;
+
+    for (auto& t : tri){
+        triangle nT;
+        nT[0] = t[1];
+        nT[1] = t[0];
+        nT[2] = t[2];
+
+        newT.push_back(nT);
+    }
+
+    tri.clear();
+    tri.insert(tri.end(), newT.begin(), newT.end());
+}
+
+void MeshTools::MeshPlaneClipping(Mesh& m, Real3& point, Real3& plane){
+    // first we need to find the signed distance of all the vertex points to the plane 
+    const auto& ori_v = m.getvertices();
+    const auto& ori_f = m.gettriangles();
+    int num_v = ori_v.size();
+    int num_f = ori_f.size();
+    std::vector<Real> signed_distance(num_v, 0.0);
+    std::vector<int> vertex_lower;
+    for (int i=0;i<num_v;i++){
+        Real3 diff = ori_v[i].position_ - point; 
+        Real dist  = LinAlg3x3::DotProduct(diff, plane);
+        signed_distance[i] = dist;
+        if (dist < 0){
+            vertex_lower.push_back(i);
+        }
+    }
+
+    // then figure out which triangles are intersected by the plane 
+    std::vector<int> intersect_triangle;
+    std::vector<int> kept_triangle;
+    std::vector<std::vector<int>> edges_intersected;
+    std::vector<uint8_t> venums(num_f);
+
+    for (auto&& [index, f] : Algorithm::enumerate(ori_f)){
+        Real dist1 = signed_distance[f[0]]; Real dist2 = signed_distance[f[1]]; Real dist3 = signed_distance[f[2]];
+        uint8_t mask;
+
+        if ((dist1 < 0) && (dist2 < 0) && (dist3<0)){
+            kept_triangle.push_back(index);
+        }
+        else if ((dist1 > 0) && (dist2 > 0) && (dist3 >0)){
+            kept_triangle.push_back(index);
+        }
+        else{
+            intersect_triangle.push_back(index);
+        }
+
+        // write to bits
+        if (dist1 < 0) mask |= 1 << 0;
+        if (dist2 < 0) mask |= 1 << 1;
+        if (dist3 < 0) mask |= 1 << 2;
+
+        venums[index] = mask;
+    }
+
+    // figure out how many total triangles there are
+    std::array<int,8> s_clipVertCountTable{0,1,1,2,1,2,2,1};
+    int X = std::numeric_limits<int>::max();
+    std::array<std::array<int,6>,8> s_clipTriTable{{
+        {X,X,X,X,X,X}, 
+        {0,3,5,X,X,X}, 
+        {3,1,4,X,X,X}, 
+        {0,1,5,1,4,5}, 
+        {4,2,5,X,X,X}, 
+        {0,3,4,0,4,2}, 
+        {1,5,3,1,2,5},
+        {0,1,2,X,X,X}
+    }};
+
+    int new_num_f= 0;
+    for (int i=0;i<num_f;i++){
+        new_num_f += s_clipVertCountTable[venums[i]];
+    }
+
 }
