@@ -195,4 +195,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("ClipMesh", "-op ClipMesh -i input.ply -plane x y z -point x y z", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::ClipMesh(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("FaceNormal", "-op FaceNormal -i input.ply -o output.out", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::FindFaceNormals(cmd);}, \
+                                           mapF, mapU);
 }
