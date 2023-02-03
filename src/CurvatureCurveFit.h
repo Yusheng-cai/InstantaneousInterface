@@ -26,4 +26,6 @@ class CurvatureCurveFit : public Curvature
         int NumNeighbors_ = 1;
 
         std::vector<Real3> ff2_parameter_;
+        bool extend_boundary_=false;
+        int boundary_neighbors_=0;
 };

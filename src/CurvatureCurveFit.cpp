@@ -8,6 +8,10 @@ namespace CurvatureRegistry
 CurvatureCurveFit::CurvatureCurveFit(CurvatureInput& input)
 :Curvature(input){
     input.pack.ReadNumber("neighbors", ParameterPack::KeyType::Optional, NumNeighbors_);
+    input.pack.Readbool("extend_boundary", ParameterPack::KeyType::Optional, extend_boundary_);
+    if (extend_boundary_){
+        input.pack.ReadNumber("boundary_neighbors", ParameterPack::KeyType::Optional, boundary_neighbors_);
+    }
 }
 
 void CurvatureCurveFit::calculate(Mesh& mesh)
@@ -25,18 +29,19 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
     std::vector<std::vector<int>> VertexNeighbors;
     MeshTools::CalculateVertexNeighbors(mesh, VertexNeighbors);
 
-    // calculate neighbor vertices that are N vertex away 
-    std::vector<std::vector<int>> NeighborIndicesNVertex;
-    Graph::BFS_kring_neighbor(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);
-
-    // the reference direction of the normal vector is the z vector
-    Real3 referenceDir = {{0,0,1}};
-
     // map edge to face 
     std::map<INT2, std::vector<int>> EToF;
     std::vector<bool> boundary_indicator;
     MeshTools::MapEdgeToFace(mesh, EToF);
     MeshTools::CalculateBoundaryVertices(mesh, EToF, boundary_indicator);
+
+    // calculate neighbor vertices that are N vertex away 
+    std::vector<std::vector<int>> NeighborIndicesNVertex;
+    if (extend_boundary_){Graph::BFS_kring_neighbor(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);}
+    else{Graph::BFS_kring_neighbor_boundary(VertexNeighbors, boundary_indicator, NumNeighbors_, boundary_neighbors_, NeighborIndicesNVertex);}
+
+    // the reference direction of the normal vector is the z vector
+    Real3 referenceDir = {{0,0,1}};
 
     #pragma omp parallel for
     for (int i=0;i<nv;i++){
@@ -44,10 +49,10 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         auto& neighbors = NeighborIndicesNVertex[i];
 
         if (boundary_indicator[i]){
-            int boundary_neighbors = NumNeighbors_ + 1;
+            int inc_neighbors = boundary_neighbors_ + 1;
             while (neighbors.size() < 3){
-                Graph::getNearbyIndicesNVertexAway(VertexNeighbors, boundary_neighbors, i, neighbors);
-                boundary_neighbors += 1;
+                Graph::BFS_kring_neighbor(VertexNeighbors, inc_neighbors, i, neighbors);
+                inc_neighbors += 1;
             }
         }
         else{
