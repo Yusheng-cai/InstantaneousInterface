@@ -49,12 +49,17 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // resize the field 
     field_.resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
+    property_field_.resize(dimensions_[0],dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
 
     // calculate the offset Index
     CalcOffsetIndex();
 
     // calculate the field buffer
     for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
+        it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
+    }
+
+    for (auto it = PropertyFieldBuffer_.beginworker(); it != PropertyFieldBuffer_.endworker(); it++){
         it -> resize(dimensions_[0], dimensions_[1], dimensions_[2], x_range_, y_range_, z_range_);
     }
 
@@ -78,10 +83,13 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // resize all the gpu arrays
     _atom_positions.resize(size,3);
+    _atom_property.resize(size);
     _vector_field_neighbors.resize(size,num_neighbors);
     _vector_field_neighbor_index.resize(size, num_neighbors);
     _instantaneous_field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
     _field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
+    _property_field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
+    _instantaneous_property_field.resize(dimensions_[0], dimensions_[1], dimensions_[2], 0.0);
     _NeighborIndex.resize(offsetIndex_.size(),3);
     _box.resize(3);
     _dx.resize(3);
@@ -286,6 +294,101 @@ void DensityField::findAtomsIndicesInBoundingBox(){
         }
     }
 
+    #endif
+}
+
+void DensityField::CalculateInstantaneousFieldProperty(const std::vector<Real>& property){
+    findAtomsIndicesInBoundingBox();
+
+    #ifdef CUDA_ENABLED
+    ASSERT((property.size() <= _atom_property.getTotalSize()), "atom property vector too small, property size = " \
+     << property.size() << " while atom property is resize to " << _atom_property.getTotalSize());
+    for (int i=0;i<property.size();i++){
+        _atom_property(i) = property[i];
+    }
+
+    for (int i=0;i<3;i++){
+        _box(i) = simstate_.getSimulationBox().getSides()[i];
+        _dx(i)  = _box(i) / _N(i);
+    }
+
+    _box.memcpyHostToDevice();
+    _dx.memcpyHostToDevice();
+    _atom_positions.memcpyHostToDevice();
+    _atom_property.memcpyHostToDevice();
+    DensityKernel::CalculateInstantaneousFieldProperty(_vector_field_neighbors, _atom_positions, _atom_property, _vector_field_neighbor_index,\
+                                                inv_sigmasq2_, prefactor_, _box, \
+                                               _dx, _N, _instantaneous_field, _field,_NeighborIndex, _num_atoms);
+    #else
+    // the master object will not be zero'd
+    for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
+        it -> zero();
+    } 
+    for (auto it = PropertyFieldBuffer_.beginworker();it != PropertyFieldBuffer_.endworker();it++){
+        it -> zero();
+    } 
+
+    // set up the omp buffers
+    FieldBuffer_.set_master_object(field_);
+    PropertyFieldBuffer_.set_master_object(property_field_);
+
+    // start calculating InstantaneousInterface
+    for (int i=0;i<atomGroupNames_.size();i++)
+    {
+        std::string ag = atomGroupNames_[i];
+        const auto& atomgroup = getAtomGroup(ag);
+        auto& atoms = atomgroup.getAtoms();
+
+        #pragma omp parallel
+        {
+            auto& fieldbuf = FieldBuffer_.access_buffer_by_id();
+            auto& propertybuf = PropertyFieldBuffer_.access_buffer_by_id();
+
+            #pragma omp for 
+            for (int j=0;j<AtomIndicesInside_[i].size();j++){
+                int indices        = AtomIndicesInside_[i][j];;
+                Real3 correctedPos = bound_box_->PutInBoundingBox(atoms[indices].position);
+                Real p       = property[indices];
+                INT3  Index        = fieldbuf.getClosestGridIndex(correctedPos);
+
+                // Fix the index --> to correct for periodic boundary conditions  
+                fieldbuf.fixIndex(Index);
+
+                // iterate over all the indices and calculate instantaneousinterface
+                for(int k=0;k<offsetIndex_.size();k++){
+                    // offset index 
+                    INT3 RealIndex = Index + offsetIndex_[k];
+
+                    // plate the positions on grid
+                    Real3 latticepos = fieldbuf.getPositionOnGrid(RealIndex[0], RealIndex[1], RealIndex[2]);
+
+                    // calculate the distance 
+                    Real3 distance;
+                    bound_box_->calculateDistance(latticepos, correctedPos, distance);
+
+                    Real gauss = GaussianCoarseGrainFunction(distance);
+                    Real val = p * gauss;
+                    propertybuf(RealIndex[0], RealIndex[1], RealIndex[2]) += val;
+                    fieldbuf(RealIndex[0], RealIndex[1], RealIndex[2]) += gauss;
+                }
+            }    
+        }
+
+        #pragma omp parallel for
+        for (int i=0;i<field_.totalSize();i++)
+        {
+            for (auto it = FieldBuffer_.beginworker();it != FieldBuffer_.endworker();it++){
+                field_.accessField()[i] += it->accessField()[i];
+            }
+        }
+
+        #pragma omp parallel for
+        for (int i=0;i<property_field_.totalSize();i++){
+            for (auto it = PropertyFieldBuffer_.beginworker(); it != PropertyFieldBuffer_.endworker(); it++){
+                property_field_.accessField()[i] += it -> accessField()[i];
+            }
+        }
+    }
     #endif
 }
 

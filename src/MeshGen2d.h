@@ -5,6 +5,7 @@
 #include "CGAL/Delaunay_mesher_2.h"
 #include "CGAL/Delaunay_mesh_face_base_2.h"
 #include "CGAL/Delaunay_mesh_size_criteria_2.h"
+#include "CGAL/Triangulation_conformer_2.h"
 #include "CGAL/IO/write_VTU.h"
 #include "CGAL/lloyd_optimize_mesh_2.h"
 #include "Mesh.h"

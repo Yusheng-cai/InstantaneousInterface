@@ -63,8 +63,70 @@ namespace DensityKernel
         }
     }
 
+    __global__ void CalculateInstantaneousPropertyFieldKernel(Real* vector_field, Real* atom_positions, Real* property, int* vector_field_index, \
+                                                Real inv_sigma2, Real prefactor, Real* dx, Real* box,\
+                                                int* total_size, int* neighbors_index, int total_neighbors, int total_data)
+    {
+        // find the index of the current thread 
+        int idx = blockDim.x * blockIdx.x + threadIdx.x;
+
+        // if the index is smaller than the current data 
+        if (idx < total_data){
+            int atom_idx = idx / total_neighbors;
+            int neighbor_idx = idx % total_neighbors;
+
+            Real prop_value = property[atom_idx];
+
+            // copy over all the data
+            ind3 pos_index;
+            real3 pos_copy;
+            ind3 total_size_copy;
+            ind3 offset;
+            real3 box_copy;
+            real3 dx_copy;
+            ind3 actual_index;
+            real3 lattice_pos;
+            real3 r_vec;
+            Real dist_sq=0.0;
+            int v_index;
+
+            for (int i=0;i<3;i++){
+                pos_copy[i] = atom_positions[atom_idx * 3 + i];
+                pos_index[i] = floor(pos_copy[i] / dx[i]);
+                box_copy[i] = box[i];
+                offset[i] = neighbors_index[neighbor_idx * 3 + i];
+                total_size_copy[i] = total_size[i];
+                dx_copy[i] = dx[i];
+            }
+
+            // add index to 
+            AddIndex(pos_index, offset, total_size_copy, actual_index);
+
+            // convert 3d index to 1d 
+            Convert3dIndexTo1d(actual_index, total_size_copy, v_index);
+
+            // store the vector index 
+            vector_field_index[idx] = v_index;
+
+            // convert index to lattice position
+            ConvertIndexToLatticePos(actual_index, dx_copy, lattice_pos);
+
+            // calculate the periodic boundary condition distance 
+            PBCDistance(pos_copy, lattice_pos, box_copy, r_vec, dist_sq);
+
+            // calculate the gaussian weight and store into vector_field 
+            float gaussWeight = GaussianKernel(dist_sq, inv_sigma2, prefactor);
+            vector_field[idx] = prop_value * gaussWeight;
+        }
+        else{
+            vector_field[idx] = 0.0;
+            vector_field_index[idx] = 0;
+        }
+    }
+
     __global__ void CalculateInstantaneousFieldKernel(Real* vector_field, Real* atom_positions, int* vector_field_index, \
-                                                Real inv_sigma2, Real prefactor, Real* dx, Real* box, int* total_size, int* neighbors_index, int total_neighbors, int total_data)
+                                                Real inv_sigma2, Real prefactor, Real* dx, Real* box,\
+                                                int* total_size, int* neighbors_index, int total_neighbors, int total_data)
     {
         // find the index of the current thread 
         int idx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -113,14 +175,13 @@ namespace DensityKernel
 
             // calculate the gaussian weight and store into vector_field 
             float gaussWeight = GaussianKernel(dist_sq, inv_sigma2, prefactor);
-            vector_field[idx] =  gaussWeight;
+            vector_field[idx] = gaussWeight;
         }
         else{
             vector_field[idx] = 0.0;
             vector_field_index[idx] = 0;
         }
     }
-
 }
 
 void DensityKernel::CalculateInstantaneousField(GPUArray2d<Real>& vector_field_neighbors, GPUArray2d<Real>& atom_positions, GPUArray2d<int>& vector_field_neighbor_index, \
@@ -151,3 +212,29 @@ void DensityKernel::CalculateInstantaneousField(GPUArray2d<Real>& vector_field_n
 void DensityKernel::FillGPUArray(GPUArray3d<Real>& arr, Real num){
     thrust::fill(arr.device_vector().begin(), arr.device_vector().end(), num);
 }
+
+void DensityKernel::CalculateInstantaneousFieldProperty(GPUArray2d<Real>& vector_field_neighbors, GPUArray2d<Real>& atom_positions, GPUArray1d<Real>& Property, \
+                                     GPUArray2d<int>& vector_field_neighbor_index, Real inv_sigma2, Real prefactor, GPUArray1d<Real>& box, GPUArray1d<Real>& dx, \
+                                     GPUArray1d<int>& N, GPUArray3d<Real>& insta_field, GPUArray3d<Real>& field, \
+                                     GPUArray2d<int>& neighbor_index, int num_atoms, int num_threads)
+{
+    int NeighborSize = neighbor_index.getSize()[0];
+    int TotalSize = NeighborSize * num_atoms;
+    int numBlocks=(TotalSize + num_threads) / num_threads;
+
+    // calculate the instantaneous field 
+    thrust::fill(vector_field_neighbors.device_vector().begin(), vector_field_neighbors.device_vector().end(), 0.0);
+
+    DensityKernel::CalculateInstantaneousPropertyFieldKernel<<<numBlocks, num_threads>>>(vector_field_neighbors.device_data(), atom_positions.device_data(), Property.device_data(), \
+                                                                vector_field_neighbor_index.device_data(), inv_sigma2, prefactor, dx.device_data(), box.device_data(), \
+                                                                N.device_data(), neighbor_index.device_data(), NeighborSize, TotalSize);
+    thrust::sort_by_key(thrust::device, vector_field_neighbor_index.device_vector().begin(), vector_field_neighbor_index.device_vector().end(), \
+                                        vector_field_neighbors.device_vector().begin());
+
+    auto new_end = thrust::reduce_by_key(thrust::device, vector_field_neighbor_index.device_vector().begin(), vector_field_neighbor_index.device_vector().end(), \
+                                        vector_field_neighbors.device_vector().begin(), vector_field_neighbor_index.device_vector().begin(), insta_field.device_vector().begin());
+    int new_size = new_end.first - vector_field_neighbor_index.device_vector().begin();
+
+    int num_field_Blocks = (new_size + num_threads) / num_threads;
+    DensityKernel::SelectiveSum<<<num_field_Blocks, num_threads>>>(field.device_data(), insta_field.device_data(), field.device_data(), vector_field_neighbor_index.device_data(), new_size);
+};

@@ -76,6 +76,10 @@ class DensityField
         // calculate the instantaneous concentration field 
         void CalculateInstantaneousField();
 
+        // calculate the instantaneous concentration field but now is with some property 
+        // e.g. q_i * sigma 
+        void CalculateInstantaneousFieldProperty(const std::vector<Real>& property);
+
         // function that adds the atom group to the current object 
         void addAtomGroup(std::string& name);
         void registerAtomGroupID(std::string& name, int index);
@@ -136,6 +140,7 @@ class DensityField
 
         // Density field related things
         Field field_;
+        Field property_field_;
 
         Range x_range_;
         Range y_range_;
@@ -144,6 +149,7 @@ class DensityField
         // offset indices 
         std::vector<INT3> offsetIndex_;
         OpenMP::OpenMP_buffer<Field> FieldBuffer_;
+        OpenMP::OpenMP_buffer<Field> PropertyFieldBuffer_;
 
         // The isosurface value, usually in units of atom/nm3
         Real isoSurfaceVal_;
@@ -181,11 +187,14 @@ class DensityField
 
         // CUDA stuff --> only defined if cuda is enabled 
         #ifdef CUDA_ENABLED
+        GPUArray1d<Real> _atom_property;
         GPUArray2d<Real> _vector_field_neighbors;
         GPUArray2d<int> _vector_field_neighbor_index;
         GPUArray2d<Real> _atom_positions;
         GPUArray3d<Real> _instantaneous_field;
+        GPUArray3d<Real> _instantaneous_property_field;
         GPUArray3d<Real> _field;
+        GPUArray3d<Real> _property_field;
         GPUArray1d<Real> _box;
         GPUArray1d<Real> _dx;
         GPUArray1d<int> _N;

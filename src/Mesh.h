@@ -116,6 +116,12 @@ class Mesh
         // update the triangles/vertex/edges if they were to be changed
         void update();
 
+        // shift the com with respect to
+        void ShiftCOMWithRespectTo(Real3& COM);
+
+        // calculate COM of an object
+        Real3 CalculateCOM();
+
         // set vertices and triangles
         void SetVerticesAndTriangles(const std::vector<vertex>& vertices, const std::vector<triangle>& triangles);
                                         ///////////////////////////////
@@ -228,6 +234,7 @@ namespace MeshTools
 
     // convert a PBC mesh to non PBC mesh --> usually for visualization purposes
     void ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& faces, bool AddNewTriangles=false);
+    void ConvertToNonPBCMesh(Mesh& mesh, bool AddNewTriangles=false);
 
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
@@ -304,4 +311,8 @@ namespace MeshTools
 
     // mesh plane clipping 
     void MeshPlaneClipping(Mesh& m, Real3& point, Real3& normal);
+
+    // mesh plane 
+    void TriangleCases(std::vector<INT3>& signs, std::vector<bool>& basic, std::vector<bool>& one_vertex, std::vector<bool>& one_edge);
+    void MeshPlaneIntersection(Mesh& m, Real3& point, Real3& normal);
 };

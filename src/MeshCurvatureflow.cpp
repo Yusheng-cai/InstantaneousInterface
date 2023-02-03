@@ -12,6 +12,7 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
     input.pack.ReadNumber("lambdadt", ParameterPack::KeyType::Optional, lambdadt_);
     input.pack.Readbool("scale", ParameterPack::KeyType::Optional, scale_);
     input.pack.Readbool("Decimate", ParameterPack::KeyType::Optional, decimate_);
+    input.pack.Readbool("shiftCOM", ParameterPack::KeyType::Optional, shift_COM_);
 
     pack_.ReadNumber("NumBoundarySmoothing", ParameterPack::KeyType::Optional, StopBoundarySmoothing_);
 
@@ -21,6 +22,11 @@ MeshCurvatureflow::MeshCurvatureflow(MeshRefineStrategyInput& input)
 }
 
 void MeshCurvatureflow::updateMesh(){
+    // find COM if necessary
+    if(shift_COM_){
+        COM_ = mesh_->CalculateCOM();
+    }
+
     // obtain map from edge index {minIndex, maxIndex} to the face index 
     // obtain map from vertex index {index} to the Edge Index {minIndex, maxIndex}
     MeshTools::MapEdgeToFace(*mesh_, MapEdgeToFace_, MapVertexToEdge_);
@@ -55,7 +61,8 @@ void MeshCurvatureflow::refine(Mesh& mesh){
     updateMesh();
 
     // if we are scaling, we need to calculate the volume
-    if (scale_){initialVolume_ = mesh_->calculateVolume();}
+    if (scale_){initialVolume_ = std::abs(mesh_->calculateVolume()); std::cout << "Initial volume = " << initialVolume_ << "\n";}
+    
 
     // start refining 
     for (int i=1;i<=numIterations_;i++){
@@ -200,11 +207,21 @@ void MeshCurvatureflow::refineImplicitStep()
 
     // calculate the volume if needed 
     if (scale_){
-        Real vol = mesh_->calculateVolume();
+        Real vol = std::abs(mesh_->calculateVolume());
         Real scale = std::pow(initialVolume_/vol, 1.0/3.0);
 
         // this already performs update 
         mesh_->scaleVertices(scale);
+        Real newvol = std::abs(mesh_->calculateVolume());
+
+        // shift com
+        if (shift_COM_){
+            Real3 COM_before = mesh_->CalculateCOM();
+            mesh_->ShiftCOMWithRespectTo(COM_);
+            Real3 COM_after = mesh_->CalculateCOM();
+
+        }
+        std::cout << "new volume = " << newvol << "\n";
     }
 }
 

@@ -90,4 +90,8 @@ class MeshCurvatureflow : public MeshRefineStrategy
         // when to stop boundary smoothing --> default to 0 as in it does not smooth boundary
         int StopBoundarySmoothing_=0;
         bool SmoothBoundary_=true;
+
+        // shift COM
+        bool shift_COM_=false;
+        Real3 COM_;
 };

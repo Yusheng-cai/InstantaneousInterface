@@ -26,6 +26,25 @@ void Mesh::SetVerticesAndTriangles(const std::vector<vertex>& v, const std::vect
     triangles_.insert(triangles_.end(), t.begin(), t.end());
 }
 
+Mesh::Real3 Mesh::CalculateCOM(){
+    Real3 COM= {{0,0,0}};
+    for (auto v : vertices_){
+        COM = COM + v.position_;
+    }
+
+    COM = COM / vertices_.size();
+
+    return COM;
+}
+
+void Mesh::ShiftCOMWithRespectTo(Real3& COM)
+{
+    Real3 COM_current = CalculateCOM();
+    for (auto& v : vertices_){
+        v.position_ = v.position_ - COM_current + COM;
+    }
+}
+
 void Mesh::CalcPerVertexDir()
 {
     PerVertexdir1_.resize(vertices_.size());
@@ -939,6 +958,25 @@ bool MeshTools::IsBoundary(int index, const std::vector<bool>& boundaryIndicator
     return boundaryIndicator[index];
 }
 
+void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, bool AddNewTriangles){
+    std::vector<Real3> newv;
+    std::vector<INT3> newf;
+    ConvertToNonPBCMesh(mesh, newv, newf, AddNewTriangles);
+
+    auto& oldv = mesh.accessvertices();
+    auto& oldf = mesh.accesstriangles();
+    oldv.clear(); oldv.resize(newv.size());
+    oldf.clear(); oldf.resize(newf.size());
+
+    for (int i=0;i<newv.size();i++){
+        oldv[i].position_ = newv[i];
+    }
+
+    for (int i=0;i<newf.size();i++){
+        oldf[i].triangleindices_ = newf[i];
+    }
+}
+
 void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, std::vector<INT3>& triangles, bool AddNewTriangles)
 {
     // if periodic, then do something, else do nothing 
@@ -1782,12 +1820,12 @@ void MeshTools::RemoveDuplicatedFaces(Mesh& mesh){
             int t_index = it -> second[0];
             newf.push_back(f[t_index]);
         }
-        // else{
-        //     std::vector<int> tempVec = it -> second;
-        //     Algorithm::sort(tempVec);
-        //     int t_index = tempVec[0];
-        //     newf.push_back(f[t_index]);
-        // }
+        else{
+            std::vector<int> tempVec = it -> second;
+            Algorithm::sort(tempVec);
+            int t_index = tempVec[0];
+            newf.push_back(f[t_index]);
+        }
     }
 
     auto& nf = mesh.accesstriangles();
@@ -1961,4 +1999,86 @@ void MeshTools::MeshPlaneClipping(Mesh& m, Real3& point, Real3& plane){
         new_num_f += s_clipVertCountTable[venums[i]];
     }
 
+}
+
+void MeshTools::TriangleCases(std::vector<INT3>& signs, std::vector<bool>& basic, std::vector<bool>& one_vertex, std::vector<bool>& one_edge){
+    /*
+    code : signs      : intersects
+    0    : [-1 -1 -1] : No
+    2    : [-1 -1  0] : No
+    4    : [-1 -1  1] : Yes; 2 on one side, 1 on the other
+    6    : [-1  0  0] : Yes; one edge fully on plane
+    8    : [-1  0  1] : Yes; one vertex on plane 2 on different sides
+    12   : [-1  1  1] : Yes; 2 on one side, 1 on the other
+    14   : [0 0 0]    : No (on plane fully)
+    16   : [0 0 1]    : Yes; one edge fully on plane
+    20   : [0 1 1]    : No
+    28   : [1 1 1]    : No
+    */
+    std::vector<int> coded(signs.size(),14);
+    std::vector<bool> key(29, false);
+    one_edge.clear(); one_edge.resize(signs.size(), false);
+    one_vertex.clear(); one_vertex.resize(signs.size(), false);
+    basic.clear(); basic.resize(signs.size(), false);
+
+    #pragma omp parallel for
+    for (int i=0;i<signs.size();i++){
+        Algorithm::sort(signs[i]);
+    }
+
+    #pragma omp parallel for 
+    for (int i=0;i<signs.size();i++){
+        for (int j=0;j<3;j++){
+            coded[i] += (signs[i][j] << (3-j));
+        }
+    }
+
+    #pragma omp parallel for
+    for (int i=0;i<signs.size();i++){
+        if (coded[i] == 16){
+            one_edge[i] = true;
+        }
+        else if (coded[i] == 8){
+            one_vertex[i] = true;
+        }
+        else if ((coded[i] == 4) || (coded[i]=12)){
+            basic[i] = true;
+        }
+    }
+}
+
+void MeshTools::MeshPlaneIntersection(Mesh& m, Real3& points, Real3& normal){
+    const auto& v = m.getvertices();
+    const auto& f = m.gettriangles();
+    std::vector<Real> dots(v.size(), 0.0);
+    std::vector<int> signs(v.size(), 0);
+    std::vector<INT3> face_signs(f.size());
+    Real tolerance = 1e-5;
+
+    #pragma omp parallel for
+    for (int i=0;i<v.size();i++){
+        dots[i] = LinAlg3x3::DotProduct(v[i].position_ - points, normal);
+        if (dots[i] > tolerance){
+            signs[i] = 1;
+        }
+        else if (dots[i] < - tolerance){
+            signs[i] = -1;
+        }
+        else{
+            signs[i] = 0;
+        }
+    }
+
+    // get the face signs ready 
+    #pragma omp parallel for
+    for (int i=0;i<f.size();i++){
+        for (int j=0;j<3;j++){
+            int index = f[i][j];
+            face_signs[i][j] = signs[index];
+        }
+    }
+
+    // get basic, one_vertex and one_edge
+    std::vector<bool> basic, one_vertex, one_edge;
+    TriangleCases(face_signs, basic, one_vertex, one_edge);
 }

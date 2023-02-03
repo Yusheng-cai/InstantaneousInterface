@@ -180,8 +180,9 @@ void MeshGen2d::findDistance(const Real2 &p1, const Real2 &p2, Real2 &dist, Real
 void MeshGen2d::checkMaxDistanceBetweenEdges()
 {
     Real max = -std::numeric_limits<Real>::infinity();
-    for (auto e : constraintIndices_)
-    {
+    Real min = std::numeric_limits<Real>::infinity();
+
+    for (auto e : constraintIndices_){
         Real2 p1 = points_[e[0]];
         Real2 p2 = points_[e[1]];
 
@@ -192,16 +193,18 @@ void MeshGen2d::checkMaxDistanceBetweenEdges()
 
         Real dist = std::sqrt(distsq);
 
-        if (dist > max)
-        {
+        if (dist > max){
             max = dist;
+        }
+        if (dist < min){
+            min = dist;
         }
     }
     MaxDistanceBetweenEdges_ = max;
     std::cout << "Max distance = " << MaxDistanceBetweenEdges_ << "\n";
+    std::cout << "Min distance = " << min << "\n";
 
-    if (size_bound_ < MaxDistanceBetweenEdges_)
-    {
+    if (size_bound_ < MaxDistanceBetweenEdges_){
         std::cout << "warning : the size bound is smaller than the max distance between edges with size bound = " << size_bound_ << " and max distance = " << MaxDistanceBetweenEdges_ << ", this might cause boundary points to increase.\n";
     }
 }
@@ -214,15 +217,13 @@ void MeshGen2d::updateMesh()
     // update the vertices
     vertices.clear();
     vertices.resize(numOutputPoints_);
-    for (int i = 0; i < numOutputPoints_; i++)
-    {
+    for (int i = 0; i < numOutputPoints_; i++){
         vertices[i].position_ = OutputVertices_[i];
     }
 
     // update the triangles
     triangles.resize(numOutputFaces_);
-    for (int i = 0; i < numOutputFaces_; i++)
-    {
+    for (int i = 0; i < numOutputFaces_; i++){
         triangles[i].triangleindices_ = OutputFaces_[i];
     }
 
@@ -242,8 +243,8 @@ void MeshGen2d::updateMesh()
             numBoundary += 1;
         }
     }
-    if (numBoundary != numPoints_)
-    {
+
+    if (numBoundary != numPoints_){
         std::cout << "After meshing, number of boundary is " << numBoundary << " while beforehand it is " << numPoints_ << "\n";
     }
 }
@@ -289,10 +290,8 @@ void MeshGen2d::generate()
     }
 
     OutputFaces_.clear();
-    for (CDT::Finite_faces_iterator fit = cdt_.finite_faces_begin(); fit != cdt_.finite_faces_end(); fit++)
-    {
-        if (fit->is_in_domain())
-        {
+    for (CDT::Finite_faces_iterator fit = cdt_.finite_faces_begin(); fit != cdt_.finite_faces_end(); fit++){
+        if (fit->is_in_domain()){
             INT3 idx;
             idx[0] = MapFromVertexToIndex_[fit->vertex(0)];
             idx[1] = MapFromVertexToIndex_[fit->vertex(2)];

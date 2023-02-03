@@ -40,8 +40,7 @@ class GPUArray1d
 
 template <typename T>
 GPUArray1d<T>::GPUArray1d(int size)
-:size_(size)
-{
+:size_(size){
     host_vector_.resize(size_);
 }
 
@@ -56,8 +55,9 @@ const T& GPUArray1d<T>::operator() (int index) const{
 }
 
 template <typename T>
-void GPUArray1d<T>::resize(int index1){
-    host_vector_.resize(index1);
+void GPUArray1d<T>::resize(int size){
+    host_vector_.resize(size);
+    size_ = size;
 }
 
 template <typename T>

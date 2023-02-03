@@ -117,9 +117,6 @@ namespace MeshActions
     // function that decimates degenerate triangles 
     void DecimateDegenerateTriangles(CommandLineArguments& cmd);
 
-    // perform constraint delaunay triangulation
-    void ConstrainedDelaunayTriangulation(CommandLineArguments& cmd);
-
     // curvature evolution --> only use curvefit
     void CurvatureEvolution(CommandLineArguments& cmd);
 
@@ -167,4 +164,7 @@ namespace MeshActions
 
     // change winding order
     void ChangeMeshWindingOrder(CommandLineArguments& cmd);
+
+    // find face normals
+    void FindFaceNormals(CommandLineArguments& cmd);
 };
