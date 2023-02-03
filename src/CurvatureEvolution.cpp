@@ -21,6 +21,7 @@ CurvatureEvolution::CurvatureEvolution(MeshRefineStrategyInput& input)
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep);
     pack_.Readbool("fairing", ParameterPack::KeyType::Optional, fairing_);
     pack_.Readbool("cleanMesh", ParameterPack::KeyType::Optional, cleanMesh_);
+    pack_.Readbool("debug", ParameterPack::KeyType::Optional, debug_);
 
     fixed_index_.clear();
     if (pack_.ReadString("fixed_index_file", ParameterPack::KeyType::Optional, fixed_index_file_)){
@@ -171,6 +172,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
     while (err_ >= tol_){
         // set max error numeric min
         Real maxerr = -std::numeric_limits<Real>::max();
+        int maxIndex;
 
         // first let's calculate the curvatures 
         curvatureCalc_ -> calculate(*mesh_);
@@ -187,6 +189,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
         #pragma omp parallel
         {
             Real e=-std::numeric_limits<Real>::max();
+            int max_I;
             Real avgElocal = 0.0;
 
             #pragma omp for
@@ -199,7 +202,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
                 // add to local average error
                 avgElocal += std::abs(diffkappa);
 
-                if (std::abs(diffkappa) > e){e = std::abs(diffkappa);}
+                if (std::abs(diffkappa) > e){e = std::abs(diffkappa); max_I=j;}
 
                 // update the vertex positions 
                 if (isfixed_[index]){
@@ -214,6 +217,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
             if (e > maxerr)
             {
                 maxerr = e;
+                maxIndex = max_I;
             }
 
             #pragma omp critical
@@ -224,11 +228,11 @@ void CurvatureEvolution::refine(Mesh& mesh){
         }
 
         avgE = avgE / VertexIndices_.size();
-        err_ = std::abs(maxerr);
+        err_ = std::abs(avgE);
 
-        if ((err_- last_max_err) > 1e-5){
-            StepSize_ /= 2;
-        }
+        // if ((err_- last_max_err) > 1e-5){
+        //     StepSize_ /= 2;
+        // }
 
         last_max_err = err_;
 
@@ -237,8 +241,8 @@ void CurvatureEvolution::refine(Mesh& mesh){
             break;
         }
 
-        std::cout << "Max error is " << err_ << std::endl;
-        std::cout << "average error is " << avgE << "\n";
+        std::cout << "Max error is " << maxerr << std::endl;
+        std::cout << "average error is " << err_ << "\n";
 
         // update the normals as well 
         mesh_->CalcVertexNormals();
@@ -259,6 +263,17 @@ void CurvatureEvolution::refine(Mesh& mesh){
         if (iteration_ > maxStep){
             std::cout << "Evolution finished premature at iteration " << iteration_-1 << "\n";
             break;
+        }
+
+        if (debug_){
+            std::string ite = StringTools::TypeToString(iteration_);
+            MeshTools::writePLY("Iteration_" + ite +".ply", *mesh_);
+            std::ofstream ofs;
+            ofs.open("Curvature_" + ite + ".out");
+            for (int i=0;i<curvatures.size();i++){
+                ofs << curvatures[i] << "\n";
+            }
+            ofs.close();
         }
 
         // update the iterations

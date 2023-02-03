@@ -76,4 +76,7 @@ class CurvatureEvolution : public MeshRefineStrategy
 
         // keep track of the original positions
         std::vector<Real3> original_pos_;
+
+        // debug
+        bool debug_=false;
 };
