@@ -86,15 +86,17 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
     std::string outputfname="curvefit.out";
     std::string faceCfname="curvefit_faceC.out";
     std::string ff2fname="ff2.out";
-    std::string neighbors;
+    std::string neighbors, boundaryNeighbors;
     ParameterPack pack;
 
     Mesh mesh;
     Real3 box;
     curveptr curve;
+    bool extend_boundary=false;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    extend_boundary = cmd.readString("boundaryNeighbor", CommandLineArguments::Keys::Optional, boundaryNeighbors);
     bool fc_read  = cmd.readString("fc", CommandLineArguments::Keys::Optional, faceCfname);
     bool ff2_read = cmd.readString("ff2", CommandLineArguments::Keys::Optional, ff2fname);
     cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
@@ -102,6 +104,10 @@ void MeshActions::CurveFit(CommandLineArguments& cmd)
 
     // insert the values into parameter pack
     pack.insert("neighbors", neighbors);
+    if (extend_boundary){
+        pack.insert("extend_boundary", "true");
+        pack.insert("boundary_neighbors", boundaryNeighbors);
+    }
 
     if (pbcMesh){
         mesh.setBoxLength(box);

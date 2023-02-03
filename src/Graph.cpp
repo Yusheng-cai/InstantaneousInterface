@@ -163,6 +163,32 @@ void Graph::getNearbyIndicesNVertexAway(const std::vector<std::vector<int>>& Nea
     }
 }
 
+void Graph::BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, int i, std::vector<int>& NNearbyNeighbors){
+    int numv = NearbyIndices.size();
+    std::list<std::pair<int,int>> queue;
+    std::vector<bool> visited(numv, false);
+    queue.push_back(std::pair<int,int>(i,0));
+    NNearbyNeighbors.clear();
+
+    while (! queue.empty()){
+        int toVisit = queue.front().first;
+        int distance = queue.front().second;
+
+        // removes the first element
+        queue.pop_front();
+        NNearbyNeighbors.push_back(toVisit);
+        if (distance < N){
+            for (int j=0;j<NearbyIndices[toVisit].size();j++){
+                int neighbor = NearbyIndices[toVisit][j];
+                if (! visited[neighbor]){
+                    queue.push_back(std::pair<int,int>(neighbor, distance+1));
+                    visited[neighbor] = true;
+                }
+            }
+        }
+    }
+}
+
 void Graph::BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NNearbyNeighbors)
 {
     int numv = NearbyIndices.size();
@@ -170,27 +196,26 @@ void Graph::BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndice
 
     #pragma omp parallel for
     for (int i=0;i<numv;i++){
-        std::list<std::pair<int,int>> queue;
-        std::vector<bool> visited(numv, false);
-        queue.push_back(std::pair<int,int>(i,0));
         std::vector<int> vv;
+        BFS_kring_neighbor(NearbyIndices, N, i, vv);
+        NNearbyNeighbors[i] = vv;
+    }
+}
 
-        while (! queue.empty()){
-            int toVisit = queue.front().first;
-            int distance = queue.front().second;
+void Graph::BFS_kring_neighbor_boundary(const std::vector<std::vector<int>>& NearbyIndices, const std::vector<bool>& boundaryIndicator, \
+                                        int N, int Nboundary, std::vector<std::vector<int>>& NNearbyNeighbors)
+{
+    int numv = NearbyIndices.size();
+    NNearbyNeighbors.clear(); NNearbyNeighbors.resize(numv);
 
-            // removes the first element
-            queue.pop_front();
-            vv.push_back(toVisit);
-            if (distance < N){
-                for (int j=0;j<NearbyIndices[toVisit].size();j++){
-                    int neighbor = NearbyIndices[toVisit][j];
-                    if (! visited[neighbor]){
-                        queue.push_back(std::pair<int,int>(neighbor, distance+1));
-                        visited[neighbor] = true;
-                    }
-                }
-            }
+    #pragma omp parallel for
+    for (int i=0;i<numv;i++){
+        std::vector<int> vv;
+        if (boundaryIndicator[i]){
+            BFS_kring_neighbor(NearbyIndices, Nboundary, i, vv);
+        }
+        else{
+            BFS_kring_neighbor(NearbyIndices, N, i, vv);
         }
 
         NNearbyNeighbors[i] = vv;

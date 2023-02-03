@@ -24,4 +24,11 @@ namespace Graph
 
     // BFS k-ring neighbor
     void BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, std::vector<std::vector<int>>& NNearbyNeighbors);
+
+    // BFS k-ring neighbor for a single vertex 
+    void BFS_kring_neighbor(const std::vector<std::vector<int>>& NearbyIndices, int N, int index, std::vector<int>& NNearbyNeighbors);
+
+    // BFS k-ring neighbor but special for boundary vertices 
+    void BFS_kring_neighbor_boundary(const std::vector<std::vector<int>>& NearbyIndices, const std::vector<bool>& boundaryIndicator, \
+                                     int N, int Nboundary, std::vector<std::vector<int>>& NNearbyNeighbors);
 };
