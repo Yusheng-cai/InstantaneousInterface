@@ -22,6 +22,7 @@ class SimulationState
         void setSimulationBox(Matrix boxMat){box_.setBoxMatrix(boxMat);}
         void setTime(Real time){time_ = time;}
         void setStep(int step){step_ = step;}
+        void setFrameNum(int frame){frame_=frame;}
         void setTotalFrames(int totalFrames){TotalFrames_ = totalFrames;}
         void setTotalFramesToBeCalculated(int totalframestobecalculated){TotalFramesToBeCalculated_ = totalframestobecalculated;}
 
@@ -30,6 +31,7 @@ class SimulationState
         const SimulationBox& getSimulationBox() const{return box_;}
         Real getTime() const{return time_;}
         int getStep() const {return step_;}
+        int getFrame() const {return frame_;}
         int getTotalFrames() const {return TotalFrames_;}
         int getTotalFramesToBeCalculated() const {return TotalFramesToBeCalculated_;}
 
@@ -54,6 +56,7 @@ class SimulationState
         Real time_;
         int step_;
         int TotalFrames_;
+        int frame_;
         int TotalFramesToBeCalculated_;
 
         SimulationBox box_;

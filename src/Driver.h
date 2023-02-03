@@ -107,7 +107,7 @@ class Driver
 
         // The starting frame_ + how many frames to skip for calculation
         // This is 1 based counting
-        int starting_frame_ = 1;
+        int starting_frame_ = 0;
 
         // the number of frames to be skipped between 2 calculation
         // if skip = 2, then if the first frame = 1, then the next frame to be calculate is 3

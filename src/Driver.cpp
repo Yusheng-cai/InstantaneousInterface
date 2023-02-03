@@ -52,6 +52,7 @@ void Driver::initializeDriver()
     {
         if (driverPack != nullptr)
         {
+            starting_frame_=1;
             driverPack -> ReadNumber("startingframe", ParameterPack::KeyType::Optional, starting_frame_);
             driverPack -> ReadNumber("skip", ParameterPack::KeyType::Optional, skip_);
             ASSERT((skip_ > 0), "Skip must be an non-negative number, but provided skip = " << skip_);
@@ -63,7 +64,7 @@ void Driver::initializeDriver()
         }
 
         // arange the simulation frames from starting frame to total frame
-        SimulationFrames_ = Algorithm::arange(starting_frame_, Totalframes_-1, skip_);
+        SimulationFrames_ = Algorithm::arange(starting_frame_, Totalframes_, skip_);
         simstate_.setTotalFramesToBeCalculated(SimulationFrames_.size());
     }
     else
@@ -153,6 +154,7 @@ void Driver::readFrameXdr(int FrameNum)
     simstate_.setSimulationBox(simbox);
     simstate_.setStep(xdrfile_->getStep());
     simstate_.setTime(xdrfile_->getTime());
+    simstate_.setFrameNum(FrameNum);
 }
 
 void Driver::update(int FrameNum)
