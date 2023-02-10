@@ -391,11 +391,12 @@ void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
     // output non pbc mesh 
     std::vector<INT3> face;
     std::vector<Real3> verts;
-    MeshTools::ConvertToNonPBCMesh(mesh, verts, face, addnewtriangles);
+    MeshTools::ConvertToNonPBCMesh(mesh, addnewtriangles);
+    mesh.CalcVertexNormals();
 
     // write the non pbc mesh 
     std::string ext = StringTools::ReadFileExtension(outputfname);
-    if (ext == "ply"){MeshTools::writePLY(outputfname, verts, face);}
+    if (ext == "ply"){MeshTools::writePLY(outputfname, mesh);}
     else if (ext == "stl"){MeshTools::writeSTL(outputfname, mesh);}
 }
 
@@ -1820,6 +1821,7 @@ void MeshActions::ReplicatePeriodicMesh(CommandLineArguments& cmd){
     MeshTools::RemoveIsolatedFaces(mesh);
     MeshTools::ConvertToNonPBCMesh(mesh);
     MeshTools::RemoveIsolatedVertices(mesh);
+    mesh.CalcVertexNormals();
     MeshTools::writePLY(outputfname, mesh);
 }
 
@@ -2068,17 +2070,24 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     Real aspect_bound=0.125, size_bound=0.5;
     int NumBoundary;
     bool periodic=true;
+    bool isBoundingBox=true;
     INT2 index = {{0,1}};
 
-    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readString("boundaryfile", CommandLineArguments::Keys::Required, boundaryfname);
-    cmd.readValue("NumBoundary", CommandLineArguments::Keys::Required, NumBoundary);
-    cmd.readArray("box", CommandLineArguments::Keys::Required, Box);
-    cmd.readArray("ReadIndex", CommandLineArguments::Keys::Optional, index);
-    cmd.readBool("periodic", CommandLineArguments::Keys::Optional, periodic);
+    cmd.readBool("isBoundingBox", CommandLineArguments::Keys::Optional, isBoundingBox);
     cmd.readValue("aspect_bound", CommandLineArguments::Keys::Optional, aspect_bound);
     cmd.readValue("size_bound", CommandLineArguments::Keys::Optional, size_bound);
+    cmd.readBool("periodic", CommandLineArguments::Keys::Optional, periodic);
+
+    if (periodic){
+        cmd.readArray("box", CommandLineArguments::Keys::Required, Box);
+    }
+    cmd.readArray("ReadIndex", CommandLineArguments::Keys::Optional, index);
+
+    if (isBoundingBox){
+        cmd.readValue("NumBoundary", CommandLineArguments::Keys::Required, NumBoundary);
+    }
 
     // copy the boundary points 
     std::vector<std::vector<Real>> temp;
@@ -2103,7 +2112,9 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
 
     // find the centroid of the points 
     centroid = centroid / temp.size();
-    seed.push_back(centroid);
+    if (isBoundingBox){
+        seed.push_back(centroid);
+    }
 
     // get rid of bad edges
     for (int i=0;i<points.size();i++){
@@ -2120,54 +2131,56 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     }
     Real minEdgeLength = Algorithm::min(edgeLength);
 
-    // construct the box
-    Real2 stepsize = Box / NumBoundary;
-    std::vector<Real2> newPoints;
-    std::vector<INT2> newEdges;
-    newPoints.push_back({{0,0}});
-    // start with x = 0 y = something
-    for (int i=1;i<NumBoundary+1;i++){
-        Real2 p = {{0,i * stepsize[1]}};
-        newPoints.push_back(p);
-        newEdges.push_back({{i-1,i}});
-    }
+    if (isBoundingBox){
+        // construct the box
+        Real2 stepsize = Box / NumBoundary;
+        std::vector<Real2> newPoints;
+        std::vector<INT2> newEdges;
+        newPoints.push_back({{0,0}});
+        // start with x = 0 y = something
+        for (int i=1;i<NumBoundary+1;i++){
+            Real2 p = {{0,i * stepsize[1]}};
+            newPoints.push_back(p);
+            newEdges.push_back({{i-1,i}});
+        }
 
-    // continue with x = something, y = max
-    for (int i=1;i<NumBoundary+1;i++){
-        Real2 p = {{i * stepsize[0], Box[1]}};
-        int LastIndex = newPoints.size() - 1;
-        newPoints.push_back(p);
-        int CurrIndex = newPoints.size() - 1;
-        newEdges.push_back({{LastIndex, CurrIndex}});
-    }
+        // continue with x = something, y = max
+        for (int i=1;i<NumBoundary+1;i++){
+            Real2 p = {{i * stepsize[0], Box[1]}};
+            int LastIndex = newPoints.size() - 1;
+            newPoints.push_back(p);
+            int CurrIndex = newPoints.size() - 1;
+            newEdges.push_back({{LastIndex, CurrIndex}});
+        }
 
-    // continnue with x = max ,  y =something
-    for (int i=NumBoundary-1;i>=0;i--){
-        Real2 p = {{Box[0], i * stepsize[1]}};
+        // continnue with x = max ,  y =something
+        for (int i=NumBoundary-1;i>=0;i--){
+            Real2 p = {{Box[0], i * stepsize[1]}};
+            int LastIndex = newPoints.size()-1;
+            newPoints.push_back(p);
+            int CurrIndex = newPoints.size() - 1;
+            newEdges.push_back({{LastIndex, CurrIndex}});
+        }
+
+        // continue with x = something, y = 0
+        for (int i=NumBoundary-1;i>=1;i--){
+            Real2 p = {{i * stepsize[0], 0}};
+            int LastIndex = newPoints.size() - 1;
+            newPoints.push_back(p);
+            int CurrIndex = newPoints.size() - 1;
+            newEdges.push_back({{LastIndex, CurrIndex}});
+        }
+
+        // finally connect the last point with the first point
         int LastIndex = newPoints.size()-1;
-        newPoints.push_back(p);
-        int CurrIndex = newPoints.size() - 1;
-        newEdges.push_back({{LastIndex, CurrIndex}});
+        newEdges.push_back({{LastIndex, 0}});
+        int ori_point_size = points.size();
+        newEdges = newEdges + ori_point_size;
+
+        // merge the newpoints with points 
+        points.insert(points.end(), newPoints.begin(), newPoints.end());
+        edges.insert(edges.end(), newEdges.begin(), newEdges.end());
     }
-
-    // continue with x = something, y = 0
-    for (int i=NumBoundary-1;i>=1;i--){
-        Real2 p = {{i * stepsize[0], 0}};
-        int LastIndex = newPoints.size() - 1;
-        newPoints.push_back(p);
-        int CurrIndex = newPoints.size() - 1;
-        newEdges.push_back({{LastIndex, CurrIndex}});
-    }
-
-    // finally connect the last point with the first point
-    int LastIndex = newPoints.size()-1;
-    newEdges.push_back({{LastIndex, 0}});
-    int ori_point_size = points.size();
-    newEdges = newEdges + ori_point_size;
-
-    // merge the newpoints with points 
-    points.insert(points.end(), newPoints.begin(), newPoints.end());
-    edges.insert(edges.end(), newEdges.begin(), newEdges.end());
 
     // constrct the generation 
     MeshGen2d meshgen(points, edges, seed, aspect_bound, size_bound);
