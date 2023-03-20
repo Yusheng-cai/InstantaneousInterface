@@ -401,9 +401,8 @@ void MeshActions::ConvertToNonPBCMesh(CommandLineArguments& cmd)
     mesh.CalcVertexNormals();
 
     // write the non pbc mesh 
-    std::string ext = StringTools::ReadFileExtension(outputfname);
-    if (ext == "ply"){MeshTools::writePLY(outputfname, mesh);}
-    else if (ext == "stl"){MeshTools::writeSTL(outputfname, mesh);}
+    // std::string ext = StringTools::ReadFileExtension(outputfname);
+    MeshTools::writePLY(outputfname, mesh);
 }
 
 void MeshActions::ScaleMesh(CommandLineArguments& cmd)
