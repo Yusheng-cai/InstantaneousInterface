@@ -3,31 +3,29 @@
 export CC=gcc
 export CXX=g++
 
+module load cuda/11.7
+
 # specify the build directory
 build_type=RELEASE
 build_dir=$PWD/${build_type}/
-install_dir=$PWD/program/
+install_dir=${HOME}/programs/InstantaneousInterface
+libigl_dir=${HOME}/programs/libigl/
 
 # remove build_dir if it already exists
-if [ -d $build_dir ] 
-    then 
-    rm -r $build_dir
-fi
-
-if [ -d $install_dir ]
-    then 
-    rm -rf $install_dir
-fi
-
-# make the build directory
+[[ -d ${build_dir} ]] && rm -rf ${build_dir}
 mkdir -p $build_dir
 
-# configure the build with cmake
 cd $build_dir
-cmake .. -DCMAKE_BUILD_TYPE=${build_type}
+cmake .. -DCMAKE_BUILD_TYPE=${build_type} \
+	 -DCMAKE_INSTALL_PREFIX=${install_dir} \
+	 -DLIBIGL_DIR=${libigl_dir} \
+	 -DCMAKE_CUDA_COMPILER="/usr/local/cuda-11.7/bin/nvcc" \
+	 -DENABLE_CUDA=ON \
+	 -DENABLE_IGL=ON
+	 #-DGLFW3_ROOT="/home/yusheng/programs/glfw-3.3.8/"
 
 # make with 8 threads
-make -j 8 
-make build_test -j 8
+make  -j 24
 
 make test
+make install
