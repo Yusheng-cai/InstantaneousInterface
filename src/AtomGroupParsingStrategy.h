@@ -72,6 +72,19 @@ class ResidueNameParsing:public AtomGroupParsingStrategy
         virtual void Parse(std::vector<int>& indices);
 };
 
+class AtomIndexFile : public AtomGroupParsingStrategy
+{
+    public:
+        AtomIndexFile(AtomGroupParsingInput& input) : AtomGroupParsingStrategy(input){};
+        virtual ~AtomIndexFile(){};
+
+        virtual void Parse(std::vector<int>& indices);
+        virtual void update(){};
+
+    private:    
+        std::string fileName_;
+};
+
 class IndexFileParsing: public AtomGroupParsingStrategy
 {
     public:
