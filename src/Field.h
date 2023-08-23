@@ -79,16 +79,14 @@ class Field
             return length_;
         }
 
-        Real3 getSpacing() const 
-        {
+        Real3 getSpacing() const {
             Real3 space;
             space = {{ dx_, dy_, dz_}};
 
             return space;
         }
 
-        index3 getN() const 
-        {
+        index3 getN() const {
             index3 index;
             index = {{Nx_, Ny_, Nz_}};
 

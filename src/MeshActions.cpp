@@ -1950,6 +1950,10 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
         }
     }
 
+    if (min_numneighbors > 0){
+        MeshTools::RemoveMinimumNeighbors(m, search_ring, min_numneighbors);
+    }
+
     // if edge length is not provided, then we use the average side length
     if (! edgeLengthRead){
         std::vector<Real> sideLength;
@@ -1978,6 +1982,8 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
 
     int count=0;
     // initialize edge removal 
+
+
 
     while (true){
         int verticesbefore = m.getvertices().size();
@@ -2041,9 +2047,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     MeshTools::RemoveDuplicatedFaces(m);
     MeshTools::RemoveIsolatedFaces(m);
 
-    if (min_numneighbors > 0){
-        MeshTools::RemoveMinimumNeighbors(m, search_ring, min_numneighbors);
-    }
+
     m.CalcVertexNormals();
 
 
