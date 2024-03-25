@@ -570,10 +570,13 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
     // first we update the mesh
     auto& vertices = mesh.accessvertices();
     auto& triangles= mesh.accesstriangles();
+    auto& verticesPos = mesh.accessverticesPos();
+
     vertices.clear();
     triangles.clear();
 
     vertices.resize(vPos.size());
+    verticesPos.resize(vPos.size());
     triangles.resize(fInd.size());
 
     for (int i=0;i<vertices.size();i++){
@@ -582,6 +585,14 @@ bool MeshTools::readPLYlibr(std::string& filename, Mesh& mesh)
             v.position_[j] = vPos[i][j];
         }
     }
+
+    for (int i=0;i<verticesPos.size();i++){
+        auto& y = verticesPos[i];
+        for (int j=0;j<3;j++){
+            y[j] = vPos[i][j];
+        }
+    }
+
 
     for (int i=0;i<triangles.size();i++){
         auto& t = triangles[i];
@@ -851,12 +862,12 @@ void MeshTools::CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vect
     }
 }
 
-void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, bool assert){
+void MeshTools::MapEdgeToFace(const Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, bool assert){
     std::vector<std::vector<INT2>> temp;
     MapEdgeToFace(mesh, mapEdgeToFace, temp, assert);
 }
 
-void MeshTools::MapEdgeToFace(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge, bool assert)
+void MeshTools::MapEdgeToFace(const Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<std::vector<INT2>>& mapVertexToEdge, bool assert)
 {
     // get the triangles and vertices from mesh object
     const auto& triangles = mesh.gettriangles();
@@ -951,6 +962,15 @@ void MeshTools::CalculateBoundaryVertices(const Mesh& mesh, const std::map<INT2,
             boundaryIndicator[arr[1]] = true;
         }
     }
+}
+
+void MeshTools::CalculateBoundaryVertices(const Mesh& mesh, std::vector<bool>& boundaryIndicator)
+{
+    std::map<INT2, std::vector<int>> mapEdgeToFace;
+
+    MapEdgeToFace(mesh, mapEdgeToFace);
+
+    CalculateBoundaryVertices(mesh, mapEdgeToFace, boundaryIndicator);
 }
 
 bool MeshTools::IsBoundary(int index, const std::vector<bool>& boundaryIndicator)

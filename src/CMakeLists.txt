@@ -34,6 +34,9 @@ set(IIsrc_CPU_source
     "CurvatureQuadraticFit.cpp"
     "Contour.cpp"
     "AverageFieldProperty.cpp"
+    "AFP_shapes.cpp"
+    "fsolve.cpp"
+    "fsolve_wrapper.cpp"
 )
 
 set(IIsrc_GPU_source 
@@ -85,6 +88,9 @@ set(IIsrc_HEADER
     "CurvatureQuadraticFit.hpp"
     "Contour.h"
     "AverageFieldProperty.h"
+    "AFP_shapes.h"
+    "fsolve.hpp"
+    "fsolve_wrapper.hpp"
 )
 
 target_include_directories(IIsrc

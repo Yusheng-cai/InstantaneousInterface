@@ -6,8 +6,8 @@ MeshGen2d::MeshGen2d(std::string file_name, Real aspect_bound, Real size_bound)
     InputFileReader();
 }
 
-MeshGen2d::MeshGen2d(std::vector<Real2> &vertices, std::vector<INT2> &edges, std::vector<Real2> &seed_point, Real aspect_bound, Real size_bound)
-    : points_(vertices), constraintIndices_(edges), seeds_(seed_point), aspect_bound_(aspect_bound), size_bound_(size_bound)
+MeshGen2d::MeshGen2d(std::vector<Real2> &vertices, std::vector<INT2> &edges, std::vector<Real2> &seed_point, Real aspect_bound, Real size_bound, bool periodic)
+    : points_(vertices), constraintIndices_(edges), seeds_(seed_point), aspect_bound_(aspect_bound), size_bound_(size_bound), isPBC_(periodic)
 {
     numPoints_ = points_.size();
     numEdges_ = constraintIndices_.size();
@@ -182,6 +182,8 @@ void MeshGen2d::checkMaxDistanceBetweenEdges()
     Real max = -std::numeric_limits<Real>::infinity();
     Real min = std::numeric_limits<Real>::infinity();
 
+    std::cout << points_ << std::endl;
+
     for (auto e : constraintIndices_){
         Real2 p1 = points_[e[0]];
         Real2 p2 = points_[e[1]];
@@ -304,6 +306,8 @@ void MeshGen2d::generate()
 
     // update the mesh object
     updateMesh();
+
+    std::cout << "isPBC is " << isPBC() << std::endl;
 
     if (isPBC()){
         MakePeriodic();

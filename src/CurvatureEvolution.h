@@ -38,6 +38,7 @@ class CurvatureEvolution : public MeshRefineStrategy
         void init();
         void update();
         void CleanMesh();
+        void setMeanCurvature(Real meanC) {meanCurvature_ = meanC;}
 
     private:
         std::string curvaturetype_;

@@ -184,7 +184,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
         auto& vertices = mesh_->accessvertices();
 
         // update the vertices 
-        std::cout << "Iteration " << iteration_ << std::endl;
+        //std::cout << "Iteration " << iteration_ << std::endl;
         Real avgE=0.0;
         #pragma omp parallel
         {
@@ -205,12 +205,7 @@ void CurvatureEvolution::refine(Mesh& mesh){
                 if (std::abs(diffkappa) > e){e = std::abs(diffkappa); max_I=j;}
 
                 // update the vertex positions 
-                if (isfixed_[index]){
-                    vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa + StepSize_ * 0.05 * (original_pos_[index] - vertices[index].position_);
-                }
-                else{
-                    vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa;
-                }
+                vertices[index].position_ = vertices[index].position_ + StepSize_ * vertices[index].normals_ * diffkappa;
             }
 
             #pragma omp critical

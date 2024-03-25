@@ -58,6 +58,7 @@ class Mesh
         using refinePtr = std::unique_ptr<MeshRefineStrategy>;
         using INT2  = CommonTypes::index2;
         using INT3  = CommonTypes::index3;
+        using double3 = CommonTypes::double3;
 
         // default constructor and destructor
         Mesh() {};
@@ -73,6 +74,7 @@ class Mesh
                                          * ******** accessing Function **************
                                          * *****************************************/
         std::vector<vertex>& accessvertices() {return vertices_;}
+        std::vector<double3>& accessverticesPos() {return verticesd_;}
         std::vector<triangle>& accesstriangles() {return triangles_;}
         std::vector<Real>& accessTriangleArea() {return triangleArea_;}
         std::vector<Real3>& accessPerVertexDir1() {return PerVertexdir1_;}
@@ -145,6 +147,9 @@ class Mesh
         // vertices and triangles in the mesh 
         std::vector<vertex> vertices_;
         std::vector<triangle> triangles_;
+
+        // store vertex positions in double 
+        std::vector<double3> verticesd_;
 
         // the Areas and normals
         std::vector<Real> triangleArea_;
@@ -219,15 +224,16 @@ namespace MeshTools
     void CalculateVertexNeighbors(const Mesh& mesh, std::vector<std::vector<int>>& neighborIndices);
 
     // map Edge to faces
-    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge, bool assert=true);
+    void MapEdgeToFace(const Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, std::vector<std::vector<INT2>>& MapVertexToEdge, bool assert=true);
 
-    void MapEdgeToFace(Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, bool assert=true);
+    void MapEdgeToFace(const Mesh& mesh, std::map<INT2,std::vector<int>>& magEdgeToFace, bool assert=true);
 
     // map edge to opposing vertices --> needs boundary indicators  
     void MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector<int>>& mapEdgeToFace,std::map<INT2, std::vector<int>>& MapEdgeToOppoVertices);
 
     // find boundary vertices 
     void CalculateBoundaryVertices(const Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator);
+    void CalculateBoundaryVertices(const Mesh& mesh, std::vector<bool>& boundaryIndicator);
 
     // check if point is on boundary
     bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);

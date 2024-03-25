@@ -142,7 +142,7 @@ void UmbrellaSmoothing::prepareImplicitMatrix()
 
     // set and factor the L matrix
     L_.setFromTriplets(triplets_.begin(), triplets_.end());
-    Eigen::SparseMatrix<Real> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
+    Eigen::SparseMatrix<float> I = Eigen::MatrixXf::Identity(vertices.size(), vertices.size()).sparseView();
     L_ = I - lambdadt_*L_;
     solver_.compute(L_);
 }

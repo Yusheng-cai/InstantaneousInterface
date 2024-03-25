@@ -1421,7 +1421,288 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
     MeshTools::writePLY(outputfname, m);
 }
 
-void MeshActions::CurvatureEvolution(CommandLineArguments& cmd)
+void MeshActions::RefineBoundary(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="evolved.ply", FixedIndexFile, neighbors, CurvatureStepsize, k0, maxCurvaturestep="1e5", tolerance, surface_shape_name, boundaryZ_offset;
+    std::unique_ptr<AFP_shape> shape;
+    Real3 box;
+    Real contact_angle_val=-0.5;
+    Real BoundaryStepSize=0.01;
+
+    // initialize evolution
+    refineptr r;
+    ParameterPack EvolutionPack, curvePack, shapePack;
+    bool fairing=false, cleanMesh=false;
+    std::string curve_type="curvefit",debug="false";
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+
+    // use curve fit 
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    if (curve_type == "curvefit"){
+        cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+        // fill parameter pack
+        curvePack.insert("neighbors", neighbors);
+        curvePack.insert("type", "curvefit");
+        curvePack.insert("name", "temp");
+    }
+    else if (curve_type == "jetfit"){
+        std::string MongeCoefficient, degree;
+        cmd.readString("neighbors", CommandLineArguments::Keys::Required, neighbors);
+        cmd.readString("MongeCoefficient", CommandLineArguments::Keys::Required, MongeCoefficient);
+        cmd.readString("degree", CommandLineArguments::Keys::Required, degree);
+
+        curvePack.insert("neighbors", neighbors);
+        curvePack.insert("type", "jetfit");
+        curvePack.insert("name", "temp");
+        curvePack.insert("MongeCoefficient", MongeCoefficient);
+        curvePack.insert("degree", degree);
+    }
+    else{
+        ASSERT((true==false), "The curvature type " << curve_type << " is not valid.");
+    }
+
+    // start reading the step size information etc.
+    cmd.readString("CurvatureStep", CommandLineArguments::Keys::Required, CurvatureStepsize);
+    cmd.readString("k0", CommandLineArguments::Keys::Required, k0);
+    cmd.readString("maxCurvaturestep", CommandLineArguments::Keys::Optional, maxCurvaturestep);
+    cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
+    cmd.readBool("fairing",CommandLineArguments::Keys::Optional, fairing);
+    cmd.readBool("cleanMesh", CommandLineArguments::Keys::Optional, cleanMesh);
+
+    // insert everything into evolution pack.
+    EvolutionPack.insert("Curvature", curvePack);
+    EvolutionPack.insert("name", "refine");
+    EvolutionPack.insert("stepsize", CurvatureStepsize);
+    EvolutionPack.insert("k0", k0);
+    EvolutionPack.insert("maxstep", maxCurvaturestep);
+    EvolutionPack.insert("tolerance", tolerance);
+    EvolutionPack.insert("debug", debug);
+
+    // read the fixed index file
+    if (cmd.readString("fixed_index_file", CommandLineArguments::Keys::Optional, FixedIndexFile)){
+        EvolutionPack.insert("fixed_index_file", FixedIndexFile);
+    }
+        
+    if (cleanMesh){
+        std::string edgelength;
+        cmd.readString("edgeLengthCutoff", CommandLineArguments::Keys::Required, edgelength);
+        EvolutionPack.insert("cleanMesh", "true");
+        EvolutionPack.insert("edgeLengthCutoff", edgelength);
+    }
+
+    if (fairing){
+        std::string fairing_iteration, fairing_step;
+        cmd.readString("fairing_iteration", CommandLineArguments::Keys::Required, fairing_iteration);
+        cmd.readString("fairing_step", CommandLineArguments::Keys::Required, fairing_step);
+        EvolutionPack.insert("fairing", "true");
+        EvolutionPack.insert("fairing_iteration", fairing_iteration);
+        EvolutionPack.insert("fairing_step", fairing_iteration);
+    }
+
+    // initialize shape pack
+
+    cmd.readString("shape", CommandLineArguments::Keys::Required, surface_shape_name);
+    if (surface_shape_name == "superegg"){
+        std::string a,b,n,zmax,a_taper,b_taper,a_alpha,b_alpha;
+        std::vector<std::string> center;
+        bool read;
+        cmd.readValue("a", CommandLineArguments::Keys::Required, a);
+        shapePack.insert("a", a);
+        cmd.readValue("b", CommandLineArguments::Keys::Required, b);
+        shapePack.insert("b", b);
+        cmd.readValue("zmax", CommandLineArguments::Keys::Required, zmax);
+        shapePack.insert("zmax", zmax);
+        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+        shapePack.insert("center", center);
+        read = cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
+        if (read){
+            shapePack.insert("n", n);
+        }
+        read = cmd.readValue("boundaryZ_offset", CommandLineArguments::Keys::Optional, boundaryZ_offset);
+        if (read){
+            shapePack.insert("offset_height", boundaryZ_offset);
+        }
+        read = cmd.readValue("a_taper", CommandLineArguments::Keys::Optional, a_taper);
+        if (read){
+            shapePack.insert("a_taper", a_taper);
+        }
+        read = cmd.readValue("b_taper", CommandLineArguments::Keys::Optional, b_taper);
+        if (read){
+            shapePack.insert("b_taper", b_taper);
+        }
+        read = cmd.readValue("a_alpha", CommandLineArguments::Keys::Optional, a_alpha);
+        if (read){
+            shapePack.insert("a_alpha", a_alpha);
+        }
+        read = cmd.readValue("b_alpha", CommandLineArguments::Keys::Optional, b_alpha);
+        if (read){
+            shapePack.insert("b_alpha", b_alpha);
+        }
+
+        // initialize the shape 
+        shape = std::make_unique<SuperEgg>(shapePack);
+    }
+    else{
+        ASSERT((true == false), "The shape " << surface_shape_name << " is not implemented yet.");
+    }
+
+
+    // read boundary refinement information
+    int maxBoundaryStep, maxKStep=100;
+    Real contact_angle = -0.5, std_limit=1e-3;
+    Real k_step=0.1, k;
+    Real k_tolerance=0.001;
+    k = StringTools::StringToType<Real>(k0);
+    std::string mean_angle_output, kappa_output;
+    bool output_mean_angle=false, output_kappa=false;
+
+    cmd.readValue("BoundaryStep", CommandLineArguments::Keys::Optional, BoundaryStepSize);
+    cmd.readValue("maxBoundaryStep", CommandLineArguments::Keys::Optional, maxBoundaryStep);
+    cmd.readValue("ContactAngle", CommandLineArguments::Keys::Optional, contact_angle);
+    cmd.readValue("std_limit", CommandLineArguments::Keys::Optional, std_limit);
+    cmd.readValue("k_step", CommandLineArguments::Keys::Optional, k_step);
+    cmd.readValue("maxk_step", CommandLineArguments::Keys::Optional, maxKStep);
+    cmd.readValue("k_tolerance", CommandLineArguments::Keys::Optional, k_tolerance);
+    output_mean_angle = cmd.readValue("mean_angle_output", CommandLineArguments::Keys::Optional, mean_angle_output);
+    output_kappa = cmd.readValue("kappa_output", CommandLineArguments::Keys::Optional, kappa_output);
+
+    // refine pointer 
+    MeshRefineStrategyInput input = {{EvolutionPack}};
+    r = refineptr(MeshRefineStrategyFactory::Factory::instance().create("CurvatureEvolution", input));
+
+
+    // read input mesh 
+    Mesh m, original_m;
+    MeshTools::readPLYlibr(inputfname, m);
+    original_m = m;
+    if (isPBC){m.setBoxLength(box);original_m.setBoxLength(box);}
+
+    // boundary information
+    std::vector<bool> boundaryIndicator;
+    MeshTools::CalculateBoundaryVertices(m, boundaryIndicator);
+
+    // first get the curvature to about the value predicted to be -0.5
+    // auto rr = dynamic_cast<CurvatureEvolution*>(r.get());
+    // ASSERT((rr!= nullptr), "Conversion wrong");
+    // rr->setMeanCurvature(k);
+    // rr->refine(original_m);
+
+    std::vector<Real> cangle_list;
+
+    // start iterating
+    for (int i=0;i<maxKStep;i++){
+        // set m back to the original mesh
+        m = original_m;
+
+        // set the curvature to the curvature value
+        auto rr = dynamic_cast<CurvatureEvolution*>(r.get());
+        ASSERT((rr!= nullptr), "Conversion wrong");
+        rr->setMeanCurvature(k);
+        std::cout << "We are at curvature " << k << std::endl;
+
+        // obtain the vertices 
+        auto& vertices = m.accessvertices();
+
+        // whether or not it is converged
+        bool converged = false;
+
+        // refine it first such that it is at that curvature
+        rr->refine(m);
+
+        Real curr_mean = 1e10;
+        Real curr_std  = 1e10;
+        Real mean;
+
+        for (int j=0;j<maxBoundaryStep;j++){
+            cangle_list.clear();
+            for (int k=0;k<boundaryIndicator.size();k++){
+                if (MeshTools::IsBoundary(k, boundaryIndicator)){
+                    double3 v;
+                    Real3 s, t;
+                    v[0] = vertices[k].position_[0];
+                    v[1] = vertices[k].position_[1];
+                    v[2] = vertices[k].position_[2];
+                    shape->CalculateNormalAndTangent(v, t, s);
+
+                    Real cangle = LinAlg3x3::DotProduct(s, vertices[k].normals_);
+                    Real diff   = cangle - contact_angle;
+                    cangle_list.push_back(cangle);
+
+                    vertices[k].position_ = vertices[k].position_ - BoundaryStepSize * diff * t;
+                }
+            }
+            Real var = Algorithm::calculateVariance(cangle_list);
+            mean= Algorithm::calculateMean(cangle_list);
+            Real diff = std::abs(mean - contact_angle);
+
+
+            std::cout << "std = " << std::sqrt(var) << std::endl;
+            std::cout << "mean = " << mean << std::endl;
+
+            // break if the var is small and mean is small 
+            if (std::sqrt(var) < std_limit){
+                if (std::abs(mean - contact_angle) < k_tolerance){
+                    std::cout << "std " << std::sqrt(var) << " is lower than the set value of " << std_limit << " and mean has converged and is " << mean << std::endl;
+                    converged = true;
+                }
+                else{
+                    std::cout << "std " << std::sqrt(var) << " is lower than the set value of " << std_limit << " but mean has not converged and is " << mean << std::endl;
+                }
+
+                break;
+            }
+
+            // update the current mean
+            if (std::sqrt(var) > curr_std){
+                std::cout << "std starts to increase" << std::endl;
+                break;
+            }
+
+            curr_std = std::sqrt(var);
+
+            // refine again after updating the boundary
+            rr->refine(m);
+        }
+
+        // quit iteration if converged = true
+        if (converged == true){
+            std::cout << "Converged." << std::endl;
+            break;
+        }
+
+        std::cout << "mean - contact angle = " << mean - contact_angle << std::endl;
+        k +=  (mean - contact_angle) * k_step;
+    }
+
+    // if curvature, write curvature
+    if (output_kappa){
+        std::ofstream ofs;
+        ofs.open(kappa_output);
+        ofs << k << "\n";
+        ofs.close();
+    }
+
+    // if mean_angle, output mean angle
+    const auto& v = m.getvertices();
+    if (output_mean_angle){
+        std::ofstream ofs;
+        ofs.open(mean_angle_output);
+        int ind = 0;
+        for (int i=0;i<boundaryIndicator.size();i++){
+            if (MeshTools::IsBoundary(i, boundaryIndicator)){
+                ofs << v[i].position_[0] << " " << v[i].position_[1] << " " << v[i].position_[2] << " " << cangle_list[ind] << "\n"; 
+                ind++;
+            }
+        }
+        ofs.close();
+    }
+    
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::CurvatureEvolution1(CommandLineArguments& cmd)
 {
     std::string inputfname, outputfname="evolved.ply", FixedIndexFile, neighbors, stepsize, k0, maxstep="1e5", tolerance;
     Real3 box;
@@ -2002,7 +2283,7 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
             for (int i=0;i<verticesbefore;i++){
                 if (MeshTools::IsBoundary(i, boundaryIndicator)){
                     // high importance 
-                    importance[i] = 100;
+                    importance[i] = -1;
                 }
             }
         }
@@ -2054,6 +2335,78 @@ void MeshActions::MeshCleanup(CommandLineArguments& cmd){
     MeshTools::writePLY(outputfname, m);
 }
 
+void MeshActions::calculateSurfaceProperties(CommandLineArguments& cmd){
+    // declare the shape 
+    std::unique_ptr<AFP_shape> shape;
+    std::string inputfname, outputfname;
+    std::string surface_shape_name;
+    ParameterPack param;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("shape", CommandLineArguments::Keys::Required, surface_shape_name);
+
+    if (surface_shape_name == "superegg"){
+        std::string a,b,n,zmax,a_taper,b_taper,a_alpha,b_alpha;
+        std::vector<std::string> center;
+        bool read;
+        cmd.readValue("a", CommandLineArguments::Keys::Required, a);
+        param.insert("a", a);
+        cmd.readValue("b", CommandLineArguments::Keys::Required, b);
+        param.insert("b", b);
+        cmd.readValue("zmax", CommandLineArguments::Keys::Required, zmax);
+        param.insert("zmax", zmax);
+        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+        param.insert("center", center);
+        read = cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
+        if (read){
+            param.insert("n", n);
+        }
+        read = cmd.readValue("a_taper", CommandLineArguments::Keys::Optional, a_taper);
+        if (read){
+            param.insert("a_taper", a_taper);
+        }
+        read = cmd.readValue("b_taper", CommandLineArguments::Keys::Optional, b_taper);
+        if (read){
+            param.insert("b_taper", b_taper);
+        }
+        read = cmd.readValue("a_alpha", CommandLineArguments::Keys::Optional, a_alpha);
+        if (read){
+            param.insert("a_alpha", a_alpha);
+        }
+        read = cmd.readValue("b_alpha", CommandLineArguments::Keys::Optional, b_alpha);
+        if (read){
+            param.insert("b_alpha", b_alpha);
+        }
+
+        // initialize the shape 
+        shape = std::make_unique<SuperEgg>(param);
+    }
+    else{
+        ASSERT((true == false), "The shape " << surface_shape_name << " is not implemented yet.");
+    }
+
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    std::vector<bool> boundaryIndicator;
+    MeshTools::CalculateBoundaryVertices(m, boundaryIndicator);
+    auto& vertices = m.accessverticesPos();
+    std::vector<Real3> normals, tangents;
+
+    for (auto&& a: Algorithm::enumerate(vertices)) {
+        int index = std::get<0>(a);
+        double3 pos = std::get<1>(a);
+
+        if (MeshTools::IsBoundary(index, boundaryIndicator)){
+            Real3 tangent, normal;
+            shape->CalculateNormalAndTangent(pos, tangent, normal);
+            tangents.push_back(tangent);
+            normals.push_back(normal);
+        }
+    }
+}
+
 void MeshActions::FlattenMesh(CommandLineArguments& cmd){
     std::string inputfname, outputfname="flat.ply";
     int index=2;
@@ -2075,6 +2428,7 @@ void MeshActions::FlattenMesh(CommandLineArguments& cmd){
 
 void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     std::string inputfname, outputfname="gen.ply", boundaryfname;
+    std::vector<std::string> boundaryfnames;
     Real2 Box;
     Real aspect_bound=0.125, size_bound=0.5;
     int NumBoundary;
@@ -2083,7 +2437,7 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     INT2 index = {{0,1}};
 
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readString("boundaryfile", CommandLineArguments::Keys::Required, boundaryfname);
+    cmd.readVector("boundaryfiles", CommandLineArguments::Keys::Required, boundaryfnames);
     cmd.readBool("isBoundingBox", CommandLineArguments::Keys::Optional, isBoundingBox);
     cmd.readValue("aspect_bound", CommandLineArguments::Keys::Optional, aspect_bound);
     cmd.readValue("size_bound", CommandLineArguments::Keys::Optional, size_bound);
@@ -2099,46 +2453,58 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     }
 
     // copy the boundary points 
-    std::vector<std::vector<Real>> temp;
     std::vector<Real2> points;
-    Real2 centroid={{0,0}};
     std::vector<INT2> edges;
     std::vector<Real> edgeLength;
     std::vector<Real2> seed;
-    StringTools::ReadTabulatedData(boundaryfname, temp);
-    ASSERT((temp.size() != 0), "The boundary file provided contains no data.");
 
-    // first let's check that none of the edges overlap
-    int i=0;
-    for (int i=0;i<temp.size();i++){
-        Real2 pos;
-        INT2 e;
-        pos[0] = temp[i][index[0]];
-        pos[1] = temp[i][index[1]];
-        centroid = centroid + pos;
-        points.push_back(pos);
-    }
+    for (auto f : boundaryfnames){
+        // define a variable that holds the centroid of the shape
+        Real2 centroid={{0,0}};
 
-    // find the centroid of the points 
-    centroid = centroid / temp.size();
-    if (isBoundingBox){
-        seed.push_back(centroid);
-    }
+        // a temporary vector to store data
+        std::vector<std::vector<Real>> temp;
+        StringTools::ReadTabulatedData(f, temp);
+        ASSERT((temp.size() != 0), "The boundary file provided contains no data.");
 
-    // get rid of bad edges
-    for (int i=0;i<points.size();i++){
-        Real2 diff = points[i] - points[(i+1) % points.size()];
-        Real sum=0;
-        for (int j=0;j<2;j++){
-            sum += diff[j] * diff[j];
+        // write the data in temp into points 
+        int points_initial_size = points.size();
+        for (int i=0;i<temp.size();i++){
+            Real2 pos;
+            INT2 e;
+            pos[0] = temp[i][index[0]];
+            pos[1] = temp[i][index[1]];
+            centroid = centroid + pos;
+            points.push_back(pos);
         }
-        if (sum > 1e-6){
-            INT2 e = {{i,(i+1) % points.size()}};
-            edges.push_back(e);
-            edgeLength.push_back(std::sqrt(sum));
+
+        // find the centroid of the points 
+        centroid = centroid / temp.size();
+        if (isBoundingBox){
+            seed.push_back(centroid);
         }
+
+        // get rid of bad edges
+        for (int i=points_initial_size;i<points.size();i++){
+            int next = (i + 1) % points.size();
+            if (next == 0){
+                next += points_initial_size;
+            }
+            Real2 diff = points[i] - points[next];
+            Real sum=0;
+            for (int j=0;j<2;j++){
+                sum += diff[j] * diff[j];
+            }
+            if (sum > 1e-6){
+                INT2 e = {{i,next}};
+                edges.push_back(e);
+                edgeLength.push_back(std::sqrt(sum));
+            }
+        }
+
+        Real minEdgeLength = Algorithm::min(edgeLength);
     }
-    Real minEdgeLength = Algorithm::min(edgeLength);
+    std::cout << edges << std::endl;
 
     if (isBoundingBox){
         // construct the box
@@ -2192,7 +2558,7 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     }
 
     // constrct the generation 
-    MeshGen2d meshgen(points, edges, seed, aspect_bound, size_bound);
+    MeshGen2d meshgen(points, edges, seed, aspect_bound, size_bound, periodic);
     if (periodic){
         meshgen.setBoxLength(Box);
     }

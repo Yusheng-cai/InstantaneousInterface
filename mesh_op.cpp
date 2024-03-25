@@ -136,7 +136,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::DecimateDegenerateTriangles(cmd);}, \
                                            mapF, mapU);
     RegisterAction("CurvatureEvolution", "-op CurvatureEvolution -i input.ply -box[optional] x y z -o output.ply -k0 kappa -stepsize size -maxiter max -neighbors[int] -tol tolerance", \
-                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CurvatureEvolution(cmd);}, \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CurvatureEvolution1(cmd);}, \
                                            mapF, mapU);
     RegisterAction("FindIsolatedFace", "-op FindIsolatedFace -i input.ply -o isolated.out", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::FindIsolatedFace(cmd);},\
@@ -197,5 +197,11 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
                                            mapF, mapU);
     RegisterAction("FaceNormal", "-op FaceNormal -i input.ply -o output.out", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::FindFaceNormals(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("SurfaceProperty", "-op SurfaceProperty -i input.ply -shape superegg", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::calculateSurfaceProperties(cmd);},\
+                                           mapF, mapU);
+    RegisterAction("RefineBoundary", "-op RefineBoundary -i input.ply -neighbors -CurvatureStep -k0 -maxCurvatureStep -tolerance -shape -BoundaryStep", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::RefineBoundary(cmd);}, \
                                            mapF, mapU);
 }

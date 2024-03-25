@@ -26,6 +26,7 @@
 #include "CurvatureJetFit.h"
 #include "tools/InputParser.h"
 #include "tools/CommonOperations.h"
+#include "CurvatureEvolution.h"
 #include "tools/Algorithm.h"
 #include "LinAlgTools.h"
 #include "Bin.h"
@@ -34,6 +35,7 @@
 #include "ObtuseTriangleRemoval.h"
 #include "LongEdgeRemoval.h"
 #include "ICP/ICP.h"
+#include "AFP_shapes.h"
 
 namespace MeshActions
 {
@@ -44,6 +46,10 @@ namespace MeshActions
     using Real2= CommonTypes::Real2;
     using curveptr = std::unique_ptr<Curvature>;
     using refineptr= std::unique_ptr<MeshRefineStrategy>;
+    using double3= CommonTypes::double3;
+
+    // BoundaryRefinement
+    void RefineBoundary(CommandLineArguments& cmd);
 
     // translate a mesh
     void TranslateMesh(CommandLineArguments& cmd);
@@ -118,7 +124,7 @@ namespace MeshActions
     void DecimateDegenerateTriangles(CommandLineArguments& cmd);
 
     // curvature evolution --> only use curvefit
-    void CurvatureEvolution(CommandLineArguments& cmd);
+    void CurvatureEvolution1(CommandLineArguments& cmd);
 
     // find isolated triangle 
     void FindIsolatedFace(CommandLineArguments& cmd);
@@ -167,4 +173,7 @@ namespace MeshActions
 
     // find face normals
     void FindFaceNormals(CommandLineArguments& cmd);
+
+    // calculate the surface properties at which the interface is pinned
+    void calculateSurfaceProperties(CommandLineArguments& cmd);
 };

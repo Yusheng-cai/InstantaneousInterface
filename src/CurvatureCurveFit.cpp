@@ -37,8 +37,9 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
 
     // calculate neighbor vertices that are N vertex away 
     std::vector<std::vector<int>> NeighborIndicesNVertex;
-    if (extend_boundary_){Graph::BFS_kring_neighbor(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);}
-    else{Graph::BFS_kring_neighbor_boundary(VertexNeighbors, boundary_indicator, NumNeighbors_, boundary_neighbors_, NeighborIndicesNVertex);}
+    Graph::getNearbyIndicesNVertexAway(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);
+    // if (! extend_boundary_){Graph::BFS_kring_neighbor(VertexNeighbors, NumNeighbors_, NeighborIndicesNVertex);}
+    // else{Graph::BFS_kring_neighbor_boundary(VertexNeighbors, boundary_indicator, NumNeighbors_, boundary_neighbors_, NeighborIndicesNVertex);}
 
     // the reference direction of the normal vector is the z vector
     Real3 referenceDir = {{0,0,1}};
@@ -61,6 +62,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         }
 
         // How to rotate normal vector to be z vector
+        //ASSERT((std::abs(LinAlg3x3::DotProduct(v.normals_ , referenceDir) + 1) > 1e-5), "Normals too close to reference");
         Matrix rotationMat = LinAlg3x3::GetRotationMatrix(v.normals_, referenceDir); 
         Matrix revrotMat   = LinAlg3x3::GetRotationMatrix(referenceDir, v.normals_);
         Real3 vector       = LinAlg3x3::MatrixDotVector(rotationMat, v.normals_);

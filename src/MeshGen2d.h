@@ -39,7 +39,7 @@ class MeshGen2d
         using INT3     = CommonTypes::index3;
         
         MeshGen2d(std::string file, Real aspect_bound=0.125, Real size_bound=1.0);
-        MeshGen2d(std::vector<Real2>& vertices, std::vector<INT2>& edges, std::vector<Real2>& seed_point, Real aspect_bound=0.125, Real size_bound=1.0);
+        MeshGen2d(std::vector<Real2>& vertices, std::vector<INT2>& edges, std::vector<Real2>& seed_point, Real aspect_bound=0.125, Real size_bound=1.0,  bool periodic=true);
         void setBoxLength(Real2& box){box_length_=box; isPBC_=true;}
         void generate();
 
