@@ -15,6 +15,7 @@ namespace CommonTypes{
     using index2        = std::array<int,2>;
     using index3        = std::array<int,3>;
     using VectorReal3   = std::vector<Real3>;
+    using double3       = std::array<double,3>;
 
     template<typename T>
     using VectorofVector= std::vector<std::vector<T>>;

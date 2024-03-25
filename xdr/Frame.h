@@ -10,7 +10,7 @@
 class Frame
 {
     public:
-        using Real  = float;
+        using Real  = CommonTypes::Real;
         using Real3 = std::array<Real,3>; 
         using VectorReal3 = std::vector<Real3>;
         using VectorInt = std::vector<int>;

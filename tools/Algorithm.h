@@ -20,6 +20,12 @@ namespace Algorithm
     template <typename T, std::size_t dim>
     int argmax(std::array<T,dim>& arr);
 
+    template<typename T>
+    T calculateVariance(const std::vector<T>& data);
+
+    template <typename T>
+    T calculateMean(const std::vector<T>& data);
+
     template <typename T>
     int argmin(std::vector<T>& vec);
 
@@ -78,6 +84,10 @@ namespace Algorithm
 
     template <typename T, typename TIter=decltype(std::begin(std::declval<T>())), typename = decltype(std::end(std::declval<T>()))>
     constexpr auto enumerate(T && iterable);
+
+    template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+    }
 };
 
 template<typename T>
@@ -278,4 +288,28 @@ constexpr auto Algorithm::enumerate(T && iterable)
         auto end() { return iterator{ 0, std::end(iterable) }; }
     };
     return iterable_wrapper{ std::forward<T>(iterable) };
+}
+
+template <typename T>
+T Algorithm::calculateVariance(const std::vector<T>& data)
+{
+    if (data.size() <= 1) return 0.0;
+
+    T mean = std::accumulate(data.begin(), data.end(), 0.0) / data.size();
+    T variance = 0.0;
+
+    for (const T& value : data) {
+        variance += std::pow(value - mean, 2);
+    }
+
+    variance /= data.size();
+    return variance;
+}
+
+template <typename T>
+T Algorithm::calculateMean(const std::vector<T>& data)
+{
+    T mean = std::accumulate(data.begin(), data.end(), 0.0) / data.size();
+
+    return mean;
 }

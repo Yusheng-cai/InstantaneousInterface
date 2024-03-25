@@ -94,7 +94,7 @@ void XtcFile::readFrame(int FrameNum)
     xdr_seek(file_,offsets_[FrameNum], 0);
 
     // read the xtc file
-    int ret = read_xtc(file_, natoms_, &step, &time, box_, positions_ptr, &precision_);
+    int ret = read_xtc(file_, natoms_, &step, (float*)&time, box_, positions_ptr, (float*)&precision_);
     ASSERT((ret == exdrOK || ret == exdrENDOFFILE), "The reading operation in xtc file is not sucessful.");
 
     for(int i=0;i<3;i++)

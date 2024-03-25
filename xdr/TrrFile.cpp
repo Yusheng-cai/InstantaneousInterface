@@ -54,7 +54,7 @@ void TrrFile::readFrame(int FrameNum)
     int has_prop;
 
     xdr_seek(file_, offsets_[FrameNum], 0);
-    int ret = read_trr(file_, natoms_, &step, &time, &lambda, box, position_ptr, velocities_ptr, forces_ptr, &has_prop);
+    int ret = read_trr(file_, natoms_, &step, (float*)&time, (float*)&lambda, box, position_ptr, velocities_ptr, forces_ptr, &has_prop);
 
     frame_.setTime(time);
     frame_.setStep(step);
