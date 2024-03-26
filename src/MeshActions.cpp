@@ -1589,6 +1589,7 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
     // rr->refine(original_m);
 
     std::vector<Real> cangle_list;
+    bool exceeded_shape=false;
 
     // start iterating
     for (int i=0;i<maxKStep;i++){
@@ -1616,6 +1617,8 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
 
         for (int j=0;j<maxBoundaryStep;j++){
             cangle_list.clear();
+            std::vector<Real3> s_vec;
+            std::vector<Real3> n_vec;
             for (int k=0;k<boundaryIndicator.size();k++){
                 if (MeshTools::IsBoundary(k, boundaryIndicator)){
                     double3 v;
@@ -1623,15 +1626,32 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
                     v[0] = vertices[k].position_[0];
                     v[1] = vertices[k].position_[1];
                     v[2] = vertices[k].position_[2];
-                    shape->CalculateNormalAndTangent(v, t, s);
+
+                    // check if we can calculate the normal and tangent
+                    bool b =shape->CalculateNormalAndTangent(v, t, s); 
+
+                    // if not, then we set the exceed_shape to be true
+                    if (! b){
+                        exceeded_shape = true;
+                        break;
+                    }
 
                     Real cangle = LinAlg3x3::DotProduct(s, vertices[k].normals_);
                     Real diff   = cangle - contact_angle;
                     cangle_list.push_back(cangle);
+                    s_vec.push_back(s);
+                    n_vec.push_back(vertices[k].normals_);
 
+                    // update the vertices by the tangent 
                     vertices[k].position_ = vertices[k].position_ - BoundaryStepSize * diff * t;
                 }
             }
+
+            if (exceeded_shape){
+                std::cout << "Failed to find the solution." << std::endl;
+                break;
+            }
+
             Real var = Algorithm::calculateVariance(cangle_list);
             mean= Algorithm::calculateMean(cangle_list);
             Real diff = std::abs(mean - contact_angle);
@@ -1663,6 +1683,10 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
 
             // refine again after updating the boundary
             rr->refine(m);
+        }
+
+        if (exceeded_shape){
+            break;
         }
 
         // quit iteration if converged = true
