@@ -65,7 +65,7 @@ SuperEgg::double3 SuperEgg::dr_du(double u, double v){
 
 
 
-void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+bool SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
     // capturing guess by value, func by reference
     // auto f = [this, point, zdir](Real& x, Real& fx){
     //     fx = this->bBulging(point[zdir] - 1 + 0.864) * Algorithm::sgn(std::sin(x)) * std::pow(std::abs(std::sin(x)), 2.0 / this->getn());
@@ -88,6 +88,9 @@ void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, R
 
     // first get a good guess of what u and v are
     Real u = std::atan2(point[ydir] - center_[1], point[xdir] - center_[0]);
+    if (point[zdir] + offset_height > zmax_){
+        return false;
+    }
     Real v = std::asin((point[zdir] + offset_height) / zmax_);
 
     // have a list of u solutions
@@ -97,7 +100,7 @@ void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, R
     std::vector<double3> pos_s;
 
     // solve y first 
-    FunctorY funcy(point, this);
+    FunctorY funcy(point, this, xdir, ydir, zdir);
     Eigen::HybridNonLinearSolver<FunctorY> NL_solver(funcy);
     Eigen::VectorXd y1,y2;
     double3 y1_pos, y2_pos;
@@ -130,7 +133,7 @@ void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, R
     // std::cout << "err_y2 = " << err_y2 << std::endl;
 
     // solve x 
-    FunctorX funcx(point,this);
+    FunctorX funcx(point,this, xdir, ydir, zdir);
     Eigen::HybridNonLinearSolver<FunctorX> NL_solverX(funcx);
     Eigen::VectorXd x1,x2;
     double3 x1_pos, x2_pos;
@@ -165,8 +168,6 @@ void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, R
     // set u 
     int index = Algorithm::argmin(err_list);
     u = u_solutions[index];
-
-    //std::cout << "min_err = " << err_list[index] << std::endl;
 
 
     // // // initialize the position matrix 
@@ -207,5 +208,5 @@ void SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, R
     tangent[ydir] = -tang[1];
     tangent[zdir] = -tang[2];
 
-    //std::cout << "tangent = " << tangent << std::endl;
+    return true;
 }

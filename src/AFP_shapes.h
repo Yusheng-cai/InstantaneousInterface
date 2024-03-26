@@ -19,7 +19,7 @@ class AFP_shape {
     public:
         AFP_shape(const ParameterPack& pack){};
 
-        virtual void CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0; 
+        virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0; 
 };
 
 class SuperEgg : public AFP_shape{
@@ -38,7 +38,7 @@ class SuperEgg : public AFP_shape{
         double db_dz(double z);
 
         double3 calculatePos(double u, double v);
-        virtual void CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
+        virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
 
         double getn() {return (float)n_;}
         double2 getcenter() {return center_;}
@@ -48,16 +48,19 @@ class SuperEgg : public AFP_shape{
         struct FunctorY{
             double3 point_;
             SuperEgg* se_;
-            FunctorY(double3 point, SuperEgg* se) : point_(point), se_(se) {};
+            int xdir_, ydir_, zdir_;
+            FunctorY(double3 point, SuperEgg* se, int xdir, int ydir, int zdir) : point_(point), se_(se), xdir_(xdir), ydir_(ydir), zdir_(zdir) {};
 
             int operator()(Eigen::VectorXd &b, Eigen::VectorXd &fvec){
-                fvec[0] = se_->bBulging(point_[0] + se_->offset_height) * Algorithm::sgn(std::sin(b[0])) * std::pow(std::abs(std::sin(b[0])), 2.0/se_->getn()) - (point_[2] - se_->getcenter()[1]);
+                fvec[0] = se_->bBulging(point_[zdir_] + se_->offset_height) * Algorithm::sgn(std::sin(b[0])) * std::pow(std::abs(std::sin(b[0])), 2.0/se_->getn()) \
+                - (point_[ydir_] - se_->getcenter()[1]);
 
                 return 0;
             }
             
             int operator()(Eigen::VectorXd &b, Eigen::VectorXd &fvec) const{
-                fvec[0] = se_->bBulging(point_[0] + se_->offset_height) * Algorithm::sgn(std::sin(b[0])) * std::pow(std::abs(std::sin(b[0])), 2.0/se_->getn()) - (point_[2] - se_->getcenter()[1]);
+                fvec[0] = se_->bBulging(point_[zdir_] + se_->offset_height) * Algorithm::sgn(std::sin(b[0])) * std::pow(std::abs(std::sin(b[0])), 2.0/se_->getn()) \
+                - (point_[ydir_] - se_->getcenter()[1]);
 
                 return 0;
             }
@@ -66,16 +69,19 @@ class SuperEgg : public AFP_shape{
         struct FunctorX{
             double3 point_;
             SuperEgg* se_;
-            FunctorX(double3 point, SuperEgg* se) : point_(point), se_(se) {};
+            int xdir_, ydir_, zdir_;
+            FunctorX(double3 point, SuperEgg* se, int xdir, int ydir, int zdir) : point_(point), se_(se), xdir_(xdir), ydir_(ydir), zdir_(zdir) {};
 
             int operator()(Eigen::VectorXd &b, Eigen::VectorXd &fvec){
-                fvec[0] = se_->aBulging(point_[0] + se_->offset_height) * Algorithm::sgn(std::cos(b[0])) * std::pow(std::abs(std::cos(b[0])), 2.0/se_->getn()) - (point_[1] - se_->getcenter()[0]);
+                fvec[0] = se_->aBulging(point_[zdir_] + se_->offset_height) * Algorithm::sgn(std::cos(b[0])) * std::pow(std::abs(std::cos(b[0])), 2.0/se_->getn()) \
+                - (point_[xdir_] - se_->getcenter()[0]);
 
                 return 0;
             }
             
             int operator()(Eigen::VectorXd &b, Eigen::VectorXd &fvec) const{
-                fvec[0] = se_->aBulging(point_[0] + se_->offset_height) * Algorithm::sgn(std::cos(b[0])) * std::pow(std::abs(std::cos(b[0])), 2.0/se_->getn()) - (point_[1] - se_->getcenter()[0]);
+                fvec[0] = se_->aBulging(point_[zdir_] + se_->offset_height) * Algorithm::sgn(std::cos(b[0])) * std::pow(std::abs(std::cos(b[0])), 2.0/se_->getn()) \
+                - (point_[xdir_] - se_->getcenter()[0]);
 
                 return 0;
             }
