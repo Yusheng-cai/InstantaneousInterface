@@ -1675,10 +1675,10 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
             }
 
             // update the current mean
-            // if (std::sqrt(var) > curr_std){
-            //    std::cout << "std starts to increase" << std::endl;
-            //    break;
-            // }
+            if (std::sqrt(var) > curr_std){
+               std::cout << "std starts to increase" << std::endl;
+               break;
+            }
 
             curr_std = std::sqrt(var);
 
