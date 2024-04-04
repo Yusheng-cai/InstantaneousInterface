@@ -1621,8 +1621,8 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
             std::vector<Real3> n_vec;
             for (int k=0;k<boundaryIndicator.size();k++){
                 if (MeshTools::IsBoundary(k, boundaryIndicator)){
-                    double3 v;
-                    Real3 s, t;
+                    double3 v, up_v, down_v;
+                    Real3 s, t, up_t, up_s, down_t, down_s;
                     v[0] = vertices[k].position_[0];
                     v[1] = vertices[k].position_[1];
                     v[2] = vertices[k].position_[2];
@@ -1643,6 +1643,7 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
                     n_vec.push_back(vertices[k].normals_);
 
                     // update the vertices by the tangent 
+                    // move up in t
                     vertices[k].position_ = vertices[k].position_ - BoundaryStepSize * diff * t;
                 }
             }
@@ -1674,10 +1675,10 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
             }
 
             // update the current mean
-            if (std::sqrt(var) > curr_std){
-                std::cout << "std starts to increase" << std::endl;
-                break;
-            }
+            // if (std::sqrt(var) > curr_std){
+            //    std::cout << "std starts to increase" << std::endl;
+            //    break;
+            // }
 
             curr_std = std::sqrt(var);
 
@@ -2410,27 +2411,30 @@ void MeshActions::calculateSurfaceProperties(CommandLineArguments& cmd){
         ASSERT((true == false), "The shape " << surface_shape_name << " is not implemented yet.");
     }
 
-
-    Mesh m;
-    MeshTools::readPLYlibr(inputfname, m);
-    std::vector<bool> boundaryIndicator;
-    MeshTools::CalculateBoundaryVertices(m, boundaryIndicator);
-    auto& vertices = m.accessverticesPos();
+    Real num_Steps = 100;
+    Real v_step = Constants::PI / (2 * num_Steps);
     std::vector<Real3> normals, tangents;
+    std::vector<double3> pos;
 
-    for (auto&& a: Algorithm::enumerate(vertices)) {
-        int index = std::get<0>(a);
-        double3 pos = std::get<1>(a);
-
-        if (MeshTools::IsBoundary(index, boundaryIndicator)){
-            Real3 tangent, normal;
-            shape->CalculateNormalAndTangent(pos, tangent, normal);
-            tangents.push_back(tangent);
-            normals.push_back(normal);
-        }
+    for (float v = 0; v < Constants::PI / 2; v += v_step){
+        Real3 tangent, normal;
+        shape->CalculateNormalAndTangent(0, v, tangent, normal, 0, 1, 2);
+        pos.push_back(shape->calculatePos(0,v));
+        normals.push_back(normal);
+        tangents.push_back(tangent);
     }
+
+    std::ofstream ofs;
+    ofs.open("output.out");
+    for (int i=0;i<normals.size();i++){
+        ofs << pos[i][0] << " " << pos[i][1] << " " << pos[i][2] << " " <<  \
+               normals[i][0] << " " << normals[i][1] << " " << normals[i][2] << \
+         " " << tangents[i][0] << " " << tangents[i][1] << " " << tangents[i][2] << "\n";
+    }
+    ofs.close();
 }
 
+    
 void MeshActions::FlattenMesh(CommandLineArguments& cmd){
     std::string inputfname, outputfname="flat.ply";
     int index=2;
@@ -2456,6 +2460,7 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     Real2 Box;
     Real aspect_bound=0.125, size_bound=0.5;
     int NumBoundary;
+    Real height=1.0;
     bool periodic=true;
     bool isBoundingBox=true;
     INT2 index = {{0,1}};
@@ -2466,6 +2471,7 @@ void MeshActions::ConformingTriangulations(CommandLineArguments& cmd){
     cmd.readValue("aspect_bound", CommandLineArguments::Keys::Optional, aspect_bound);
     cmd.readValue("size_bound", CommandLineArguments::Keys::Optional, size_bound);
     cmd.readBool("periodic", CommandLineArguments::Keys::Optional, periodic);
+    cmd.readValue("height", CommandLineArguments::Keys::Optional, height);
 
     if (periodic){
         cmd.readArray("box", CommandLineArguments::Keys::Required, Box);

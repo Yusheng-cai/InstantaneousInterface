@@ -236,8 +236,8 @@ void CurvatureEvolution::refine(Mesh& mesh){
             break;
         }
 
-        std::cout << "Max error is " << maxerr << std::endl;
-        std::cout << "average error is " << err_ << "\n";
+        //std::cout << "Max error is " << maxerr << std::endl;
+        //std::cout << "average error is " << err_ << "\n";
 
         // update the normals as well 
         mesh_->CalcVertexNormals();

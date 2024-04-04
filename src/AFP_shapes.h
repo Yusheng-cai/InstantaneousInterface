@@ -19,7 +19,10 @@ class AFP_shape {
     public:
         AFP_shape(const ParameterPack& pack){};
 
+        virtual double3 calculatePos(double u, double v)=0;
+
         virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0; 
+        virtual bool CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0;
 };
 
 class SuperEgg : public AFP_shape{
@@ -37,8 +40,9 @@ class SuperEgg : public AFP_shape{
         double da_dz(double z);
         double db_dz(double z);
 
-        double3 calculatePos(double u, double v);
+        virtual double3 calculatePos(double u, double v) override;
         virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
+        virtual bool CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
 
         double getn() {return (float)n_;}
         double2 getcenter() {return center_;}

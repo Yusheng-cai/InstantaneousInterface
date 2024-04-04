@@ -12,7 +12,6 @@ SuperEgg::SuperEgg(const ParameterPack& pack) : AFP_shape(pack){
     pack.ReadNumber("b_alpha", ParameterPack::KeyType::Optional, b_alpha_);
     pack.ReadArrayNumber("center", ParameterPack::KeyType::Required, center_);
     pack.ReadNumber("offset_height", ParameterPack::KeyType::Optional, offset_height);
-
 }
 
 double SuperEgg::aBulging(double z){
@@ -62,6 +61,49 @@ SuperEgg::double3 SuperEgg::dr_du(double u, double v){
 
     return drdu;
 }
+
+bool SuperEgg::CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+    // // // initialize the position matrix 
+    std::vector<std::vector<double3>> pos(3, std::vector<double3>(3,{0,0,0}));
+    // first find the zenithal and azimuthal 
+    std::vector<double> ulist = {u - 0.01f, u , u + 0.01f};
+    std::vector<double> vlist = {v - 0.01f, v , v + 0.01f};
+
+    // matrix goes like
+    // (v-1, u-1), (v-1, u), (v-1, u+1)
+    // (v , u-1), (v, u), (v, u+1)
+    // (v+1, u-1), (v+1, u), (v+1, u+1)
+    
+    for (int i=0;i<ulist.size();i++){
+        for (int j=0;j<vlist.size();j++){
+            pos[j][i] = calculatePos(ulist[i], vlist[j]);
+        }
+    }
+
+
+    // these give the dr/du, dr/dv
+    Real3 drdu, drdv;
+    for (int i=0;i<3;i++){
+        drdu[i] = 0.5 * (pos[1][0][i] - pos[1][2][i]);
+        drdv[i] = 0.5 * (pos[0][1][i] - pos[2][1][i]);
+    }
+
+
+    Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
+    LinAlg3x3::normalize(norm);
+    normal[xdir] = norm[0];
+    normal[ydir] = norm[1];
+    normal[zdir] = norm[2];
+
+    Real3 tang = drdv;
+    LinAlg3x3::normalize(tang);
+    tangent[xdir] = -tang[0];
+    tangent[ydir] = -tang[1];
+    tangent[zdir] = -tang[2];
+
+    return true;
+}
+
 
 
 
