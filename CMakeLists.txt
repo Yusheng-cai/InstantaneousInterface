@@ -75,6 +75,7 @@ add_subdirectory(tools)
 add_subdirectory(parallel)
 add_subdirectory(xdr)
 add_subdirectory(test)
+add_subdirectory(cmc_surface)
 #add_subdirectory(ModelViewer)
 
 add_executable(InstantaneousInterface main.cpp)
@@ -85,8 +86,8 @@ target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
 target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
 #target_include_directories(mesh_display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
 
-target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel)
-target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel)
+target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel IIcmc_surface)
+target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel IIcmc_surface)
 #target_link_libraries(mesh_display PUBLIC IIxdr IIsrc IItools IIparallel IIModelViewer ${GLFW3_LIBRARY})
 
 
