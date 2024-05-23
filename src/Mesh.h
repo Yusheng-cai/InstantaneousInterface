@@ -321,4 +321,15 @@ namespace MeshTools
     // mesh plane 
     void TriangleCases(std::vector<INT3>& signs, std::vector<bool>& basic, std::vector<bool>& one_vertex, std::vector<bool>& one_edge);
     void MeshPlaneIntersection(Mesh& m, Real3& point, Real3& normal);
+
+    // calculate the volume enclosed underneath an interface
+    Real CalculateVolumeEnclosedByInterface(Mesh& m, Real offset_height, int projected_plane=0);
+    
+    void CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::vector<bool>& boundaryIndicator, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi);
+
+    void CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& MapVertexToFace, std::vector<Real3>& VolumeDerivatives);
+
+    Real CalculateVolumeDivergenceThoerem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal);
+
+    Real CalculateArea(Mesh& m, std::vector<Real>& vecArea, std::vector<Real3>& Normal);
 };

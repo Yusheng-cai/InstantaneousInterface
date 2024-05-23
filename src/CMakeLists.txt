@@ -37,6 +37,7 @@ set(IIsrc_CPU_source
     "AFP_shapes.cpp"
     "fsolve.cpp"
     "fsolve_wrapper.cpp"
+    "InterfacialFE_minimization.cpp"
 )
 
 set(IIsrc_GPU_source 
@@ -91,6 +92,7 @@ set(IIsrc_HEADER
     "AFP_shapes.h"
     "fsolve.hpp"
     "fsolve_wrapper.hpp"
+    "InterfacialFE_minimization.h"
 )
 
 target_include_directories(IIsrc

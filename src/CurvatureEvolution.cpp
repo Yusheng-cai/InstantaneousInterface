@@ -184,7 +184,6 @@ void CurvatureEvolution::refine(Mesh& mesh){
         auto& vertices = mesh_->accessvertices();
 
         // update the vertices 
-        //std::cout << "Iteration " << iteration_ << std::endl;
         Real avgE=0.0;
         #pragma omp parallel
         {
@@ -236,8 +235,8 @@ void CurvatureEvolution::refine(Mesh& mesh){
             break;
         }
 
-        //std::cout << "Max error is " << maxerr << std::endl;
-        //std::cout << "average error is " << err_ << "\n";
+        std::cout << "Max error is " << maxerr << std::endl;
+        std::cout << "average error is " << err_ << "\n";
 
         // update the normals as well 
         mesh_->CalcVertexNormals();

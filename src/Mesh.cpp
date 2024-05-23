@@ -102,6 +102,7 @@ Mesh::Real Mesh::calculateVolume()
         int index1 = t[0];
         int index2 = t[1];
         int index3 = t[2];
+
         for (int j=0;j<3;j++){
             vec1[j] = vertices_[index2].position_[j] - vertices_[index1].position_[j];
             vec2[j] = vertices_[index3].position_[j] - vertices_[index1].position_[j];
@@ -124,6 +125,47 @@ void Mesh::scaleVertices(Real num)
 
     update();
 }
+
+MeshTools::Real MeshTools::CalculateVolumeEnclosedByInterface(Mesh& m, Real offset_height, int projected_plane){
+    // obtain the vertices and triangles 
+    const auto& vertices = m.getvertices();
+    const auto& faces    = m.gettriangles();
+
+    int dir1, dir2;
+
+    Real volume = 0.0;
+
+    // define the projected plane
+    if (projected_plane == 0){
+        dir1 = 1; dir2=2;
+    }
+    else if (projected_plane == 1){
+        dir1 = 0; dir2 = 2;
+    }
+    else{
+        dir1 = 0; dir2= 1;
+    }
+
+    for (int i=0;i<faces.size();i++){
+        // get the vertices
+        auto v1 = vertices[faces[i].triangleindices_[0]];
+        auto v2 = vertices[faces[i].triangleindices_[1]];
+        auto v3 = vertices[faces[i].triangleindices_[2]];
+
+        // calculate the projected area
+        Real A = 0.5 * (v1.position_[dir1] * (v2.position_[dir2] - v3.position_[dir2]) + 
+                        v2.position_[dir1] * (v3.position_[dir2] - v1.position_[dir2]) + 
+                        v3.position_[dir1] * (v1.position_[dir2] - v2.position_[dir2]));
+
+        // average height --> corrected by offset height 
+        Real avg_height = 1.0 / 3.0 * (v1.position_[projected_plane] + v2.position_[projected_plane] + v3.position_[projected_plane] 
+                                      ) + offset_height;
+        volume +=  A * avg_height;
+    }
+
+    return volume;
+}
+
 
 void Mesh::getVertexDistance(const Real3& v1, const Real3& v2, Real3& distVec, Real& dist) const 
 {
@@ -1167,24 +1209,21 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
         int numf = faces.size();
 
         // only perform calculation if we are working with non boundary edge --> (edges shared by 2 faces)
-        if (numf == 2){
-            // iterate over the 2 faces 
-            for (int f : faces){
-                auto& TriIndices = tri[f].triangleindices_;
+        // iterate over the 2 faces 
+        for (int f : faces){
+            auto& TriIndices = tri[f].triangleindices_;
 
-                // iterate over the triangular indices of each of the face 
-                for (int id : TriIndices){
-                    bool IsInEdge = std::find(edge.begin(), edge.end(), id) != edge.end();
+            // iterate over the triangular indices of each of the face 
+            for (int id : TriIndices){
+                bool IsInEdge = std::find(edge.begin(), edge.end(), id) != edge.end();
 
-                    if ( ! IsInEdge){
-                        opposingPoints.push_back(id);
-                    }
+                if ( ! IsInEdge){
+                    opposingPoints.push_back(id);
                 }
             }
-
-            ASSERT((opposingPoints.size() == 2), "The opposing points of an edge needs to be 2 while it is " << opposingPoints.size());
-            MapEdgeToOppoVertices.insert(std::make_pair(edge, opposingPoints));
         }
+
+        MapEdgeToOppoVertices.insert(std::make_pair(edge, opposingPoints));
     }
 }
 
@@ -2101,4 +2140,187 @@ void MeshTools::MeshPlaneIntersection(Mesh& m, Real3& points, Real3& normal){
     // get basic, one_vertex and one_edge
     std::vector<bool> basic, one_vertex, one_edge;
     TriangleCases(face_signs, basic, one_vertex, one_edge);
+}
+
+void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::vector<bool>& BoundaryIndicator, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi)
+{
+    // obtain triangles and vertices from mesh
+    const auto& triangles = m.gettriangles();
+    const auto& vertices  = m.getvertices();
+    dAdpi.clear();
+    dAdpi.resize(vertices.size(), {});
+
+    // get the neighbor indices 
+    for (int i=0;i<neighborIndices.size();i++){
+        // find the neighbor of vertex i
+        std::vector<int> neighbors = neighborIndices[i];
+
+        // get neighbor size 
+        int neighborSize = neighbors.size();
+
+        Real3 dAdpi_j ={0,0,0};
+
+        // iterate over the neighbor indices
+        for (int j=0;j<neighborSize;j++){
+            // fi - fj
+            Real3 vec_fj_fi;
+            Real vec_fj_fi_sq;
+
+            // fi - fj
+            m.getVertexDistance(vertices[i], vertices[neighbors[j]],  vec_fj_fi, vec_fj_fi_sq);
+
+            // make an edge between this vertex and its neighbor
+            INT2 edge = MeshTools::makeEdge(i,neighbors[j]);
+
+            // map this edge to the faces that it corresponds to 
+            std::vector<int> faces;
+            bool FoundEdge = Algorithm::FindInMap(MapEdgeToFace, edge, faces);
+            ASSERT(FoundEdge, "The edge " << edge <<  " is not found.");
+
+            // map this edge to the opposing vertices indices 
+            std::vector<int> OpposingVerts;
+            bool FoundVerts = Algorithm::FindInMap(MapEdgeToOpposingVerts, edge, OpposingVerts);
+            ASSERT(FoundVerts, "The edge " << edge << " is not found.");
+
+            // factor here is cot(\alpha) + cot(\beta) --> where \alpha and \beta are the opposing angles shared by an edge 
+            Real cotOpposingAnglesSum = 0.0;
+            int index1 = edge[0];
+            int index2 = edge[1];
+
+            // calculate the cosine theta with respect to opposing points 
+            for (int OpposingIdx : OpposingVerts)
+            {
+                Real3 vec1, vec2;
+                Real vec1sq, vec2sq;
+
+                // calculate the vertex distance and vector 
+                m.getVertexDistance(vertices[index1], vertices[OpposingIdx], vec1, vec1sq);
+                m.getVertexDistance(vertices[index2], vertices[OpposingIdx], vec2, vec2sq);
+
+                LinAlg3x3::normalize(vec1);
+                LinAlg3x3::normalize(vec2);
+
+                // find the costine angle between
+                Real costheta  = LinAlg3x3::findCosangle(vec1, vec2);
+                Real sin2theta = 1 - costheta*costheta;
+
+                if (sin2theta < 1e-8){
+                    std::cout << "sin2theta = " << sin2theta << std::endl;
+                    std::cout << "triangle " << index1 << " " << index2 << " " << OpposingIdx << " is wrong" << std::endl;
+                }
+
+
+                Real sintheta = std::sqrt(sin2theta);
+                cotOpposingAnglesSum += costheta/sintheta;
+            }
+
+            //std::cout << "For vertex " << i << " weight = " << cotOpposingAnglesSum << std::endl;
+            //std::cout << "For vertex " << i << "direction = " << vec_fj_fi << std::endl;
+            // add to 
+            dAdpi_j = dAdpi_j + cotOpposingAnglesSum * vec_fj_fi; 
+        }
+
+        // add to dAdpi
+        dAdpi[i] = 0.5 * dAdpi_j;
+    }
+}
+
+void MeshTools::CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& vtof, std::vector<Real3>& VolumeDerivatives){
+    const auto& verts = m.getvertices();
+    const auto& faces = m.gettriangles();
+
+    VolumeDerivatives.clear();
+    VolumeDerivatives.resize(verts.size());
+
+    for (int i=0;i<vtof.size();i++){
+        // initialize the gradient 
+        Real3 gradient = {0,0,0};
+
+        // iterate over all face neighbors
+        for (int face_idx : vtof[i]){
+            // find the vertices that is i
+            int triangle_indices;
+
+            // iterate over the triangle indices to find it
+            for (int j=0;j<3;j++){
+                if (faces[face_idx].triangleindices_[j] == i){
+                    triangle_indices = j;
+                    break;
+                }
+            }
+
+            // find the other 2 vertex indices 
+            int idx1,idx2;
+            Real3 shifted_p1, shifted_p2;
+            idx1 = faces[face_idx][(triangle_indices + 1)%3];
+            idx2 = faces[face_idx][(triangle_indices + 2)%3];
+
+            // find the shifted position of the other 2 vertices with respect to the first vertex 
+            shifted_p1 = m.getShiftedVertexPosition(verts[idx1], verts[i]);
+            shifted_p2 = m.getShiftedVertexPosition(verts[idx2], verts[i]);
+
+            // find the gradient
+            gradient = gradient + 1.0 / 6.0 * LinAlg3x3::CrossProduct(shifted_p1, shifted_p2);
+        }
+
+        VolumeDerivatives[i] = gradient;
+    }
+}
+
+MeshTools::Real MeshTools::CalculateVolumeDivergenceThoerem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal){
+    // use divergence theorem to calculate the volume of a mesh
+    const auto& verts = m.getvertices();
+    const auto& faces = m.gettriangles();
+
+    Real volume = 0.0f;
+
+    // iterate over faces
+    for (int i=0;i<faces.size();i++){
+        // first calculate the center
+        Real3 diff1, diff2, centroid;
+        Real diffsq1, diffsq2;
+        Real3 v0,v1,v2;
+
+        // initialize the positions
+        v0 = verts[faces[i][0]].position_; v1 = verts[faces[i][1]].position_; v2 = verts[faces[i][2]].position_;
+        
+
+        // shift vertices 2 and 3 wrt to the first 
+        if (m.isPeriodic()){
+            m.getVertexDistance(verts[faces[i][1]], verts[faces[i][0]], diff1, diffsq1);
+            m.getVertexDistance(verts[faces[i][2]], verts[faces[i][0]], diff2, diffsq2);
+
+            // calculate the centroid
+            centroid = 1.0 / 3.0 * (v0 + v0 + diff1 + v0 + diff2);
+
+            // shift centroid to center of box
+            Real3 shift = m.getShiftIntoBox(centroid);
+            centroid = centroid + shift;
+        }
+        else{
+            centroid = 1.0 / 3.0 * (v0 + v1 + v2);
+        }
+
+        // get the volume
+        volume += 1.0 / 3.0 * LinAlg3x3::DotProduct(centroid, Normal[i]) * vecArea[i];
+    }
+
+    return volume;
+}
+
+MeshTools::Real MeshTools::CalculateArea(Mesh& m, std::vector<Real>& vecArea, std::vector<Real3>& normals){
+    // normals and ares
+    vecArea.clear();
+    normals.clear();
+
+    // calculate the triangle area and face normals 
+    MeshTools::CalculateTriangleAreasAndFaceNormals(m, vecArea, normals);
+
+    Real sum_area=0.0;
+
+    for (int i=0;i<vecArea.size();i++){
+        sum_area += vecArea[i];
+    }
+
+    return sum_area;
 }

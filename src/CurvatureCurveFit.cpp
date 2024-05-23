@@ -101,6 +101,7 @@ void CurvatureCurveFit::calculate(Mesh& mesh)
         mat(2,1) = mat(1,2);
         mat(2,2) = mat(0,1);
 
+
         // Solve the least squares fitting problem 
         Eigen::Vector3d ans = mat.bdcSvd(Eigen::ComputeFullU|Eigen::ComputeFullV).solve(b);
         Eigen::EigenSolver<Eigen::Matrix2d> eigensolver;

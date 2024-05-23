@@ -23,6 +23,8 @@ class AFP_shape {
 
         virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0; 
         virtual bool CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0)=0;
+        virtual Real CalculateValue(Real3 position, int xdir=1, int ydir=2, int zdir=0)=0;
+        virtual Real CalculateV(Real z)=0;
 };
 
 class SuperEgg : public AFP_shape{
@@ -43,6 +45,8 @@ class SuperEgg : public AFP_shape{
         virtual double3 calculatePos(double u, double v) override;
         virtual bool CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
         virtual bool CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir=1, int ydir=2, int zdir=0) override;
+        virtual Real CalculateValue(Real3 position, int xdir=1, int ydir=2, int zdir=0) override;
+        virtual Real CalculateV(Real z);
 
         double getn() {return (float)n_;}
         double2 getcenter() {return center_;}

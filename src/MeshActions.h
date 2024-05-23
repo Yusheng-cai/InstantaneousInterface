@@ -27,6 +27,7 @@
 #include "tools/InputParser.h"
 #include "tools/CommonOperations.h"
 #include "CurvatureEvolution.h"
+#include "delaunator.hpp"
 #include "tools/Algorithm.h"
 #include "LinAlgTools.h"
 #include "Bin.h"
@@ -50,6 +51,12 @@ namespace MeshActions
 
     // BoundaryRefinement
     void RefineBoundary(CommandLineArguments& cmd);
+
+    // BoundaryRefinement
+    void RefineBoundary2(CommandLineArguments& cmd);
+
+    // Meshify boundary
+    void MeshifySuperEgg(CommandLineArguments& cmd);
 
     // translate a mesh
     void TranslateMesh(CommandLineArguments& cmd);
@@ -126,6 +133,9 @@ namespace MeshActions
     // curvature evolution --> only use curvefit
     void CurvatureEvolution1(CommandLineArguments& cmd);
 
+    // curvature evolution but using interfacial Fe
+    void InterfacialFE_min(CommandLineArguments& cmd);
+
     // find isolated triangle 
     void FindIsolatedFace(CommandLineArguments& cmd);
 
@@ -176,4 +186,10 @@ namespace MeshActions
 
     // calculate the surface properties at which the interface is pinned
     void calculateSurfaceProperties(CommandLineArguments& cmd);
+
+    // calculate the surface area
+    void calculateSurfaceArea(CommandLineArguments& cmd);
+
+    // calculate volume
+    void calculateInterfaceVolume(CommandLineArguments& cmd);
 };

@@ -166,7 +166,7 @@ void MeshCurvatureflow::refineImplicitStep()
     #pragma omp parallel for
     for (int i=0;i<MapVertexToFace_.size();i++){
         for (int j=0;j<MapVertexToFace_[i].size();j++){
-            TotalArea_[i] += TriangleAreas_[MapVertexToFace_[i][j]];
+            TotalArea_[i] += 1.0 / 3.0 * TriangleAreas_[MapVertexToFace_[i][j]];
         }
     }
 

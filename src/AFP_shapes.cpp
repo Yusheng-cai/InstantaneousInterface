@@ -31,6 +31,10 @@ double SuperEgg::db_dz(double z){
     return b_ * (b_taper_ * z / zmax_);
 }
 
+SuperEgg::Real SuperEgg::CalculateV(Real z){
+    return std::asin(z / zmax_);
+}
+
 
 SuperEgg::double3 SuperEgg::calculatePos(double u, double v){
     double3 ret;
@@ -39,6 +43,14 @@ SuperEgg::double3 SuperEgg::calculatePos(double u, double v){
     ret[1] = bBulging(ret[2]) * Algorithm::sgn(std::sin(u)) * std::pow(std::abs(std::sin(u)), 2.0/(float)n_) + center_[1];
 
     return ret;
+}
+
+SuperEgg::Real SuperEgg::CalculateValue(Real3 position, int xdir, int ydir, int zdir){
+    Real a,b;
+    a = aBulging(position[zdir]);
+    b = bBulging(position[zdir]);
+
+    return std::pow(std::abs(position[xdir]) / a, n_) + std::pow(std::abs(position[ydir]) / b, n_);
 }
 
 SuperEgg::double3 SuperEgg::dr_du(double u, double v){

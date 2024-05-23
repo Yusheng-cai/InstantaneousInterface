@@ -1421,6 +1421,116 @@ void MeshActions::DecimateDegenerateTriangles(CommandLineArguments& cmd)
     MeshTools::writePLY(outputfname, m);
 }
 
+void MeshActions::MeshifySuperEgg(CommandLineArguments& cmd){
+    // prepare needed parameters
+    Real2 box;
+    INT2 num;
+    Real z;
+    int numBoundary = 60;
+    ParameterPack EvolutionPack, curvePack, shapePack;
+
+    // read input params
+    cmd.readArray("box", CommandLineArguments::Keys::Required, box);
+    cmd.readArray("num", CommandLineArguments::Keys::Required, num);
+    cmd.readValue("z", CommandLineArguments::Keys::Required, z);
+    cmd.readValue("numBoundary", CommandLineArguments::Keys::Optional, numBoundary);
+
+    // initialize the shape
+    std::unique_ptr<AFP_shape> shape;
+
+    // dr 
+    Real drx = box[0] / num[0];
+    Real dry = box[1] / num[1];
+
+    std::string a,b,n,zmax,a_taper,b_taper,a_alpha,b_alpha;
+    std::vector<std::string> center;
+    bool read;
+    cmd.readValue("a", CommandLineArguments::Keys::Required, a);
+    shapePack.insert("a", a);
+    cmd.readValue("b", CommandLineArguments::Keys::Required, b);
+    shapePack.insert("b", b);
+    cmd.readValue("zmax", CommandLineArguments::Keys::Required, zmax);
+    shapePack.insert("zmax", zmax);
+    cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+    shapePack.insert("center", center);
+    read = cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
+    if (read){
+        shapePack.insert("n", n);
+    }
+    read = cmd.readValue("a_taper", CommandLineArguments::Keys::Optional, a_taper);
+    if (read){
+        shapePack.insert("a_taper", a_taper);
+    }
+    read = cmd.readValue("b_taper", CommandLineArguments::Keys::Optional, b_taper);
+    if (read){
+        shapePack.insert("b_taper", b_taper);
+    }
+    read = cmd.readValue("a_alpha", CommandLineArguments::Keys::Optional, a_alpha);
+    if (read){
+        shapePack.insert("a_alpha", a_alpha);
+    }
+    read = cmd.readValue("b_alpha", CommandLineArguments::Keys::Optional, b_alpha);
+    if (read){
+        shapePack.insert("b_alpha", b_alpha);
+    }
+
+    // initialize the shape 
+    shape = std::make_unique<SuperEgg>(shapePack);
+    std::vector<double> coords;
+    std::vector<Real3> vertices;
+    std::vector<INT3> faces;
+
+    // calculate the boundary points 
+    Real v = shape->CalculateV(z);
+    Real du = 2 * Constants::PI / numBoundary;
+    for (int i=0;i<numBoundary+1;i++){
+        double3 pos = shape->calculatePos(i*du, v);
+        coords.push_back(pos[0]);
+        coords.push_back(pos[1]);
+
+        Real3 p_real;
+        p_real[0] = pos[0];
+        p_real[1] = pos[1];
+        p_real[2] = pos[2];
+
+        vertices.push_back(p_real);
+    }
+
+    // now we start the calculation 
+    for (int i=0;i<num[0]+1;i++){
+        for (int j=0;j<num[1]+1;j++){
+            // obtain the position
+            Real3 position = {i * drx , j * dry, z};
+
+            // calculate the shape value
+            Real val = shape->CalculateValue(position, 0,1,2);
+
+            if (val > 1){
+                coords.push_back((double)position[0]);
+                coords.push_back((double)position[1]);
+
+                vertices.push_back(position);
+            }
+        }
+    }
+
+    delaunator::Delaunator d(coords);
+
+    for(std::size_t i = 0; i < d.triangles.size(); i+=3) {
+        INT3 f = {d.triangles[i], d.triangles[i+1], d.triangles[i+2]};
+        printf(
+            "Triangles [[%d], [%d], [%d]]\n",
+            d.triangles[i], 
+            d.triangles[i+1], 
+            d.triangles[i+2]
+        );
+    }
+}
+
+void MeshActions::RefineBoundary2(CommandLineArguments& cmd){
+    return ;
+}
+
 void MeshActions::RefineBoundary(CommandLineArguments& cmd){
     std::string inputfname, outputfname="evolved.ply", FixedIndexFile, neighbors, CurvatureStepsize, k0, maxCurvaturestep="1e5", tolerance, surface_shape_name, boundaryZ_offset;
     std::unique_ptr<AFP_shape> shape;
@@ -1723,6 +1833,47 @@ void MeshActions::RefineBoundary(CommandLineArguments& cmd){
         ofs.close();
     }
     
+
+    MeshTools::writePLY(outputfname, m);
+}
+
+void MeshActions::InterfacialFE_min(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="evolved.ply", stepsize, k0, maxstep="1e5", tolerance;
+    Real3 box;
+
+    // read input
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
+    cmd.readString("k0", CommandLineArguments::Keys::Required, k0);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readString("stepsize", CommandLineArguments::Keys::Optional, stepsize);
+
+    // use curve fit 
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // define parameter packs
+    ParameterPack refinePack;
+    refinePack.insert("name", "refine");
+    refinePack.insert("maxstep", maxstep);
+    refinePack.insert("k0", k0);
+    refinePack.insert("stepsize", stepsize);
+
+    // initialize curve ptr
+    refineptr r;
+
+    // refine pointer 
+    MeshRefineStrategyInput input = {{refinePack}};
+    r = refineptr(MeshRefineStrategyFactory::Factory::instance().create("InterfacialFE_minimization", input));
+
+    // read input mesh 
+    Mesh m;
+
+    // set box length for mesh
+    MeshTools::readPLYlibr(inputfname, m);
+    if (isPBC){m.setBoxLength(box);}
+
+    // refine
+    r->refine(m);
 
     MeshTools::writePLY(outputfname, m);
 }
@@ -3230,4 +3381,53 @@ void MeshActions::FindFaceNormals(CommandLineArguments& cmd){
         ofs << "\n";
     }
     ofs.close();
+}
+
+void MeshActions::calculateSurfaceArea(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="facenormals.out";
+    bool isPBC=false;
+    Real3 box;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    // calculate face normals
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    if (isPBC){
+        m.setBoxLength(box);
+    }
+    
+    // normals and ares
+    std::vector<Real> areas;
+    std::vector<Real3> faceNormals;
+    MeshTools::CalculateTriangleAreasAndFaceNormals(m, areas, faceNormals);
+
+    Real sum_area=0.0;
+
+    for (int i=0;i<areas.size();i++){
+        sum_area += areas[i];
+    }
+
+    std::cout << "area = " << sum_area << std::endl;
+}
+
+void MeshActions::calculateInterfaceVolume(CommandLineArguments& cmd){
+    std::string inputfname;
+    Real offset_height;
+    int projected_plane=0;
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readValue("offset", CommandLineArguments::Keys::Required, offset_height);
+    cmd.readValue("projected_plane", CommandLineArguments::Keys::Optional, projected_plane);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+
+    // Now we calculate the volume
+    Real volume = MeshTools::CalculateVolumeEnclosedByInterface(m, offset_height, projected_plane);
+
+    std::cout << "volume = " << volume << std::endl;
 }
