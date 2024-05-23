@@ -204,4 +204,16 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("RefineBoundary", "-op RefineBoundary -i input.ply -neighbors -CurvatureStep -k0 -maxCurvatureStep -tolerance -shape -BoundaryStep", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::RefineBoundary(cmd);}, \
                                            mapF, mapU);
+    RegisterAction("SurfaceArea", "-op SurfaceArea -i input.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::calculateSurfaceArea(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("InterfaceVolume", "-op InterfaceVolume -i input.ply", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::calculateInterfaceVolume(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("MeshifySuperEgg", "-op MeshifySuperEgg -box x y -num nx ny -a a -b b -zmax zmax -ataper ataper -btaper btaper -center center", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::MeshifySuperEgg(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("InterfacialFE_minimization", "-op InterfacialFE_minimization -box xyz -maxstep -o", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::InterfacialFE_min(cmd);}, \
+                                           mapF, mapU);
 }
