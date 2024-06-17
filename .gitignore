@@ -34,6 +34,7 @@
 build/
 build.sh
 RELEASE/
+RELEASE*
 DEBUG/
 
 .DS_Store
