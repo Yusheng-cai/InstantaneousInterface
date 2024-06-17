@@ -1,5 +1,25 @@
 #include "Mesh.h"
 
+Mesh::Mesh(const std::vector<Real3>& v, const std::vector<INT3>& f){
+    vertices_.clear();
+    triangles_.clear();
+
+    for (int i=0;i<v.size();i++){
+        vertex vv;
+        vv.position_ = v[i];
+        vertices_.push_back(vv);
+    }
+
+    triangles_.clear();
+    for (int i=0;i<f.size();i++){
+        triangle t;
+        t.triangleindices_ = f[i];
+        triangles_.push_back(t);
+    }
+
+    CalcVertexNormals();
+}
+
 void Mesh::MoveVertexIntoBox(const Real3& OldVerPos, Real3& NewVerPos)
 {
     if (isPeriodic()){
@@ -385,6 +405,15 @@ std::vector<Mesh::Real3> Mesh::getVertexPositions()
         v.push_back(vertices_[i].position_);
     }
     return v;
+}
+
+std::vector<Mesh::INT3> Mesh::getFaces(){
+    std::vector<INT3> faces;
+    for (int i=0;i<triangles_.size();i++){
+        faces.push_back(triangles_[i].triangleindices_);
+    }
+
+    return faces;
 }
 
                                     /**************************************
@@ -1052,10 +1081,13 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
             vertices.push_back(v.position_);
         }
 
+        std::map<int,int> MapShiftedIndicesToOld;
+
         // check if triangle is periodic 
         for (auto& t : MeshTriangles){
-            // find all the edge lengths
-            bool periodicTriangle = MeshTools::IsPeriodicTriangle(MeshVertices, t.triangleindices_, mesh.getBoxLength());
+            // find all the edge lenghs
+            std::map<INT2, bool> mapEdge;
+            bool periodicTriangle = MeshTools::IsPeriodicTriangle(MeshVertices, t.triangleindices_, mesh.getBoxLength(), mapEdge);
 
             // if this particular triangle is not periodic 
             if (! periodicTriangle){
@@ -1064,41 +1096,31 @@ void MeshTools::ConvertToNonPBCMesh(Mesh& mesh, std::vector<Real3>& vertices, st
             // if it's periodic triangle, then we push back 3 new vertices 
             else{
                 if (AddNewTriangles){
-                    Real3 verticesNew1;
-                    Real3 verticesNew2, verticesDiff2;
-                    Real distsq2;
-                    Real3 verticesNew3, verticesDiff3;
-                    Real distsq3;
-                    int idx1 = t[0];
-                    int idx2 = t[1];
-                    int idx3 = t[2];
+                    int shift_index, newIndex;
+                    Real3 verticesNew, verticesDiff;
+                    Real distsq;
 
-                    // get the pbc corrected distance 
-                    mesh.getVertexDistance(MeshVertices[idx2].position_, MeshVertices[idx1].position_,verticesDiff2, distsq2);
-                    mesh.getVertexDistance(MeshVertices[idx3].position_, MeshVertices[idx1].position_,verticesDiff3, distsq3); 
+                    if (!MeshTools::FindPeriodicShiftIndex(mapEdge, shift_index)){shift_index=0;std::cout << "Shift index is not found." << std::endl;}
 
-                    // get the new vertices --> with respect to position 1
-                    verticesNew2 = MeshVertices[idx1].position_ + verticesDiff2;
-                    verticesNew3 = MeshVertices[idx1].position_ + verticesDiff3;
+                    if (!Algorithm::FindInMap(MapShiftedIndicesToOld, t[shift_index], newIndex)){
+                        int idx1=t[shift_index];
+                        int idx2=t[(shift_index+1)%3];
 
-                    // Find approximately the center of the triangle
-                    Real3 center_of_triangle = (MeshVertices[idx1].position_ + verticesNew2 + verticesNew3) * (1.0/3.0);
-                    Real3 shift = mesh.getShiftIntoBox(center_of_triangle);
+                        mesh.getVertexDistance(MeshVertices[idx1].position_, MeshVertices[idx2].position_, verticesDiff, distsq);
+                        verticesNew = MeshVertices[idx2].position_ + verticesDiff;
 
-                    // update the vertices
-                    verticesNew1 = MeshVertices[idx1].position_ + shift;
-                    verticesNew2 = verticesNew2 + shift;
-                    verticesNew3 = verticesNew3 + shift;
+                        newIndex = vertices.size();
+                        vertices.push_back(verticesNew);
 
-                    int NewIndex1 = vertices.size();
-                    vertices.push_back(verticesNew1);
-                    int NewIndex2 = vertices.size();
-                    vertices.push_back(verticesNew2);
-                    int NewIndex3 = vertices.size();
-                    vertices.push_back(verticesNew3);
+                        Algorithm::InsertInMap(MapShiftedIndicesToOld, t[shift_index], newIndex);
+                    }
 
-                    INT3 NewT = {{NewIndex1, NewIndex2, NewIndex3}};
-                    triangles.push_back(NewT);
+                    INT3 newt;
+                    newt[shift_index] = newIndex;
+                    newt[(shift_index+1)%3] = t[(shift_index + 1)%3]; 
+                    newt[(shift_index+2)%3] = t[(shift_index + 2)%3];
+
+                    triangles.push_back(newt);
                 }
             }
         }
@@ -1115,9 +1137,77 @@ bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Rea
         for (int j=0;j<3;j++){
             diff[j] = Vertices[index1].position_[j] - Vertices[index2].position_[j];
 
-            if (std::abs(diff[j]) >= 0.5 * BoxLength[j]){
-                return true;
+            if (BoxLength[j] != 0){
+                if (std::abs(diff[j]) >= 0.5 * BoxLength[j]){
+                    return true;
+                }
             }
+        }
+    }
+
+    return false;
+}
+
+bool MeshTools::IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength, std::map<INT2,bool>& mapEdge)
+{
+    mapEdge.clear();
+    for (int i=0;i<3;i++){
+        int index1 = face[i];
+        int index2 = face[(i+1) % 3]; 
+        Real3 diff;
+        bool isPeriodicEdge=false;
+        for (int j=0;j<3;j++){
+            diff[j] = Vertices[index1].position_[j] - Vertices[index2].position_[j];
+
+            if (BoxLength[j] != 0){
+                if (std::abs(diff[j]) >= 0.5 * BoxLength[j]){
+                    isPeriodicEdge=true;
+                    break;
+                }
+            }
+        }
+        INT2 edge = MeshTools::makeEdge(i, (i+1)%3);
+        Algorithm::InsertInMap(mapEdge, edge, isPeriodicEdge);
+    }
+
+    for (auto it=mapEdge.begin(); it != mapEdge.end(); it++){
+        if (it ->second == true){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
+
+bool MeshTools::IsPeriodicTriangle(const Mesh& mesh, int faceIndex, std::map<INT2,bool>& mapEdge){
+    const auto& f = mesh.gettriangles();
+    const auto& v = mesh.getvertices();
+    Real3 boxLength = mesh.getBoxLength();
+    mapEdge.clear();
+
+    INT3 t = f[faceIndex].triangleindices_;
+    for (int i=0;i<3;i++){
+        int index1 = t[i];
+        int index2 = t[(i+1) % 3];
+        Real3 diff;
+        for (int j=0;j<3;j++){
+            diff[j] = v[index1].position_[j] - v[index2].position_[j];
+
+            if (boxLength[j] != 0){
+                if (std::abs(diff[j]) > 0.5 * boxLength[j]){
+                    INT2 edge = MeshTools::makeEdge(i, (i+1) % 3);
+                    Algorithm::InsertInMap(mapEdge, edge, true);
+                    break;
+                }
+            }
+        }
+    }
+
+    for (auto it=mapEdge.begin(); it != mapEdge.end(); it++){
+        if (it ->second == true){
+            return true;
         }
     }
 
@@ -1136,11 +1226,39 @@ bool MeshTools::IsPeriodicTriangle(const Mesh& mesh, int faceIndex){
         for (int j=0;j<3;j++){
             diff[j] = v[index1].position_[j] - v[index2].position_[j];
 
-            if (std::abs(diff[j] >= 0.5 * boxLength[j])){return true;}
+            if (boxLength[j] != 0){
+                if (std::abs(diff[j] >= 0.5 * boxLength[j])){return true;}
+            }
         }
     }
 
     return false;
+}
+
+bool MeshTools::FindPeriodicShiftIndex(std::map<INT2,bool>& mapEdge, int& index){
+    int ind=0;
+    INT2 nonPeriodicEdge;
+    bool hasNonPeriodicEdge=false;
+    for (auto it = mapEdge.begin(); it != mapEdge.end(); it ++){
+        // if edge is not periodic
+        if (it ->second == false){
+            hasNonPeriodicEdge=true;
+            nonPeriodicEdge = it->first;
+            break;
+        }
+    }
+
+    if (! hasNonPeriodicEdge){
+        return false;
+    }
+    else{
+        for (int i=0;i<3;i++){
+            if (i!=nonPeriodicEdge[0] && i != nonPeriodicEdge[1]){
+                index = i;
+                return true;
+            }
+        }
+    }
 }
 
 void MeshTools::ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& face, Real3 BoxLength, Real3& A, Real3& B, Real3& C)
@@ -1977,21 +2095,27 @@ void MeshTools::RemoveMinimumNeighbors(Mesh& m, int num_search, int min_num_neig
 }
 
 void MeshTools::ChangeWindingOrder(Mesh& m){
+    std::vector<Real> Area;
+    std::vector<Real3> FN;
+    MeshTools::CalculateTriangleAreasAndFaceNormals(m, Area, FN);
+
+    for (int i=0;i<FN.size();i++){
+        if (FN[i][2] < 0){
+            ChangeWindingOrder(m, i);
+        }
+    }
+}
+
+
+void MeshTools::ChangeWindingOrder(Mesh& m, int num){
     auto& tri = m.accesstriangles();
 
-    std::vector<triangle> newT;
+    triangle nT;
+    nT[0] = tri[num][1];
+    nT[1] = tri[num][0];
+    nT[2] = tri[num][2];
 
-    for (auto& t : tri){
-        triangle nT;
-        nT[0] = t[1];
-        nT[1] = t[0];
-        nT[2] = t[2];
-
-        newT.push_back(nT);
-    }
-
-    tri.clear();
-    tri.insert(tri.end(), newT.begin(), newT.end());
+    tri[num] = nT;
 }
 
 void MeshTools::MeshPlaneClipping(Mesh& m, Real3& point, Real3& plane){
@@ -2142,7 +2266,7 @@ void MeshTools::MeshPlaneIntersection(Mesh& m, Real3& points, Real3& normal){
     TriangleCases(face_signs, basic, one_vertex, one_edge);
 }
 
-void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::vector<bool>& BoundaryIndicator, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi)
+void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi)
 {
     // obtain triangles and vertices from mesh
     const auto& triangles = m.gettriangles();
@@ -2151,6 +2275,7 @@ void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector
     dAdpi.resize(vertices.size(), {});
 
     // get the neighbor indices 
+    #pragma omp parallel for
     for (int i=0;i<neighborIndices.size();i++){
         // find the neighbor of vertex i
         std::vector<int> neighbors = neighborIndices[i];
@@ -2214,8 +2339,6 @@ void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector
                 cotOpposingAnglesSum += costheta/sintheta;
             }
 
-            //std::cout << "For vertex " << i << " weight = " << cotOpposingAnglesSum << std::endl;
-            //std::cout << "For vertex " << i << "direction = " << vec_fj_fi << std::endl;
             // add to 
             dAdpi_j = dAdpi_j + cotOpposingAnglesSum * vec_fj_fi; 
         }
@@ -2225,13 +2348,26 @@ void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector
     }
 }
 
-void MeshTools::CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& vtof, std::vector<Real3>& VolumeDerivatives){
+void MeshTools::CalculateAreaDerivatives(Mesh& m, std::vector<Real3>& dAdpi){
+    std::vector<std::vector<int>> neighborIndices;
+    std::map<INT2, std::vector<int>> etof;
+    std::map<INT2, std::vector<int>> etoo;
+
+    CalculateVertexNeighbors(m, neighborIndices);
+    MapEdgeToFace(m, etof);
+    MapEdgeToOpposingVertices(m, etof, etoo);
+    CalculateCotangentWeights(m, neighborIndices, etof, etoo, dAdpi);
+}
+
+
+void MeshTools::CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& vtof, std::vector<Real3>& VolumeDerivatives, Real3 shift){
     const auto& verts = m.getvertices();
     const auto& faces = m.gettriangles();
 
     VolumeDerivatives.clear();
     VolumeDerivatives.resize(verts.size());
 
+    #pragma omp parallel for
     for (int i=0;i<vtof.size();i++){
         // initialize the gradient 
         Real3 gradient = {0,0,0};
@@ -2256,8 +2392,8 @@ void MeshTools::CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vecto
             idx2 = faces[face_idx][(triangle_indices + 2)%3];
 
             // find the shifted position of the other 2 vertices with respect to the first vertex 
-            shifted_p1 = m.getShiftedVertexPosition(verts[idx1], verts[i]);
-            shifted_p2 = m.getShiftedVertexPosition(verts[idx2], verts[i]);
+            shifted_p1 = m.getShiftedVertexPosition(verts[idx1], verts[i]) + shift;
+            shifted_p2 = m.getShiftedVertexPosition(verts[idx2], verts[i]) + shift;
 
             // find the gradient
             gradient = gradient + 1.0 / 6.0 * LinAlg3x3::CrossProduct(shifted_p1, shifted_p2);
@@ -2267,7 +2403,14 @@ void MeshTools::CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vecto
     }
 }
 
-MeshTools::Real MeshTools::CalculateVolumeDivergenceThoerem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal){
+void MeshTools::CalculateVolumeDerivatives(Mesh& m, std::vector<Real3>& VolumeDerivatives, Real3 shift){
+    std::vector<std::vector<int>> vtof;
+    MapVerticesToFaces(m, vtof);
+
+    CalculateVolumeDerivatives(m, vtof, VolumeDerivatives, shift);
+}
+
+MeshTools::Real MeshTools::CalculateVolumeDivergenceTheorem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal){
     // use divergence theorem to calculate the volume of a mesh
     const auto& verts = m.getvertices();
     const auto& faces = m.gettriangles();
@@ -2308,6 +2451,7 @@ MeshTools::Real MeshTools::CalculateVolumeDivergenceThoerem(Mesh& m, const std::
     return volume;
 }
 
+
 MeshTools::Real MeshTools::CalculateArea(Mesh& m, std::vector<Real>& vecArea, std::vector<Real3>& normals){
     // normals and ares
     vecArea.clear();
@@ -2323,4 +2467,611 @@ MeshTools::Real MeshTools::CalculateArea(Mesh& m, std::vector<Real>& vecArea, st
     }
 
     return sum_area;
+}
+
+void MeshTools::CVT_optimize_Mesh(Mesh& m){
+    std::vector<Real3> v = m.getVertexPositions();
+    std::vector<INT3>  f = m.getFaces();
+
+    // start a edge mesh
+    CMC::EdgeMesh emesh(v,f);
+    emesh.mark_boundary();
+    CMC::CMC_Evolver evolver;
+    evolver.set_mesh(&emesh);
+    evolver.set_volume_weight(0.0);
+    evolver.cmc_qnewton(100,1);
+
+    std::vector<Real3> new_v;
+    std::vector<INT3> new_f;
+    emesh.get_verts_faces(new_v, new_f);
+    Mesh new_m(new_v, new_f);
+
+    m = new_m;
+}
+
+void MeshTools::CGAL_optimize_Mesh(Mesh& m, int nb_iterations, Real degree, bool use_restriction){
+    M cgal_m;
+    Real3 box;
+    bool isPeriodic = m.isPeriodic();
+
+    if (isPeriodic){
+        MeshTools::ConvertToNonPBCMesh(m, true);
+        box = m.getBoxLength();
+    }
+
+    std::vector<std::array<FT,3>> points;
+    std::vector<CGAL_Polygon> polygons;
+
+    const auto& verts = m.getvertices();
+    const auto& face = m.gettriangles();
+
+    for (auto v : verts){
+        points.push_back(CGAL::make_array<FT>(v.position_[0], v.position_[1], v.position_[2]));
+    }
+
+    for (auto f : face){
+        polygons.push_back({(std::size_t)f.triangleindices_[0], (std::size_t)f.triangleindices_[1], (std::size_t)f.triangleindices_[2]});
+    }
+
+    // repair polygon 
+    PMP::repair_polygon_soup(points, polygons, CGAL::parameters::geom_traits(Array_traits()));
+    PMP::orient_polygon_soup(points, polygons);
+    PMP::polygon_soup_to_polygon_mesh(points, polygons, cgal_m);
+
+    typedef boost::property_map<M, CGAL::edge_is_feature_t>::type EIFMap;
+    EIFMap eif = get(CGAL::edge_is_feature, cgal_m);
+    PMP::detect_sharp_edges(cgal_m, degree, eif);
+
+    PMP::angle_and_area_smoothing(cgal_m, CGAL::parameters::number_of_iterations(nb_iterations)
+                                                       .use_safety_constraints(use_restriction) // authorize all moves
+                                                       .edge_is_constrained_map(eif));
+
+    std::vector<Real3> new_p_list; 
+    std::vector<INT3>  new_f_list;
+    for(auto v : cgal_m.vertices()){
+        auto p = cgal_m.point(v);
+        Real3 new_p = {p[0], p[1], p[2]};
+        new_p_list.push_back(new_p);
+    }
+
+    for (auto f : cgal_m.faces()){
+        std::vector<int> new_f_vec;
+        for (auto v : CGAL::vertices_around_face(cgal_m.halfedge(f), cgal_m)){
+            new_f_vec.push_back(v.id());
+        }
+        INT3 new_f;
+        new_f[0] = new_f_vec[0]; new_f[1] = new_f_vec[1]; new_f[2] = new_f_vec[2];
+        new_f_list.push_back(new_f);
+    }
+
+    Mesh new_m(new_p_list, new_f_list);
+
+    if (isPeriodic){
+        new_m.setBoxLength(box);
+        MeshTools::MakePBCMesh(new_m);
+    }
+
+    m = new_m;
+    m.CalcVertexNormals();
+}
+
+void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryIndices, \
+                               std::vector<Real>& ulist, std::vector<Real>& vlist, Real& A, Real& V,\
+                               int num_v, bool useNumerical, Real3 Vshift){
+    A = 0.0; V=0.0;
+    int numBoundary = ulist.size();
+    const auto& verts = m.getvertices();
+
+    for (int i=0;i<vlist.size();i++){
+        Real vstep = (Constants::PI/2 - vlist[i]) / num_v;
+        Real u = ulist[i];
+
+        int ind = BoundaryIndices[i];
+        Real du = ulist[(i+1) % numBoundary] - ulist[i];
+        if (du < 0){
+            du += 2 * Constants::PI;
+        }
+
+        #pragma omp parallel 
+        {
+            Real A_local= 0.0;
+            Real V_local= 0.0;
+            #pragma omp for
+            for (int j=0;j<num_v;j++){
+                Real3 drdu, drdv;
+                Real v = vlist[i] + j * vstep;
+
+                drdu = s->drdu(u,v, useNumerical);
+                drdv = s->drdv(u,v, useNumerical);
+
+                // perform the cross product
+                Real3 cp = LinAlg3x3::CrossProduct(drdu, drdv);
+
+                // Calculate A local
+                A_local += std::sqrt(LinAlg3x3::DotProduct(cp,cp)) * du * vstep;
+
+                Real3 pos = verts[ind].position_ + Vshift;
+
+                // Calculate V local
+                V_local += LinAlg3x3::DotProduct(pos, cp) * du * vstep;
+            }
+
+            #pragma omp critical
+            {
+                A += A_local;
+                V += V_local;
+            }
+        }
+    }
+}
+
+void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V,\
+                               int num_v, bool useNumerical, Real3 Vshift){
+    // calculate ulist vlist and boundaryindices
+    std::vector<Real> ulist, vlist;
+    std::vector<int> BoundaryIndices;
+    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, s, true);
+
+    MeshTools::CalculateAVnbs(m, s,BoundaryIndices, \
+                              ulist, vlist, A, V,\
+                              num_v, useNumerical, Vshift);
+}
+
+std::unique_ptr<AFP_shape> MeshTools::ReadAFPShape(CommandLineArguments& cmd){
+    std::string shape_name;
+    cmd.readString("shape", CommandLineArguments::Keys::Required, shape_name);
+    ParameterPack shapePack;
+
+    // initialize the shape
+    std::unique_ptr<AFP_shape> shape;
+
+    if (shape_name == "SuperEgg"){
+        std::string a,b,n,zmax,a_taper,b_taper,a_alpha,b_alpha;
+        std::vector<std::string> center;
+        bool read;
+        cmd.readValue("a", CommandLineArguments::Keys::Required, a);
+        shapePack.insert("a", a);
+        cmd.readValue("b", CommandLineArguments::Keys::Required, b);
+        shapePack.insert("b", b);
+        cmd.readValue("zmax", CommandLineArguments::Keys::Required, zmax);
+        shapePack.insert("zmax", zmax);
+        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+        shapePack.insert("center", center);
+        read = cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
+        if (read){
+            shapePack.insert("n", n);
+        }
+        read = cmd.readValue("a_taper", CommandLineArguments::Keys::Optional, a_taper);
+        if (read){
+            shapePack.insert("a_taper", a_taper);
+        }
+        read = cmd.readValue("b_taper", CommandLineArguments::Keys::Optional, b_taper);
+        if (read){
+            shapePack.insert("b_taper", b_taper);
+        }
+        read = cmd.readValue("a_alpha", CommandLineArguments::Keys::Optional, a_alpha);
+        if (read){
+            shapePack.insert("a_alpha", a_alpha);
+        }
+        read = cmd.readValue("b_alpha", CommandLineArguments::Keys::Optional, b_alpha);
+        if (read){
+            shapePack.insert("b_alpha", b_alpha);
+        }
+
+        // initialize the shape 
+        shape = std::make_unique<SuperEgg>(shapePack);
+    }
+    else if (shape_name == "Sphere"){
+        std::string radius;
+        std::vector<std::string> center;
+
+        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+        cmd.readValue("radius", CommandLineArguments::Keys::Required, radius);
+
+        shapePack.insert("radius", radius);
+        shapePack.insert("center", center);
+
+        shape = std::make_unique<Sphere>(shapePack);
+    }
+
+    return std::move(shape);
+}
+
+void MeshTools::CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices){
+    std::vector<bool> boundaryIndicator;
+    boundaryIndices.clear();
+    CalculateBoundaryVertices(mesh, boundaryIndicator);
+
+    for (int i=0;i<mesh.getvertices().size();i++){
+        if (IsBoundary(i, boundaryIndicator)){
+            boundaryIndices.push_back(i);
+        }
+    }
+}
+
+
+MeshTools::refineptr MeshTools::ReadInterfacialMin(CommandLineArguments& cmd){
+    std::string stepsize, ca_file_output="ca.out", T="298", L="0", maxstep="1e5", tolerance="0.00001", printevery="1000", optimizeevery="1e10";
+    std::string MaxStepCriteria="true";
+
+    cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
+    cmd.readString("temperature", CommandLineArguments::Keys::Required, T);
+    cmd.readString("stepsize", CommandLineArguments::Keys::Optional, stepsize);
+    cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
+    cmd.readValue("printevery", CommandLineArguments::Keys::Optional, printevery);
+    cmd.readString("Lagrange", CommandLineArguments::Keys::Optional, L);
+    cmd.readString("optimize_every", CommandLineArguments::Keys::Optional, optimizeevery);
+
+    // define parameter packs
+    ParameterPack refinePack;
+    refinePack.insert("name", "refine");
+    refinePack.insert("optimize_every", optimizeevery);
+    refinePack.insert("maxstep", maxstep);
+    refinePack.insert("temperature", T);
+    refinePack.insert("L", L);
+    refinePack.insert("stepsize", stepsize);
+    refinePack.insert("tolerance", tolerance);
+    refinePack.insert("print_every", printevery);
+    refinePack.insert("MaxStepCriteria", MaxStepCriteria);
+    
+    // initialize refine ptr
+    refineptr r;
+    MeshRefineStrategyInput input = {{refinePack}};
+    r = refineptr(MeshRefineStrategyFactory::Factory::instance().create("InterfacialFE_minimization", input));
+
+    return std::move(r);
+}
+
+void MeshTools::MakePBCMesh(Mesh& m){
+    // calculate vertices distances between i,j
+    const auto& v = m.getvertices();
+    const auto& face = m.getFaces();
+
+    // calculate vertex distances
+    std::vector<std::vector<int>> overlapping_index;
+    overlapping_index.resize(v.size());
+
+    Real threshold = 1e-5;
+
+    // find distances between each of the vertices i,j --> make a map of i,j such that i maps to a vector of j which are close enough to it
+    #pragma omp parallel for
+    for (int i=0;i<v.size();i++){
+        for (int j=0;j<v.size();j++){
+            if (j != i){
+                Real3 dist_vec;
+                Real dist;
+                m.getVertexDistance(v[i], v[j], dist_vec, dist);
+
+                if (dist < threshold){
+                    overlapping_index[i].push_back(j);
+                }
+            }
+        }
+    }
+
+    // convert the adajacency matrix to a map
+    // we want all the larger indices to map to smaller indices , e.g. 4->1
+    std::map<int, int> map;
+    for (int i=0;i<overlapping_index.size();i++){
+        auto& indices = overlapping_index[i];
+
+        // check if all indices are larger
+        bool larger_than=true;
+        for (int j=0;j<indices.size();j++){
+            if (indices[j] < i){
+                larger_than = false;
+                break;
+            }
+        }
+
+        // if it is then we start mapping
+        if (larger_than){
+            for (int j=0;j<indices.size();j++){
+                Algorithm::InsertInMap(map,indices[j],i);
+            }
+        }
+    }
+
+
+    // create new faces
+    std::vector<INT3> newf;
+    // use map to start 
+    for (auto f : face){
+        int ind1,ind2,ind3;
+
+        if(!Algorithm::FindInMap(map, f[0], ind1)){ind1 = f[0];}
+        if(!Algorithm::FindInMap(map, f[1], ind2)){ind2 = f[1];}
+        if (!Algorithm::FindInMap(map, f[2], ind3)){ind3=f[2];}
+
+        newf.push_back({ind1,ind2,ind3});
+        
+    }
+
+    const auto& vert = m.getVertexPositions();
+
+    // create new mesh
+    Mesh newm = Mesh(vert, newf);
+
+    if (m.isPeriodic()){
+        newm.setBoxLength(m.getBoxLength());
+    }
+
+    m = newm;
+
+    // remove isolated vertices 
+    MeshTools::RemoveIsolatedVertices(m);
+}
+
+void MeshTools::ShiftPBCMesh(Mesh& m, Real3& shift){
+    Real3 boxLength = m.getBoxLength();
+
+    auto& vertices = m.accessvertices();
+
+    for (auto& v : vertices){
+        v.position_ = v.position_ + shift;
+
+        Real3 s = m.getShiftIntoBox(v.position_);
+        v.position_ = v.position_ + s;
+    }
+}
+
+void MeshTools::ConvertToCGALMesh(Mesh& m, M& cgal_m){
+    const auto& verts = m.getvertices();
+    const auto& faces = m.gettriangles();
+    std::vector<CGAL::SM_Vertex_index> cgal_verts;
+
+    for (auto& v : verts){
+        cgal_verts.push_back(cgal_m.add_vertex(CGAL::Epick::Point_3(v.position_[0], v.position_[1], v.position_[2])));
+    }
+
+    for (auto& t : faces){
+        INT3 ind = t.triangleindices_;
+        cgal_m.add_face(cgal_verts[ind[0]], cgal_verts[ind[1]], cgal_verts[ind[2]]);
+    }
+}
+
+void MeshTools::FindBoundaryUV(Mesh& m, std::vector<Real>& ulist, std::vector<Real>& vlist, const std::vector<bool>& BoundaryIndicator, AFP_shape* shape){
+    ulist.clear();
+    vlist.clear();
+
+    // find the ulist and vlist
+    const auto& verts = m.getvertices();
+    for (int i=0;i<m.getNumVertices();i++){
+        if (MeshTools::IsBoundary(i, BoundaryIndicator)){
+            Real u,v;
+
+            if (m.isPeriodic()){
+                u = shape->CalculateU(verts[i].position_, m.getBoxLength());
+            }
+            else{
+                u = shape->CalculateU(verts[i].position_);
+            }
+
+            v = shape->CalculateV(verts[i].position_);
+            ulist.push_back(u); vlist.push_back(v);
+        }
+    }
+}
+
+void MeshTools::FindBoundaryUV(Mesh& m, std::vector<Real>& ulist, std::vector<Real>& vlist, std::vector<int>& BoundaryIndices, AFP_shape* shape, bool order){
+    ulist.clear();
+    vlist.clear();
+
+    // find the ulist and vlist
+    const auto& verts = m.getvertices();
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int ind = BoundaryIndices[i];
+
+        Real u,v;
+        if (m.isPeriodic()){
+            u = shape->CalculateU(verts[ind].position_, m.getBoxLength());
+        }
+        else{
+            u = shape->CalculateU(verts[ind].position_);
+        }
+
+        v = shape->CalculateV(verts[ind].position_);
+        ulist.push_back(u); vlist.push_back(v);
+    }
+
+    if (order){
+        // let's argsort the ulist
+        std::vector<int> order = Algorithm::argsort(ulist);
+        std::vector<Real> new_ulist, new_vlist;
+        std::vector<int> new_BoundaryIndices;
+
+        for (int i=0;i<order.size();i++){
+            new_BoundaryIndices.push_back(BoundaryIndices[order[i]]);
+            new_ulist.push_back(ulist[order[i]]);
+            new_vlist.push_back(vlist[order[i]]);
+        }
+
+        ulist = new_ulist;
+        vlist = new_vlist;
+        BoundaryIndices = new_BoundaryIndices;
+    }
+}
+
+void MeshTools::CalculatedrdUV(Mesh& m, AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, std::vector<Real>& vlist, std::vector<Real3>& drdu, std::vector<Real3>& drdv, bool useNumerical){
+    // obtain boundary indices 
+    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
+
+    // find the ulist and vlist --> this also rearranges boundary indices 
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, shape,true);
+
+    drdu.clear(); drdv.clear();
+
+    for (int i=0;i<ulist.size();i++){
+        Real3 drdu_this, drdv_this;
+        if(useNumerical){
+            drdu_this = shape->Numericaldrdu(ulist[i], vlist[i]);
+            drdv_this = shape->Numericaldrdv(ulist[i], vlist[i]);
+        }
+        else{
+            drdu_this = shape->Analyticaldrdu(ulist[i], vlist[i]);
+            drdv_this = shape->Analyticaldrdv(ulist[i], vlist[i]);
+        }
+
+        drdu.push_back(drdu_this);
+        drdv.push_back(drdv_this);
+    }
+}
+
+void MeshTools::CalculatedrdUV(Mesh& m, AFP_shape* shape, std::vector<Real3>& drdu, std::vector<Real3>& drdv, bool useNumerical){
+    // obtain boundary indices 
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculatedrdUV(m, shape, BoundaryIndices, ulist, vlist, drdu, drdv, useNumerical);
+}
+
+void MeshTools::CalculatedAVnbsdUV(Mesh& m, AFP_shape* shape, std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical, Real3 shift){
+    // find the ulist and vlist --> this also rearranges boundary indices 
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+    std::vector<Real3> drdu, drdv;
+    MeshTools::CalculatedAVnbsdUV(m, shape, BoundaryIndices, ulist, vlist, drdu, drdv, dAnbsduv, dVnbsduv, useNumerical, shift);
+}
+
+void MeshTools::CalculatedAVnbsdUV(Mesh& m, AFP_shape* shape, std::vector<int>& BoundaryIndices,\
+                                   std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv,\
+                                   bool useNumerical, Real3 shift){
+    // find the ulist and vlist --> this also rearranges boundary indices 
+    std::vector<Real> ulist, vlist;
+    std::vector<Real3> drdu, drdv;
+    MeshTools::CalculatedAVnbsdUV(m, shape, BoundaryIndices, ulist, vlist, drdu, drdv, dAnbsduv, dVnbsduv, useNumerical, shift);
+}
+
+void MeshTools::CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& BoundaryIndices, \
+                                   std::vector<Real3>& drdu, std::vector<Real3>& drdv, std::vector<Real2>& dAnbsduv,\
+                                   std::vector<Real2>& dVnbsduv, bool useNumerical, Real3 shift){
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculatedAVnbsdUV(m, shape, BoundaryIndices, ulist, vlist, drdu, drdv, dAnbsduv, dVnbsduv, useNumerical, shift);
+}
+
+
+void MeshTools::CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, \
+                                   std::vector<Real>& vlist, std::vector<Real3>& drdu, std::vector<Real3>& drdv, \
+                                   std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical, Real3 shift){
+    // find the ulist and vlist --> this also rearranges boundary indices 
+    MeshTools::CalculatedrdUV(m, shape, BoundaryIndices, ulist, vlist, drdu, drdv, useNumerical);
+
+    // clear the output
+    dAnbsduv.clear();
+    dVnbsduv.clear();
+
+    // get the vertices 
+    const auto& verts = m.getvertices(); 
+
+    // start iterating over the boundary indices
+    for (int i=0;i<BoundaryIndices.size();i++){
+        // define int
+        int prev_ind, ind, next_ind;
+
+        if (i == 0){
+            prev_ind = BoundaryIndices[BoundaryIndices.size()-1];
+        }
+        else{prev_ind = BoundaryIndices[i-1];}
+        ind = BoundaryIndices[i];
+        next_ind = BoundaryIndices[(i+1) % BoundaryIndices.size()];
+
+        // calculate distance 
+        Real3 diff1, diff2;
+        Real dist1,dist2;
+        m.getVertexDistance(verts[next_ind], verts[ind], diff1, dist1);
+        m.getVertexDistance(verts[ind], verts[prev_ind], diff2, dist2);
+
+        // calculate dAnbsdu and dAnbsdv --> keep drdv the same 
+        Real3 crossP1          = 0.5 * LinAlg3x3::CrossProduct(drdv[i],diff1);
+        Real3 crossP2          = 0.5 * LinAlg3x3::CrossProduct(drdv[i],diff2);
+        Real dAnbsdv_this      = - LinAlg3x3::norm(crossP1) - LinAlg3x3::norm(crossP2);
+        Real dVnbsdv_this      = -1.0 / 3.0 * LinAlg3x3::DotProduct(verts[ind].position_ + shift, crossP1) \
+                                 -1.0 / 3.0 * LinAlg3x3::DotProduct(verts[ind].position_ + shift, crossP2); 
+        dAnbsduv.push_back({0.0, dAnbsdv_this});
+        dVnbsduv.push_back({0.0, dVnbsdv_this});
+    }
+}
+
+
+void MeshTools::CalculateContactAngle(Mesh& m, AFP_shape* shape, std::vector<Real>& ca){
+    ca.clear();
+
+    // for the shape, we calculate s --> obtain u and v 
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculateBoundaryVerticesIndex(m,  BoundaryIndices);
+
+    // in this function, we also ordered the boundaryindices
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, shape, true);
+
+    // now we calculate s,t etc.
+    const auto& verts = m.getvertices();
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int ind = BoundaryIndices[i];
+
+        // get the normals
+        auto N  = verts[ind].normals_;
+
+        // get the s 
+        Real3 s,t;
+        shape->CalculateNumericalNormalAndTangent(ulist[i], vlist[i],t,s);
+
+        // find the dot product between s and N
+        ca.push_back(LinAlg3x3::DotProduct(N,s));
+    }
+}
+
+void MeshTools::CalculateContactAngleDerivative(Mesh& m, AFP_shape* shape, \
+                                std::vector<Real>& ca_list, Real k0, Real3 Volume_shift, bool useNumerical){
+    // calculate area derivative --> dAdr at the boundary and volume derivative dVdr 
+    std::vector<Real3> dAdr ,dVdr;
+    MeshTools::CalculateAreaDerivatives(m, dAdr);
+    MeshTools::CalculateVolumeDerivatives(m, dVdr, Volume_shift);
+
+    // calculate drdu, drdv, boundaryindices, dAnbsdv, dAnbsdu, dVnbsdv, dVnbsdu
+    std::vector<int> BoundaryIndices;
+    std::vector<Real2> dAnbsduv, dVnbsduv;
+    std::vector<Real3> drdu, drdv;
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculatedAVnbsdUV(m, shape, BoundaryIndices, ulist, \
+                                vlist, drdu, drdv, dAnbsduv, dVnbsduv, useNumerical, Volume_shift);
+    ca_list.clear();
+
+    for (int j=0;j<BoundaryIndices.size();j++){
+        // get the actual index of boundary
+        int ind = BoundaryIndices[j];
+
+        Real dAdu = LinAlg3x3::DotProduct(drdu[j], dAdr[ind]);
+        Real dAdv = LinAlg3x3::DotProduct(drdv[j], dAdr[ind]);
+
+        Real dVdu = LinAlg3x3::DotProduct(drdu[j], dVdr[ind]);
+        Real dVdv = LinAlg3x3::DotProduct(drdv[j], dVdr[ind]);
+
+        // calculate dAnbsdu and dAnbsdv --> keep drdv the same 
+        Real dAnbsdu  = dAnbsduv[j][0];
+        Real dAnbsdv  = dAnbsduv[j][1];
+        Real dVnbsdu  = dVnbsduv[j][0];
+        Real dVnbsdv  = dVnbsduv[j][1];
+
+        // we can calculate the contact angle by finding the dgamma_gamma where dEdv is 0
+        Real ca = 1.0 / dAnbsdv * (-dAdv + 2.0f * k0 * (dVdv + dVnbsdv));
+        ca_list.push_back(ca);
+    }
+}
+
+Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
+    std::vector<int> BoundaryIndices; 
+    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
+
+    Real z_height=0.0f;
+    const auto& verts = m.getvertices();
+
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int ind = BoundaryIndices[i];
+        z_height += verts[ind].position_[2];
+    }
+
+    z_height = z_height / BoundaryIndices.size();
+
+    return z_height;
 }

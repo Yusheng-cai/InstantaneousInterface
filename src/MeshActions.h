@@ -37,6 +37,18 @@
 #include "LongEdgeRemoval.h"
 #include "ICP/ICP.h"
 #include "AFP_shapes.h"
+#include "cmc_surface/fast_rdt.h"
+#include "InterfacialFE_minimization.h"
+
+#define CGAL_PMP_USE_CERES_SOLVER
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
+#include <CGAL/Polygon_mesh_processing/detect_features.h>
+#include <CGAL/Polygon_mesh_processing/refine.h>
+#include <CGAL/Polygon_mesh_processing/fair.h>
+#include <CGAL/Polygon_mesh_processing/angle_and_area_smoothing.h>
+
 
 namespace MeshActions
 {
@@ -49,14 +61,18 @@ namespace MeshActions
     using refineptr= std::unique_ptr<MeshRefineStrategy>;
     using double3= CommonTypes::double3;
 
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+    typedef CGAL::Surface_mesh<K::Point_3>                      M;
+    namespace PMP = CGAL::Polygon_mesh_processing;
+
+    // Calculate mesh derivatives
+    void MeshDerivatives(CommandLineArguments& cmd);
+
     // BoundaryRefinement
     void RefineBoundary(CommandLineArguments& cmd);
 
-    // BoundaryRefinement
-    void RefineBoundary2(CommandLineArguments& cmd);
-
     // Meshify boundary
-    void MeshifySuperEgg(CommandLineArguments& cmd);
+    void MeshifyShape(CommandLineArguments& cmd);
 
     // translate a mesh
     void TranslateMesh(CommandLineArguments& cmd);
@@ -82,6 +98,8 @@ namespace MeshActions
     // function that finds the indices of non periodic triangles in a periodic mesh 
     void FindNonPBCTriangles(CommandLineArguments& cmd);
 
+    void OptimizeMesh(CommandLineArguments& cmd);
+
     // cut the mesh 
     void CutMesh(CommandLineArguments& cmd);
 
@@ -94,6 +112,9 @@ namespace MeshActions
     // convert a pbc mesh to non pbc mesh
     void ConvertToNonPBCMesh(CommandLineArguments& cmd);
 
+    // convert a non pbc mesh to pbc mesh
+    void ConvertToPBCMesh(CommandLineArguments& cmd);
+    
     // scale mesh by some number 
     void ScaleMesh(CommandLineArguments& cmd);
 
@@ -135,6 +156,11 @@ namespace MeshActions
 
     // curvature evolution but using interfacial Fe
     void InterfacialFE_min(CommandLineArguments& cmd);
+
+    void InterfacialFE_min_boundary(CommandLineArguments& cmd);
+
+    // function that calculates the contact angle
+    void CalculateContactAngle(CommandLineArguments& cmd);
 
     // find isolated triangle 
     void FindIsolatedFace(CommandLineArguments& cmd);
@@ -192,4 +218,10 @@ namespace MeshActions
 
     // calculate volume
     void calculateInterfaceVolume(CommandLineArguments& cmd);
+
+    // CVT optimization
+    void CVT_Mesh_optimization(CommandLineArguments& cmd);
+
+    // Calculate Anbs and Vnbs
+    void Mesh_AVnbs(CommandLineArguments& cmd);
 };

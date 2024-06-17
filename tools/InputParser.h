@@ -12,6 +12,7 @@
 #include <functional>
 #include <array>
 #include "tools/CommonTypes.h"
+#include "tools/CommonOperations.h"
 
 namespace StringTools
 {
@@ -53,6 +54,12 @@ namespace StringTools
 
     // function that reads the file name ignoring extension
     std::string ReadFileName(std::string filename, std::string delimiter=".");
+
+    template <typename T> 
+    void WriteTabulatedData(std::string filename, const std::vector<T>& data);
+
+    template <typename T>
+    void WriteTabulatedData(std::string filename, const std::vector<T>& data, const std::vector<int>& indices);
 }
 
 
@@ -355,6 +362,31 @@ void StringTools::ReadTabulatedData(std::string filename, int col, std::vector<T
     {
         data[i] = total_data[i][col];
     }
+}
+
+template <typename T>
+void StringTools::WriteTabulatedData(std::string filename, const std::vector<T>& data){
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    for (int i=0;i<data.size();i++){
+        ofs << data[i] << "\n";
+    }
+
+    ofs.close();
+}
+
+template <typename T>
+void StringTools::WriteTabulatedData(std::string filename, const std::vector<T>& data, const std::vector<int>& indices){
+    ASSERT((data.size() == indices.size()), "Indices size do not match that of data.");
+    std::ofstream ofs;
+    ofs.open(filename);
+
+    for (int i=0;i<data.size();i++){
+        ofs << indices[i] << " " << data[i] << "\n";
+    }
+
+    ofs.close();
 }
 
 

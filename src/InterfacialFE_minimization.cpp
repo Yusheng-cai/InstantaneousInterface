@@ -10,7 +10,16 @@ InterfacialFE_minimization::InterfacialFE_minimization(MeshRefineStrategyInput& 
 {
     pack_.ReadNumber("maxstep", ParameterPack::KeyType::Optional, maxStep_);
     pack_.ReadNumber("stepsize", ParameterPack::KeyType::Optional, stepsize_);
-    pack_.ReadNumber("k0", ParameterPack::KeyType::Required, k0_);
+    pack_.ReadNumber("L", ParameterPack::KeyType::Optional, L_);
+    pack_.ReadNumber("temperature", ParameterPack::KeyType::Optional, temperature_);
+    pack_.ReadNumber("print_every", ParameterPack::KeyType::Optional, print_every);
+    pack_.ReadNumber("tolerance", ParameterPack::KeyType::Optional, tol_);
+    pack_.ReadNumber("optimize_every", ParameterPack::KeyType::Optional, optimize_every);
+    pack_.Readbool("MaxStepCriteria", ParameterPack::KeyType::Optional, MaxStepCriteria);
+
+    // calculate mu and gamma based on temperature
+    mu_ = CalculateMu(temperature_);
+    gamma_ = CalculateGamma(temperature_);
 }
 
 void InterfacialFE_minimization::update_Mesh(){
@@ -37,13 +46,21 @@ void InterfacialFE_minimization::update_Mesh(){
     TotalArea_.clear();TotalArea_.resize(numVerts_);
 }
 
+Real InterfacialFE_minimization::CalculateGamma(Real temperature){
+    return (30.04 - 0.27477 * (270 - temperature)) * 1e-6 * 1e-18; //kJ/nm2
+}
+
+Real InterfacialFE_minimization::CalculateMu(Real temperature){
+    return 0.021 * temperature - 5.695;
+}
+
+
 void InterfacialFE_minimization::refine(Mesh& mesh){
     // define mesh
     mesh_ = &mesh;
     mesh_->CalcVertexNormals();
-    
-    // obtain the vertices
-    auto& verts = mesh_->accessvertices();
+
+    FE_.clear();
 
     // first generate necessary things for the mesh
     update_Mesh();
@@ -51,40 +68,86 @@ void InterfacialFE_minimization::refine(Mesh& mesh){
     // calculate cotangent weights 
     for (int i=0;i<maxStep_;i++){
         // calculate the derivatives dAdpi and dVdpi
-        MeshTools::CalculateCotangentWeights(*mesh_, neighborIndices_, boundaryIndicator_, MapEdgeToFace_, MapEdgeToOpposingVerts_, dAdpi_);
+        MeshTools::CalculateCotangentWeights(*mesh_, neighborIndices_, MapEdgeToFace_, MapEdgeToOpposingVerts_, dAdpi_);
         MeshTools::CalculateVolumeDerivatives(*mesh_, MapVertexToFace_, dVdpi_);
+    
+        // obtain the vertices
+        auto& verts = mesh_->accessvertices();
 
+        Real max=-1e10;
+        Real avg_step = 0;
+        int total_verts=0;
 
         // start updating
-        #pragma omp parallel for
-        for (int i=0;i<numVerts_;i++){
-            if (! MeshTools::IsBoundary(i, boundaryIndicator_)){
-                verts[i].position_ = verts[i].position_ - stepsize_ * (dAdpi_[i] - dVdpi_[i] * 2.0 * k0_);
+        #pragma omp parallel
+        {
+            Real local_max = -1e10;
+            Real sum = 0;
+            int n_verts= 0 ;
+            #pragma omp for
+            for (int j=0;j<numVerts_;j++){
+                if (! MeshTools::IsBoundary(j, boundaryIndicator_)){
+                    // calculate gradient 
+                    Real3 gradient = dAdpi_[j] - dVdpi_[j] * rho_*(mu_ + L_) / gamma_;
+
+                    // update position
+                    verts[j].position_ = verts[j].position_ - stepsize_ * gradient;
+
+                    // calculate size of step
+                    Real step = std::sqrt(LinAlg3x3::DotProduct(gradient, gradient));
+                    sum += step;
+                    n_verts+=1;
+
+                    if (step > local_max){
+                        local_max = step;
+                    }
+                }
             }
+           
+            #pragma omp critical
+            if (local_max > max){
+                max = local_max;
+            }
+
+            #pragma omp critical
+            avg_step += sum;
+
+            #pragma omp critical
+            total_verts += n_verts;
         }
 
-        // calcuilate vertex normal again 
+        avg_step /= total_verts;
+
+
+        // calculate the vertex normals 
         mesh_->CalcVertexNormals();
 
-        // compare vertex normal with dA --> dA = 2 kappa * N
-        // for (int i=0;i<dAdpi_.size();i++){
-        //     if (! MeshTools::IsBoundary(i,boundaryIndicator_)){
-        //         Real3 dA = dAdpi_[i];
+        if (MaxStepCriteria){
+            if (max < tol_){break;}
+        }
+        else{
+            if (avg_step < tol_){break;}
+        }
 
-        //         Real product = LinAlg3x3::DotProduct(dA, dA);
+        // print if necessary
+        if ((i+1) % print_every == 0){
+            std::vector<Real3> Normal;
+            std::vector<Real> vecArea;
+            Real a = MeshTools::CalculateArea(*mesh_, vecArea, Normal);
+            Real V = MeshTools::CalculateVolumeDivergenceTheorem(*mesh_, vecArea, Normal);
+            Real E = a - rho_ * (mu_ + L_) / gamma_ * V;
+            FE_.push_back(a - rho_ * (mu_ + L_) / gamma_ * V);
+            std::cout << "At iteration " << i+1 << " Area = " << a << " " << " Volume = " << V << " Energy = " << E << std::endl;
+            std::cout << "max step = " << max << std::endl;
+            std::cout << "Avg step = " << avg_step << std::endl;
+        }
 
-        //         if (product > 1e-8){
-        //             LinAlg3x3::normalize(dA);
-        //             std::cout << "Calculated normal = " << dA << " , actual normal = " << mesh_->getvertices()[i].normals_ << std::endl; 
-        //         }
-        //     }
-        // }
+        if ((i+1) % optimize_every == 0){
+            MeshTools::CGAL_optimize_Mesh(*mesh_, 10, 60);
 
-        std::vector<Real3> Normal;
-        std::vector<Real> vecArea;
-        Real a = MeshTools::CalculateArea(*mesh_, vecArea, Normal);
-        Real V = MeshTools::CalculateVolumeDivergenceThoerem(*mesh_, vecArea, Normal);
-        std::cout << "Area = " << a << std::endl;
-        std::cout << "Volume = " << V << std::endl;
+            update_Mesh();
+        }
     }
+
+    mesh_->CalcVertexNormals();
 }

@@ -1,6 +1,239 @@
 #include "AFP_shapes.h"
 #include <cmath>
 
+Real3 AFP_shape::Numericaldrdu(Real u, Real v){
+    std::vector<Real> ulist = {u - 0.01f, u + 0.01f};
+    std::vector<Real3> values;
+
+    for (auto uu : ulist){
+        values.push_back(calculatePos(uu, v));
+    }
+
+    Real3 drdu = 1.0 / 0.02 * (values[1] - values[0]);
+
+    return drdu;
+}
+
+Real3 AFP_shape::Numericaldrdv(Real u, Real v){
+    std::vector<Real> vlist = {v-0.01f, v+0.01f};
+    std::vector<Real3> values;
+
+    for (auto vv : vlist){
+        values.push_back(calculatePos(u, vv));
+    }
+
+    Real3 drdv = 1.0 / 0.02 * (values[1] - values[0]);
+
+    return drdv;
+}
+
+Eigen::MatrixXd AFP_shape::NumericalJacobian(Real u, Real v){
+    // jacobian matrix 
+    Real3 drdu = Numericaldrdu(u,v);
+    Real3 drdv = Numericaldrdv(u,v);
+
+    Eigen::MatrixXd jac(3,2);
+    jac << drdu[0], drdv[0], drdu[1], drdv[1], drdu[2], drdv[2];
+
+    return jac;
+}
+
+Eigen::MatrixXd AFP_shape::InvNumericalJacobian(Real u, Real v){
+    auto jac = NumericalJacobian(u,v);
+    auto invjac = jac.completeOrthogonalDecomposition().pseudoInverse();
+
+    return invjac;
+}
+
+Eigen::MatrixXd AFP_shape::AnalyticalJacobian(Real u, Real v){
+    Real3 drdu = Analyticaldrdu(u,v);
+    Real3 drdv = Analyticaldrdv(u,v);
+
+    Eigen::MatrixXd jac(3,2);
+    jac << drdu[0], drdv[0], drdu[1], drdv[1], drdu[2], drdv[2];
+
+    return jac;
+}
+
+Eigen::MatrixXd AFP_shape::InvAnalyticalJacobian(Real u, Real v){
+    auto jac = AnalyticalJacobian(u,v);
+    auto invjac = jac.completeOrthogonalDecomposition().pseudoInverse();
+
+    return invjac;
+}
+
+bool AFP_shape::CalculateNumericalNormalAndTangent(Real3& point, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+    Real u = CalculateU(point);
+    Real v = CalculateV(point);
+
+    return CalculateNumericalNormalAndTangent(u,v,tangent, normal, xdir, ydir, zdir);
+} 
+
+bool AFP_shape::CalculateAnalyticalNormalAndTangent(Real3& point, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+    Real u = CalculateU(point);
+    Real v = CalculateV(point);
+
+    return CalculateAnalyticalNormalAndTangent(u,v,tangent,normal,xdir,ydir,zdir);
+}
+
+Real3 AFP_shape::drdu(Real u, Real v, bool useNumerical){
+    if (useNumerical){
+        return Numericaldrdu(u,v);
+    }
+    else{
+        return Analyticaldrdu(u,v);
+    }
+}
+
+Real3 AFP_shape::drdv(Real u, Real v, bool useNumerical){
+    if (useNumerical){
+        return Numericaldrdv(u,v);
+    }
+    else{
+        return Analyticaldrdv(u,v);
+    }
+}
+
+bool AFP_shape::CalculateNumericalNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+    Real3 drdu = Numericaldrdu(u,v);
+    Real3 drdv = Numericaldrdv(u,v);
+
+    Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
+    LinAlg3x3::normalize(norm);
+    normal[xdir] = norm[0];
+    normal[ydir] = norm[1];
+    normal[zdir] = norm[2];
+
+    Real3 tang = drdv;
+    LinAlg3x3::normalize(tang);
+    tangent[xdir] = -tang[0];
+    tangent[ydir] = -tang[1];
+    tangent[zdir] = -tang[2];
+
+    return true;
+}
+
+bool AFP_shape::CalculateAnalyticalNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
+    // // // initialize the position matrix 
+    std::vector<std::vector<Real3>> pos(3, std::vector<Real3>(3,{0,0,0}));
+
+    Real3 drdu = Analyticaldrdu(u,v);
+    Real3 drdv = Analyticaldrdv(u,v);
+
+    Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
+    LinAlg3x3::normalize(norm);
+    normal[xdir] = norm[0];
+    normal[ydir] = norm[1];
+    normal[zdir] = norm[2];
+
+    Real3 tang = drdv;
+    LinAlg3x3::normalize(tang);
+    tangent[xdir] = -tang[0];
+    tangent[ydir] = -tang[1];
+    tangent[zdir] = -tang[2];
+
+    return true;
+}
+
+Real AFP_shape::shift_u_in_range(Real u){
+    if (u < 0){
+        u += 2 * Constants::PI;
+    }
+
+    return u;
+}
+
+                                            /// Sphere //// 
+
+Sphere::Sphere(const ParameterPack& pack) : AFP_shape(pack){
+    pack.ReadNumber("radius", ParameterPack::KeyType::Optional, radius_);
+    pack.ReadArrayNumber("center", ParameterPack::KeyType::Required, center_);
+}
+
+Sphere::Real3 Sphere::calculatePos(Real u, Real v){
+    Real3 ret;
+
+    ret[0] = radius_ * std::sin(v) * std::cos(u) + center_[0];
+    ret[1] = radius_ * std::sin(v) * std::sin(u) + center_[1];
+    ret[2] = radius_ * std::cos(v);
+
+    return ret;
+}
+
+Real Sphere::CalculateValue(Real3 position, int xdir, int ydir, int zdir){
+    Real rsq = radius_ * radius_;
+    Real val = std::pow(position[xdir] - center_[0],2) / rsq + std::pow(position[ydir] - center_[1],2) / rsq + \
+    std::pow(position[zdir] - 0,2); 
+
+    return val;
+}
+
+Real Sphere::CalculateAreaZ(Real z){
+    Real theta = std::acos(z);
+    Real r = radius_ * std::sin(theta);
+
+    return Constants::PI * r * r;
+}
+
+Real Sphere::CalculatePeriZ(Real z){
+    Real theta = std::acos(z);
+    Real r = radius_ * std::sin(theta);
+
+    return 2.0f * Constants::PI * r;
+}
+
+Real Sphere::CalculateV(Real3 pos, int xdir, int ydir, int zdir){
+    return std::acos(pos[zdir] / radius_);
+}
+
+Real Sphere::CalculateU(Real3 pos, int xdir, int ydir, int zdir){
+    Real dx = pos[xdir] - center_[0];
+    Real dy = pos[ydir] - center_[1];
+
+    // we strictly follow a 0->2pi U
+    Real U  = std::atan2(dy, dx);
+    U = shift_u_in_range(U);
+
+    return U;
+}
+
+Real Sphere::CalculateU(Real3 pos, Real3 box, int xdir, int ydir, int zdir){
+    Real dx = pos[xdir] - center_[0];
+    Real dy = pos[ydir] - center_[1];
+
+    if (dx > 0.5 * box[0]) {dx -= box[0];}
+    else if (dx < -0.5 * box[0]) {dx += box[0];}
+
+    if (dy > 0.5 * box[1]) {dy -= box[1];}
+    else if (dy < -0.5 * box[1]) {dy += box[1];}
+
+    Real U = std::atan2(dy, dx);
+    U = shift_u_in_range(U);
+
+    return U;
+}
+
+Real3 Sphere::Analyticaldrdu(Real u, Real v){
+    Real3 ret;
+    ret[0] = -radius_ * std::sin(v) * std::sin(u); 
+    ret[1] = radius_  * std::sin(v) * std::cos(u);
+    ret[2] = 0;
+
+    return ret;
+}
+
+Real3 Sphere::Analyticaldrdv(Real u, Real v){
+    Real3 ret;
+    ret[0] = radius_ * std::cos(v) * std::cos(u);
+    ret[1] = radius_ * std::cos(v) * std::sin(u);
+    ret[2] = -radius_ * std::sin(v);
+
+    return ret;
+}
+
+
+                                    ///// Super Egg ////////////
+
 SuperEgg::SuperEgg(const ParameterPack& pack) : AFP_shape(pack){
     pack.ReadNumber("a", ParameterPack::KeyType::Required, a_);
     pack.ReadNumber("b", ParameterPack::KeyType::Required, b_);
@@ -14,33 +247,28 @@ SuperEgg::SuperEgg(const ParameterPack& pack) : AFP_shape(pack){
     pack.ReadNumber("offset_height", ParameterPack::KeyType::Optional, offset_height);
 }
 
-double SuperEgg::aBulging(double z){
+Real SuperEgg::aBulging(Real z){
     return a_ * (1 - std::pow((a_taper_ * z / zmax_),2)) + a_alpha_ * std::sin(z / zmax_ * Constants::PI);
 }
 
-double SuperEgg::da_dz(double z){
+Real SuperEgg::da_dz(Real z){
     return a_ * a_taper_ * z / zmax_ * a_taper_ / zmax_ + a_alpha_ * std::cos(z / zmax_ * Constants::PI) * Constants::PI / zmax_;
 }
 
-
-double SuperEgg::bBulging(double z){
+Real SuperEgg::bBulging(Real z){
     return b_ * (1 - std::pow((b_taper_ * z / zmax_),2)) + b_alpha_ * std::sin(z / zmax_ * Constants::PI);
 }
 
-double SuperEgg::db_dz(double z){
+Real SuperEgg::db_dz(Real z){
     return b_ * (b_taper_ * z / zmax_);
 }
 
-SuperEgg::Real SuperEgg::CalculateV(Real z){
-    return std::asin(z / zmax_);
-}
 
-
-SuperEgg::double3 SuperEgg::calculatePos(double u, double v){
-    double3 ret;
+SuperEgg::Real3 SuperEgg::calculatePos(Real u, Real v){
+    Real3 ret;
     ret[2] = zmax_ * std::sin(v);
-    ret[0] = aBulging(ret[2]) * Algorithm::sgn(std::cos(u)) * std::pow(std::abs(std::cos(u)), 2.0/(float)n_) + center_[0];
-    ret[1] = bBulging(ret[2]) * Algorithm::sgn(std::sin(u)) * std::pow(std::abs(std::sin(u)), 2.0/(float)n_) + center_[1];
+    ret[0] = aBulging(ret[2]) * Algorithm::sgn(std::cos(u)) * std::pow(std::abs(std::cos(u)), 2.0/n_) + center_[0];
+    ret[1] = bBulging(ret[2]) * Algorithm::sgn(std::sin(u)) * std::pow(std::abs(std::sin(u)), 2.0/n_) + center_[1];
 
     return ret;
 }
@@ -50,13 +278,120 @@ SuperEgg::Real SuperEgg::CalculateValue(Real3 position, int xdir, int ydir, int 
     a = aBulging(position[zdir]);
     b = bBulging(position[zdir]);
 
-    return std::pow(std::abs(position[xdir]) / a, n_) + std::pow(std::abs(position[ydir]) / b, n_);
+    return std::pow(std::abs(position[xdir] - center_[0]) / a, n_) + std::pow(std::abs(position[ydir] - center_[1]) / b, n_);
 }
 
-SuperEgg::double3 SuperEgg::dr_du(double u, double v){
-    double3 drdu;
-    double dydu, dxdu;
-    double z = zmax_ * std::sin(v);
+
+Real SuperEgg::CalculateV(Real3 point, int xdir, int ydir, int zdir){
+    Real v = std::asin((point[zdir] + offset_height) / zmax_);
+
+    return v;
+}
+
+Real SuperEgg::CalculateU(Real3 point, Real3 box, int xdir, int ydir, int zdir){
+    // first get a good guess of what u and v are
+    Real dx,dy,dz;
+    Real3 shifted_pos;
+    Real shifted_x, shifted_y;
+
+    dx = point[xdir] - center_[0];
+    dy = point[ydir] - center_[1];
+
+    if (dx > box[xdir] * 0.5) {dx = dx - box[xdir];}
+    else if (dx < -box[xdir] * 0.5) {dx = dx + box[xdir];}
+
+    if (dy > box[ydir] * 0.5) {dy = dy - box[ydir];}
+    else if (dy < -box[ydir] * 0.5) {dy = dy + box[ydir];}
+
+    shifted_x = center_[0] + dx;
+    shifted_y = center_[1] + dy;
+    shifted_pos[0] = shifted_x; shifted_pos[1] = shifted_y;
+    shifted_pos[2] = point[zdir];
+
+    Real u = CalculateU(shifted_pos, xdir, ydir, zdir);
+    u = shift_u_in_range(u);
+
+    return u;
+}
+
+
+Real SuperEgg::CalculateU(Real3 point, int xdir, int ydir, int zdir){
+    // first get a good guess of what u and v are
+    Real u = std::atan2(point[ydir] - center_[1], point[xdir] - center_[0]);
+    Real v = CalculateV(point, xdir, ydir, zdir);
+
+    // have a list of u solutions
+    std::vector<Real> u_solutions;
+    std::vector<Real> err_list;
+    std::vector<Real3> pos_s;
+
+    // solve y first 
+    FunctorY funcy(point, this, xdir, ydir, zdir);
+    Eigen::HybridNonLinearSolver<FunctorY> NL_solver(funcy);
+    Eigen::VectorXd y1,y2;
+    Real3 y1_pos, y2_pos;
+    Real err_y1, err_y2;
+    y1.resize(1), y2.resize(1);
+    y1[0] = Algorithm::sgn(u) * Constants::PI  - Algorithm::sgn(u) * 0.1;
+    y2[0] = 0 + Algorithm::sgn(u) * 0.1;
+    auto infoy = NL_solver.solveNumericalDiff(y1);
+    auto infoy2= NL_solver.solveNumericalDiff(y2);
+
+    // keep track of solutions
+    u_solutions.push_back(y1[0]);
+    u_solutions.push_back(y2[0]);
+    y1_pos = calculatePos(y1[0], v), y2_pos = calculatePos(y2[0], v);
+    pos_s.push_back(y1_pos); pos_s.push_back(y2_pos);
+    err_y1 = std::pow(y1_pos[0] - point[xdir],2) + std::pow(y1_pos[1] - point[ydir],2);
+    err_y2 = std::pow(y2_pos[0] - point[xdir],2) + std::pow(y2_pos[1] - point[ydir],2);
+    err_list.push_back(err_y1);
+    err_list.push_back(err_y2);
+
+    // solve x 
+    FunctorX funcx(point,this, xdir, ydir, zdir);
+    Eigen::HybridNonLinearSolver<FunctorX> NL_solverX(funcx);
+    Eigen::VectorXd x1,x2;
+    Real3 x1_pos, x2_pos;
+    Real err_x1, err_x2;
+    x1.resize(1), x2.resize(1);
+    x1[0] = Algorithm::sgn(u) * Constants::PI  - Algorithm::sgn(u) * 0.1;
+    x2[0] = 0 + Algorithm::sgn(u) * 0.1;
+    auto infox = NL_solverX.solveNumericalDiff(x1);
+    auto infox2= NL_solverX.solveNumericalDiff(x2);
+
+    // keep track of solutions
+    u_solutions.push_back(x1[0]);
+    u_solutions.push_back(x2[0]);
+    x1_pos = calculatePos(x1[0],v), x2_pos = calculatePos(x2[0],v);
+    pos_s.push_back(x1_pos); pos_s.push_back(x2_pos);
+    err_x1 = std::pow(x1_pos[0] - point[xdir],2) + std::pow(x1_pos[1] - point[ydir],2);
+    err_x2 = std::pow(x2_pos[0] - point[xdir],2) + std::pow(x2_pos[1] - point[ydir],2);
+    err_list.push_back(err_x1);
+    err_list.push_back(err_x2);
+
+    // set u 
+    int index = Algorithm::argmin(err_list);
+
+    if (u_solutions[index] < -2*Constants::PI || u_solutions[index] > 2*Constants::PI){
+        return std::fmod(u_solutions[index], 2*Constants::PI);
+    }
+    else{
+        return u_solutions[index];
+    }
+}
+
+Real SuperEgg::CalculateAreaZ(Real z){
+    return 0.0f; 
+}
+
+Real SuperEgg::CalculatePeriZ(Real z){
+    return 0.0f;
+}
+
+Real3 SuperEgg::Analyticaldrdu(Real u, Real v){
+    Real3 drdu;
+    Real dydu, dxdu;
+    Real z = zmax_ * std::sin(v);
 
     if (u >= 0){
         dydu = bBulging(z) * 2.0 / (float)n_ * std::pow(std::sin(u), 2.0/(float)n_ - 1) * std::cos(u);
@@ -74,193 +409,6 @@ SuperEgg::double3 SuperEgg::dr_du(double u, double v){
     return drdu;
 }
 
-bool SuperEgg::CalculateNormalAndTangent(Real u, Real v, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
-    // // // initialize the position matrix 
-    std::vector<std::vector<double3>> pos(3, std::vector<double3>(3,{0,0,0}));
-    // first find the zenithal and azimuthal 
-    std::vector<double> ulist = {u - 0.01f, u , u + 0.01f};
-    std::vector<double> vlist = {v - 0.01f, v , v + 0.01f};
-
-    // matrix goes like
-    // (v-1, u-1), (v-1, u), (v-1, u+1)
-    // (v , u-1), (v, u), (v, u+1)
-    // (v+1, u-1), (v+1, u), (v+1, u+1)
-    
-    for (int i=0;i<ulist.size();i++){
-        for (int j=0;j<vlist.size();j++){
-            pos[j][i] = calculatePos(ulist[i], vlist[j]);
-        }
-    }
-
-
-    // these give the dr/du, dr/dv
-    Real3 drdu, drdv;
-    for (int i=0;i<3;i++){
-        drdu[i] = 0.5 * (pos[1][0][i] - pos[1][2][i]);
-        drdv[i] = 0.5 * (pos[0][1][i] - pos[2][1][i]);
-    }
-
-
-    Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
-    LinAlg3x3::normalize(norm);
-    normal[xdir] = norm[0];
-    normal[ydir] = norm[1];
-    normal[zdir] = norm[2];
-
-    Real3 tang = drdv;
-    LinAlg3x3::normalize(tang);
-    tangent[xdir] = -tang[0];
-    tangent[ydir] = -tang[1];
-    tangent[zdir] = -tang[2];
-
-    return true;
-}
-
-
-
-
-bool SuperEgg::CalculateNormalAndTangent(const double3& point, Real3& tangent, Real3& normal, int xdir, int ydir, int zdir){
-    // capturing guess by value, func by reference
-    // auto f = [this, point, zdir](Real& x, Real& fx){
-    //     fx = this->bBulging(point[zdir] - 1 + 0.864) * Algorithm::sgn(std::sin(x)) * std::pow(std::abs(std::sin(x)), 2.0 / this->getn());
-
-    //     return;
-    // };
-
-    // auto f_vec = [this, point](std::vector<Real>& x, std::vector<Real>& fx){
-    //     Real z = zmax_ * std::sin(x[0]);
-    //     fx[0] = this->aBulging(z) * Algorithm::sgn(std::cos(x[1])) * std::pow(std::abs(std::cos(x[1])), 2.0 / this->getn());
-    //     fx[1] = this->bBulging(z) * Algorithm::sgn(std::sin(x[1])) * std::pow(std::abs(std::sin(x[1])), 2.0 / this->getn());
-
-    //     return;
-    // };
-
-    // std::function<Real(Real)> f1 = [this, point, zdir, xdir, ydir](Real x){
-    //     return this->bBulging(point[zdir]-1+0.864) * Algorithm::sgn(std::sin(x)) * std::pow(std::abs(std::sin(x)), 2.0/this->getn()) - (point[ydir] - this->getcenter()[0]);
-    // };
-
-
-    // first get a good guess of what u and v are
-    Real u = std::atan2(point[ydir] - center_[1], point[xdir] - center_[0]);
-    if (point[zdir] + offset_height > zmax_){
-        return false;
-    }
-    Real v = std::asin((point[zdir] + offset_height) / zmax_);
-
-    // have a list of u solutions
-    std::vector<double> u_solutions;
-    std::vector<double> err_list;
-
-    std::vector<double3> pos_s;
-
-    // solve y first 
-    FunctorY funcy(point, this, xdir, ydir, zdir);
-    Eigen::HybridNonLinearSolver<FunctorY> NL_solver(funcy);
-    Eigen::VectorXd y1,y2;
-    double3 y1_pos, y2_pos;
-    double err_y1, err_y2;
-    y1.resize(1), y2.resize(1);
-    y1[0] = Algorithm::sgn(u) * Constants::PI  - Algorithm::sgn(u) * 0.1;
-    y2[0] = 0 + Algorithm::sgn(u) * 0.1;
-    auto infoy = NL_solver.solveNumericalDiff(y1);
-    auto infoy2= NL_solver.solveNumericalDiff(y2);
-
-    // keep track of solutions
-    u_solutions.push_back(y1[0]);
-    u_solutions.push_back(y2[0]);
-    y1_pos = calculatePos(y1[0], v), y2_pos = calculatePos(y2[0], v);
-    pos_s.push_back(y1_pos); pos_s.push_back(y2_pos);
-    err_y1 = std::pow(y1_pos[0] - point[xdir],2) + std::pow(y1_pos[1] - point[ydir],2);
-    err_y2 = std::pow(y2_pos[0] - point[xdir],2) + std::pow(y2_pos[1] - point[ydir],2);
-    err_list.push_back(err_y1);
-    err_list.push_back(err_y2);
-
-
-    // std::cout << "-----solvey------" << std::endl;
-    // std::cout << "status = " << infoy << std::endl;
-    // std::cout << "status2 = " << infoy2 << std::endl;
-    // std::cout << "Solved u = " << y1[0] << " initial guess = " << u << std::endl;
-    // std::cout << "Solved u2= " << y2[0] << std::endl;
-    // std::cout << "Solved pos1 = " << y1_pos << std::endl;
-    // std::cout << "Solved pos2 = " << y2_pos << std::endl;
-    // std::cout << "err_y1 = " << err_y1 << std::endl;
-    // std::cout << "err_y2 = " << err_y2 << std::endl;
-
-    // solve x 
-    FunctorX funcx(point,this, xdir, ydir, zdir);
-    Eigen::HybridNonLinearSolver<FunctorX> NL_solverX(funcx);
-    Eigen::VectorXd x1,x2;
-    double3 x1_pos, x2_pos;
-    double err_x1, err_x2;
-    x1.resize(1), x2.resize(1);
-    x1[0] = Algorithm::sgn(u) * Constants::PI  - Algorithm::sgn(u) * 0.1;
-    x2[0] = 0 + Algorithm::sgn(u) * 0.1;
-    auto infox = NL_solverX.solveNumericalDiff(x1);
-    auto infox2= NL_solverX.solveNumericalDiff(x2);
-
-    // keep track of solutions
-    u_solutions.push_back(x1[0]);
-    u_solutions.push_back(x2[0]);
-    x1_pos = calculatePos(x1[0],v), x2_pos = calculatePos(x2[0],v);
-    pos_s.push_back(x1_pos); pos_s.push_back(x2_pos);
-    err_x1 = std::pow(x1_pos[0] - point[xdir],2) + std::pow(x1_pos[1] - point[ydir],2);
-    err_x2 = std::pow(x2_pos[0] - point[xdir],2) + std::pow(x2_pos[1] - point[ydir],2);
-    err_list.push_back(err_x1);
-    err_list.push_back(err_x2);
-
-    // std::cout << "-----solvex------" << std::endl;
-    // std::cout << "status = " << infox << std::endl;
-    // std::cout << "status2 = " << infox2 << std::endl;
-    // std::cout << "Solved u = " << fmod(x1[0], Constants::PI) << " initial guess = " << u << std::endl;
-    // std::cout << "Solved u2= " << fmod(x2[0], Constants::PI) << std::endl;
-    // std::cout << "Solved pos1 = " << x1_pos << std::endl;
-    // std::cout << "Solved pos2 = " << x2_pos << std::endl;
-    // std::cout << "err_x1 = " << err_x1 << std::endl;
-    // std::cout << "err_x2 = " << err_x2 << std::endl;
-    // std::cout << "original pos = " << point << std::endl;
-
-    // set u 
-    int index = Algorithm::argmin(err_list);
-    u = u_solutions[index];
-
-
-    // // // initialize the position matrix 
-    std::vector<std::vector<double3>> pos(3, std::vector<double3>(3,{0,0,0}));
-    // first find the zenithal and azimuthal 
-    std::vector<double> ulist = {u - 0.01f, u , u + 0.01f};
-    std::vector<double> vlist = {v - 0.01f, v , v + 0.01f};
-
-    // matrix goes like
-    // (v-1, u-1), (v-1, u), (v-1, u+1)
-    // (v , u-1), (v, u), (v, u+1)
-    // (v+1, u-1), (v+1, u), (v+1, u+1)
-    
-    for (int i=0;i<ulist.size();i++){
-        for (int j=0;j<vlist.size();j++){
-            pos[j][i] = calculatePos(ulist[i], vlist[j]);
-        }
-    }
-
-
-    // these give the dr/du, dr/dv
-    Real3 drdu, drdv;
-    for (int i=0;i<3;i++){
-        drdu[i] = 0.5 * (pos[1][0][i] - pos[1][2][i]);
-        drdv[i] = 0.5 * (pos[0][1][i] - pos[2][1][i]);
-    }
-
-
-    Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
-    LinAlg3x3::normalize(norm);
-    normal[xdir] = norm[0];
-    normal[ydir] = norm[1];
-    normal[zdir] = norm[2];
-
-    Real3 tang = drdv;
-    LinAlg3x3::normalize(tang);
-    tangent[xdir] = -tang[0];
-    tangent[ydir] = -tang[1];
-    tangent[zdir] = -tang[2];
-
-    return true;
+Real3 SuperEgg::Analyticaldrdv(Real u, Real v){
+    return {0,0,0};
 }

@@ -1,4 +1,4 @@
-////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // CMC Surface Evolver                                                        //
 // http://i.cs.hku.hk/~hpan/code/cmc_source.zip        						  //
@@ -180,9 +180,9 @@ namespace Geex {
      * vertices equations (represented as plane indices 
      * triplets).
      */
-    template <class T, int DIM> class small_set {
+    template <class T, int DDIM> class small_set {
     public:
-        typedef small_set<T,DIM> thisclass ;
+        typedef small_set<T,DDIM> thisclass ;
         typedef T* iterator ;
         typedef const T* const_iterator ;
         typedef T& reference ;
@@ -198,26 +198,26 @@ namespace Geex {
             copy(rhs) ; return *this ;
         }
 
-        template <int DIM2> small_set(const small_set<T,DIM2>& rhs) {
+        template <int DDIM2> small_set(const small_set<T,DDIM2>& rhs) {
             copy(rhs) ;
         }
         
-        template <int DIM2> thisclass& operator=(const small_set<T,DIM2>& rhs) {
+        template <int DDIM2> thisclass& operator=(const small_set<T,DDIM2>& rhs) {
             copy(rhs) ; return *this ;
         }
 
         unsigned int size() const { return (unsigned int)(end_ - data_) ; }
-        unsigned int capacity() const { return (unsigned int)DIM ; }
+        unsigned int capacity() const { return (unsigned int)DDIM ; }
 
         iterator begin() { return data_ ; }
         iterator end() { return end_ ; }
-        iterator end_of_storage() { return data_ + DIM ; }
+        iterator end_of_storage() { return data_ + DDIM ; }
 
         iterator* end_ptr() { return &end_ ; }
 
         const_iterator begin() const { return data_ ; }
         const_iterator end() const { return end_ ; }
-        const_iterator end_of_storage() const { return data_ + DIM ; }
+        const_iterator end_of_storage() const { return data_ + DDIM ; }
 
         iterator insert(const T& x) { 
             return insert(x, find_i(x)) ; 
@@ -342,9 +342,9 @@ namespace Geex {
         }
 
 
-        template <int DIM2> void copy(const small_set<T,DIM2>& rhs) {
+        template <int DDIM2> void copy(const small_set<T,DDIM2>& rhs) {
             end_ = data_ ;
-            for(typename small_set<T,DIM2>::const_iterator it=rhs.begin(); it!=rhs.end(); it++) {
+            for(typename small_set<T,DDIM2>::const_iterator it=rhs.begin(); it!=rhs.end(); it++) {
                 push_back(*it) ;
             }
         }
@@ -369,24 +369,24 @@ namespace Geex {
         }
 
     protected:
-        T data_[DIM] ;
+        T data_[DDIM] ;
         iterator end_ ;
     } ;
 
-    template <class T, int DIM> inline std::ostream& operator<<(
+    template <class T, int DDIM> inline std::ostream& operator<<(
         std::ostream& out,
-        const small_set<T, DIM>& S
+        const small_set<T, DDIM>& S
     ) {
         S.print(out) ; return out ;
     }
 
 
-    template <class T, int DIM1, int DIM2, int DIM3> inline void sets_intersect(
-        const small_set<T,DIM1>& S1, const small_set<T,DIM2>& S2, small_set<T,DIM3>& I
+    template <class T, int DDIM1, int DDIM2, int DDIM3> inline void sets_intersect(
+        const small_set<T,DDIM1>& S1, const small_set<T,DDIM2>& S2, small_set<T,DDIM3>& I
     ) {
         I.clear() ;
-        typename small_set<T,DIM1>::const_iterator i1 = S1.begin() ;
-        typename small_set<T,DIM2>::const_iterator i2 = S2.begin() ; 
+        typename small_set<T,DDIM1>::const_iterator i1 = S1.begin() ;
+        typename small_set<T,DDIM2>::const_iterator i2 = S2.begin() ; 
         while(i1 < S1.end() && i2 < S2.end()) {
             if(*i1 < *i2) 
                 ++i1 ;
@@ -401,7 +401,7 @@ namespace Geex {
     }
 
 
-    template <class T, int DIM> inline std::ostream& operator<<(
+    template <class T, int DDIM> inline std::ostream& operator<<(
         std::ostream& out,
         const std::set<T>& S
     ) {

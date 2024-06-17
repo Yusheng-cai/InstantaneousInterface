@@ -20,6 +20,9 @@ namespace Algorithm
     template <typename T, std::size_t dim>
     int argmax(std::array<T,dim>& arr);
 
+    template <typename T>
+    std::vector<int> argsort(const std::vector<T>& vec);
+
     template<typename T>
     T calculateVariance(const std::vector<T>& data);
 
@@ -104,6 +107,19 @@ int Algorithm::argmin(std::array<T,dim>& arr)
     typename std::array<T,dim>::iterator it = std::min_element(arr.begin(), arr.end());
 
     return it - arr.begin();
+}
+
+template <typename T>
+std::vector<int> Algorithm::argsort(const std::vector<T>& vec) {
+    // Create a vector of indices
+    std::vector<int> indices(vec.size());
+    std::iota(indices.begin(), indices.end(), 0); // Fill with 0, 1, ..., vec.size()-1
+
+    // Sort indices based on values in vec
+    std::sort(indices.begin(), indices.end(),
+              [&vec](size_t i1, size_t i2) { return vec[i1] < vec[i2]; });
+
+    return indices;
 }
 
 template <typename T, std::size_t dim>

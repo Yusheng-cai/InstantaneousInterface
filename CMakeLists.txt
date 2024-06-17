@@ -54,13 +54,23 @@ endif()
 #    message("GLFW Library directory = ${GLFW3_LIBRARY}")
 #endif()
 
-find_package(CGAL)
+set(CGAL_DIR "/home/yusheng/programs/CGAL-5.6.1/lib/cmake/CGAL/")
+find_package(CGAL NO_DEFAULT_PATH)
 if (CGAL_FOUND)
   message("CGAL FOUND.")
   message("CGAL INCLUDE DIR = ${CGAL_INCLUDE_DIRS}")
   message("CGAL LIBRARIES = ${CGAL_LIBRARY}")
+  message("CGAL VERSION=${CGAL_VERSION}")
 endif()
-message("CMAKE ROOT = ${CMAKE_ROOT}")
+#message("CMAKE ROOT = ${CMAKE_ROOT}")
+
+find_package(Ceres REQUIRED)
+if (Ceres_FOUND)
+  message("Ceres FOUND")
+  message("Ceres INCLUDE DIR = ${CERES_INCLUDE_DIRS}")
+  message("Ceres LIBRARIES = ${CERES_LIBRARIES}")
+endif()
+
 
 # install the libraries as well as the executables in lib & bin folder in build/
 # This has to be after project is defined

@@ -107,14 +107,18 @@ if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
 
+if (Ceres_FOUND)
+    target_include_directories(IIsrc PUBLIC ${CERES_INCLUDE_DIRS})
+endif()
+
 if (ENABLE_CUDA)
    target_include_directories(IIsrc PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
 
 if (ENABLE_IGL)
-    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw)
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw ${CERES_LIBRARIES})
 else()
-    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL)
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL ${CERES_LIBRARIES})
 endif()
 
 

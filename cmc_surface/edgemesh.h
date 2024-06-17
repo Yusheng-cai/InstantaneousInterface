@@ -26,9 +26,15 @@
 #include <sstream>
 #include "geex_utils.h"
 
+// BEGIN YC_EDITS
+#include "tools/CommonTypes.h"
+// END YC_EDITS
+
 using namespace Geex;
 
 namespace CMC {
+	using Real3 = CommonTypes::Real3;
+	using INT3  = CommonTypes::index3;
 
 	enum VertexType {COMMON_VTX, FIXED_VTX};
 
@@ -97,6 +103,71 @@ namespace CMC {
 		std::vector<EdgeMesh_Facet> facets_;
 
 		EdgeMesh (){}
+
+		EdgeMesh (const std::vector<Real3>& verts, const std::vector<INT3>& faces){
+			typedef small_set<int, 2> edge_t;
+			typedef small_set<int, 3> facet_t;
+			std::vector<edge_t> v_edges; //vector of edges to examine
+			std::vector<edge_t>::iterator e_idx;
+
+			for (int i=0;i<verts.size();i++){
+				vec3 p;
+				p.x = verts[i][0]; p.y = verts[i][1]; p.z = verts[i][2];
+
+				vertices_.push_back(p);
+			}
+
+			for (int i=0;i<faces.size();i++){
+				edge_t e1,e2,e3;
+				e1.insert(faces[i][0]); e1.insert(faces[i][1]);
+				e2.insert(faces[i][1]); e2.insert(faces[i][2]);
+				e3.insert(faces[i][2]); e3.insert(faces[i][0]);
+
+				EdgeMesh_Facet n_facet;
+
+				if ( (e_idx = std::find(v_edges.begin(), v_edges.end(), e1)) == v_edges.end() )
+				{
+					v_edges.push_back(e1);
+					EdgeMesh_Edge n_edge (e1[0],e1[1]);
+					n_edge.adj_facets_.push_back(facets_.size());
+					edges_.push_back(n_edge);
+					n_facet.e_[0] = edges_.size() - 1;
+				}
+				else{
+					n_facet.e_[0] = e_idx - v_edges.begin();
+					edges_[e_idx - v_edges.begin()].adj_facets_.push_back(facets_.size());
+				}
+
+				if ( (e_idx = std::find(v_edges.begin(), v_edges.end(), e2)) == v_edges.end() )
+				{
+					v_edges.push_back(e2);
+					EdgeMesh_Edge n_edge (e2[0],e2[1]);
+					n_edge.adj_facets_.push_back(facets_.size());
+					edges_.push_back(n_edge);
+					n_facet.e_[2] = edges_.size() - 1;
+				}
+				else{
+					n_facet.e_[2] = e_idx - v_edges.begin();
+					edges_[e_idx - v_edges.begin()].adj_facets_.push_back(facets_.size());
+				}
+
+				if ( (e_idx = std::find(v_edges.begin(), v_edges.end(), e3)) == v_edges.end() )
+				{
+					v_edges.push_back(e3);
+					EdgeMesh_Edge n_edge (e3[0],e3[1]);
+					n_edge.adj_facets_.push_back(facets_.size());
+					edges_.push_back(n_edge);
+					n_facet.e_[1] = edges_.size() - 1;
+				}
+				else{
+					n_facet.e_[1] = e_idx - v_edges.begin();
+					edges_[e_idx - v_edges.begin()].adj_facets_.push_back(facets_.size());
+				}
+				//n_facet.body_[0] = f.body_[0];
+				//n_facet.body_[1] = f.body_[1];
+				facets_.push_back(n_facet);
+			}
+		}
 
 		//read obj file.
 		EdgeMesh (std::string filename){
@@ -229,6 +300,33 @@ namespace CMC {
 			ofs.close();
 			std::cout << filename <<" mesh saved. " << std::endl;
 		}
+
+		// BEGIN YC EDITS
+		void get_verts_faces(std::vector<Real3>& verts, std::vector<INT3>& faces){
+			verts.clear();
+			faces.clear();
+
+			for (int i=0;i<vertices_.size();i++){
+				Real3 pos;
+				pos[0] = vertices_[i].pos_.x; pos[1] = vertices_[i].pos_.y; pos[2] = vertices_[i].pos_.z;
+				verts.push_back(pos);
+			}
+
+			for (int i=0;i<facets_.size();i++){
+				if (facets_[i].e_[0] == -1){continue;}
+
+				INT3 face;
+				face[0] = edges_[facets_[i].e_[0]].intersect(edges_[facets_[i].e_[1]]);
+				face[1] = edges_[facets_[i].e_[1]].intersect(edges_[facets_[i].e_[2]]);
+				face[2] = edges_[facets_[i].e_[2]].intersect(edges_[facets_[i].e_[0]]);
+
+				faces.push_back(face);
+			}
+		}
+
+		// END YC EDITS
+
+
 
 		//save to a self-defined format with edge infor. For faster loading.
 		void save(std::string filename){

@@ -13,7 +13,7 @@ target_include_directories(IIcmc_surface PUBLIC
                          "${CMAKE_SOURCE_DIR}")
 
 add_subdirectory(HLBFGS)
-target_link_libraries(IIcmc_surface PUBLIC HLBFGS)
+target_link_libraries(IIcmc_surface PUBLIC IIHLBFGS)
 
 include(InstallLibraryWithStandardSetup)
 InstallLibraryWithStandardSetup(IIcmc_surface 

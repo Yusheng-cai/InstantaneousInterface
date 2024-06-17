@@ -29,9 +29,9 @@ std::string StringTools::ReadFileExtension(std::string name){
 }
 
 std::string StringTools::ReadFileName(std::string name, std::string delimiter){
-    std::size_t it = name.find_first_of(delimiter);
+    std::size_t it = name.find_last_of(delimiter);
     std::string n = name.substr(0,it);
-    ASSERT((n.find_first_of(delimiter) == std::string::npos), "The file name " << name << " is not valid.");
+    //ASSERT((n.find_last_of(delimiter) == std::string::npos), "The file name " << name << " is not valid.");
 
     return n;
 }

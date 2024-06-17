@@ -1,6 +1,6 @@
-add_library(HLBFGS SHARED)
+add_library(IIHLBFGS SHARED)
 
-target_sources(HLBFGS PRIVATE
+target_sources(IIHLBFGS PRIVATE
     "HLBFGS_BLAS.cpp"
     "HLBFGS.cpp"
     "ICFS.cpp"
@@ -8,7 +8,7 @@ target_sources(HLBFGS PRIVATE
     "Lite_Sparse_Matrix.cpp"
 )
 
-set(HLBFGS_HEADER
+set(IIHLBFGS_HEADER
     "HLBFGS_BLAS.h"
     "HLBFGS.h"
     "ICFS.h"
@@ -17,8 +17,13 @@ set(HLBFGS_HEADER
     "Sparse_Entry.h"
 )
 
-target_include_directories(HLBFGS
+target_include_directories(IIHLBFGS
                         PUBLIC 
                         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
+
+include(InstallLibraryWithStandardSetup)
+InstallLibraryWithStandardSetup(IIHLBFGS
+    INCLUDE_SUBDIR IIHLBFGS
+    INCLUDES ${IIHLBFGS_HEADER})

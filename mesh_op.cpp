@@ -102,6 +102,9 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("ConvertToNonPBCMesh", "-op ConvertToNonPBCMesh -box[required] x y z -i[required] input.ply -o [nonpbc.ply]", \
                     [](CommandLineArguments& cmd) -> void {return MeshActions::ConvertToNonPBCMesh(cmd);}, \
                     mapF, mapU);
+    RegisterAction("ConvertToPBCMesh", "-op ConvertToPBCMesh -i -box x y z -o",\
+                    [](CommandLineArguments& cmd) -> void {return MeshActions::ConvertToPBCMesh(cmd);},\
+                    mapF, mapU);
     RegisterAction("scale", "-op scale -scale[float] num -i input.ply -o scaled.ply", \
                     [](CommandLineArguments& cmd)-> void {return MeshActions::ScaleMesh(cmd);}, \
                     mapF, mapU);
@@ -210,10 +213,28 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("InterfaceVolume", "-op InterfaceVolume -i input.ply", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::calculateInterfaceVolume(cmd);}, \
                                            mapF, mapU);
-    RegisterAction("MeshifySuperEgg", "-op MeshifySuperEgg -box x y -num nx ny -a a -b b -zmax zmax -ataper ataper -btaper btaper -center center", \
-                                           [](CommandLineArguments& cmd) -> void {return MeshActions::MeshifySuperEgg(cmd);}, \
+    RegisterAction("MeshifyShape", "-op MeshifyShape -box x y -num nx ny -shape [Sphere/SuperEgg] -center cx cy cz -z num [SuperEgg]-a a -b b -zmax zmax -ataper ataper -btaper btaper [Circle] -radius -pbc [true/false] -shift_pbc sx sy sz", \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::MeshifyShape(cmd);}, \
                                            mapF, mapU);
     RegisterAction("InterfacialFE_minimization", "-op InterfacialFE_minimization -box xyz -maxstep -o", \
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::InterfacialFE_min(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("CVT_Mesh_Optimization", "-op CVT_Mesh_Optimization -i input.ply" , \
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CVT_Mesh_optimization(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("InterfacialFE_minimization_boundary", "-op InterfacialFE_minimization_boundary -box xyz -maxstep -o -shape",\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::InterfacialFE_min_boundary(cmd);}, \
+                                           mapF, mapU);
+    RegisterAction("OptimizeMesh", "-op OptimizeMesh -i ",\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::OptimizeMesh(cmd);},\
+                                            mapF, mapU);
+    RegisterAction("MeshDerivative", "-op MeshDerivative -i ",\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::MeshDerivatives(cmd);},\
+                                            mapF, mapU);
+    RegisterAction("CalculateContactAngle", "-op CalculateContactAngle -i ",\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::CalculateContactAngle(cmd);},\
+                                            mapF, mapU);
+    RegisterAction("CalculateAVnbs", "-op CalculateAVnbs -i" ,\
+                                           [](CommandLineArguments& cmd) -> void {return MeshActions::Mesh_AVnbs(cmd);},\
                                            mapF, mapU);
 }

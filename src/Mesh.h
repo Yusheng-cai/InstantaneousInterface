@@ -12,6 +12,9 @@
 #include "happly.h"
 #include "Graph.h"
 #include "ICP/ICP.h"
+#include "cmc_surface/fast_rdt.h"
+#include "AFP_shapes.h"
+#include "tools/CommandLineArguments.h"
 
 #include <vector>
 #include <array>
@@ -22,6 +25,15 @@
 #include <numeric>
 #include <unordered_map>
 #include <iomanip>
+
+#define CGAL_PMP_USE_CERES_SOLVER
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Surface_mesh.h>
+#include <CGAL/Polygon_mesh_processing/IO/polygon_mesh_io.h>
+#include <CGAL/Polygon_mesh_processing/detect_features.h>
+#include <CGAL/Polygon_mesh_processing/angle_and_area_smoothing.h>
+#include <CGAL/Simple_cartesian.h>
+#include <CGAL/convex_hull_3.h>
 
 // triangle structs
 struct vertex{
@@ -63,6 +75,7 @@ class Mesh
         // default constructor and destructor
         Mesh() {};
         ~Mesh(){};
+        Mesh(const std::vector<Real3>& v, const std::vector<INT3>& faces);
 
                                         /*******************************************
                                          * ******** setting Function **************
@@ -85,6 +98,7 @@ class Mesh
                                          * *****************************************/
         const std::vector<vertex>& getvertices() const {return vertices_;}
         std::vector<Real3> getVertexPositions();
+        std::vector<INT3>  getFaces();
         const std::vector<triangle>& gettriangles() const {return triangles_;}
         const std::vector<Real>& getTriangleArea() const {return triangleArea_;}
         const std::vector<Real3>& getPerVertexDir1() const {return PerVertexdir1_;}
@@ -183,6 +197,34 @@ namespace MeshTools
     using Real  = CommonTypes::Real;
     using INT3  = CommonTypes::index3;
     using INT2  = CommonTypes::index2;
+    typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
+    typedef CGAL::Surface_mesh<K::Point_3>                      M;
+    typedef K::FT                                               FT;
+    typedef std::array<std::size_t,3>                           CGAL_Polygon;
+    typedef std::array<FT, 3>                                   Custom_point;
+    typedef M::Vertex_index                                     vertex_descriptor;
+    typedef M::Face_index                                       face_descriptor;
+    using refineptr= std::unique_ptr<MeshRefineStrategy>;
+
+    namespace PMP = CGAL::Polygon_mesh_processing;
+
+    struct Array_traits
+    {
+        struct Equal_3
+        {
+            bool operator()(const Custom_point& p, const Custom_point& q) const {
+            return (p == q);
+            }
+        };
+        struct Less_xyz_3
+        {
+            bool operator()(const Custom_point& p, const Custom_point& q) const {
+            return std::lexicographical_compare(p.begin(), p.end(), q.begin(), q.end());
+            }
+        };
+        Equal_3 equal_3_object() const { return Equal_3(); }
+        Less_xyz_3 less_xyz_3_object() const { return Less_xyz_3(); }
+    };
 
     bool readPLY(std::string& filename, Mesh& mesh);
     bool readPLYlibr(std::string& filename, Mesh& mesh);
@@ -234,6 +276,7 @@ namespace MeshTools
     // find boundary vertices 
     void CalculateBoundaryVertices(const Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator);
     void CalculateBoundaryVertices(const Mesh& mesh, std::vector<bool>& boundaryIndicator);
+    void CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices);
 
     // check if point is on boundary
     bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);
@@ -244,7 +287,11 @@ namespace MeshTools
 
     // check if a particular triangle is periodic
     bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength);
+    bool IsPeriodicTriangle(std::vector<vertex>& Vertices,INT3& face, Real3 BoxLength, std::map<INT2,bool>& mapEdge);
     bool IsPeriodicTriangle(const Mesh& mesh, int faceindex);
+    bool IsPeriodicTriangle(const Mesh& mesh, int faceindex, std::map<INT2,bool>& mapEdge);
+
+    bool FindPeriodicShiftIndex(std::map<INT2,bool>& mapEdge, int& index);
 
     // shift a triangle 
     void ShiftPeriodicTriangle(const std::vector<vertex>& Vertices, const INT3& faces, Real3 BoxLength, Real3& A, Real3& B, Real3& C);
@@ -314,6 +361,7 @@ namespace MeshTools
 
     // change winding order of a mesh
     void ChangeWindingOrder(Mesh& m);
+    void ChangeWindingOrder(Mesh& m, int num);
 
     // mesh plane clipping 
     void MeshPlaneClipping(Mesh& m, Real3& point, Real3& normal);
@@ -325,11 +373,54 @@ namespace MeshTools
     // calculate the volume enclosed underneath an interface
     Real CalculateVolumeEnclosedByInterface(Mesh& m, Real offset_height, int projected_plane=0);
     
-    void CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::vector<bool>& boundaryIndicator, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi);
+    void CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi);
+    void CalculateAreaDerivatives(Mesh& m, std::vector<Real3>& dAdpi);
 
-    void CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& MapVertexToFace, std::vector<Real3>& VolumeDerivatives);
+    void CalculateVolumeDerivatives(Mesh& m, const std::vector<std::vector<int>>& MapVertexToFace, std::vector<Real3>& VolumeDerivatives, Real3 shift={0,0,0});
+    void CalculateVolumeDerivatives(Mesh& m, std::vector<Real3>& VolumeDerivatives, Real3 shift={0,0,0});
 
-    Real CalculateVolumeDivergenceThoerem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal);
+    Real CalculateVolumeDivergenceTheorem(Mesh& m, const std::vector<Real>& vecArea, const std::vector<Real3>& Normal);
 
     Real CalculateArea(Mesh& m, std::vector<Real>& vecArea, std::vector<Real3>& Normal);
+
+    // optimize the mesh with centroidal voronoi calculation
+    void CVT_optimize_Mesh(Mesh& m);
+
+    // CGAL optimize mesh
+    void CGAL_optimize_Mesh(Mesh& m, int nb_iterations, Real degree, bool use_restriction=false);
+
+    void MakePBCMesh(Mesh& m);
+    
+    void ShiftPBCMesh(Mesh& m, Real3& shift);
+
+    // convert from my mesh to cgal mesh
+    void ConvertToCGALMesh(Mesh& m, M& cgal_m);
+
+    // find the u,v coordinate of the boundary vertices
+    void FindBoundaryUV(Mesh& m, std::vector<Real>& ulist, std::vector<Real>& vlist, const std::vector<bool>& BoundaryIndicator, AFP_shape* shape);
+    void FindBoundaryUV(Mesh& m, std::vector<Real>& ulist, std::vector<Real>& vlist, std::vector<int>& BoundaryIndices, AFP_shape* shape, bool order=false);
+
+    // calculate drduv
+    void CalculatedrdUV(Mesh& m, AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, std::vector<Real>& vlist, std::vector<Real3>& drdu, std::vector<Real3>& drdv, bool useNumerical=true);
+    void CalculatedrdUV(Mesh& m, AFP_shape* shape, std::vector<Real3>& drdu, std::vector<Real3>& drdv, bool useNumerical=true);
+
+    // calculate dAnbsduv
+    void CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical=true, Real3 Vshift={0,0,0});
+    void CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical=true, Real3 Vshift={0,0,0});
+    void CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real3>& drdu, std::vector<Real3>& drdv, std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical=true, Real3 Vshift={0,0,0});
+    void CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, std::vector<Real>& vlist, std::vector<Real3>& drdu, std::vector<Real3>& drdv, std::vector<Real2>& dAnbsduv, std::vector<Real2>& dVnbsduv, bool useNumerical=true, Real3 Vshift={0,0,0});
+
+    // helper function which helps read the inputs for shape
+    std::unique_ptr<AFP_shape> ReadAFPShape(CommandLineArguments& cmd);
+
+    refineptr ReadInterfacialMin(CommandLineArguments& cmd);
+
+    void CalculateContactAngle(Mesh& m, AFP_shape* s, std::vector<Real>& ca);
+    void CalculateContactAngleDerivative(Mesh& m, AFP_shape* s, std::vector<Real>& ca, Real k0, Real3 Volume_shift={0,0,0}, bool use_Numerical=true);
+
+    void CalculateAVnbs(Mesh& m, AFP_shape* s, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist,\
+                        std::vector<Real>& vlist, Real& A, Real& V, int v_num=1000, bool useNumerical=true, Real3 Vshift={0,0,0});
+    void CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V, int v_num=1000, bool useNumerical=true, Real3 Vshift={0,0,0});
+
+    Real CalculateBoundaryAverageHeight(Mesh& m);
 };
