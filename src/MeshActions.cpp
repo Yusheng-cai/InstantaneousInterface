@@ -2147,6 +2147,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     Real mu  = temp_r->getmu();
     L1  = temp_r->getL();
     Real gamma = temp_r->getgamma();
+
     // volume shift
     Real3 Volume_shift = -0.5 * box;
 
@@ -2155,7 +2156,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     Real A_contact = shape->CalculateAreaZ(avg_z);
     Real P_contact = shape->CalculatePeriZ(avg_z);
     Real k_max     = P_contact / (2.0f * (box[0] * box[1] - A_contact));
-    std::cout << "kmax = " << k_max << std::endl;
 
                                     // Shooting Method //
     std::vector<Real> ca_list_st1, ca_list_st2;
@@ -2217,8 +2217,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
         MeshTools::CalculateContactAngle(temp_m, shape.get(), ca_listNS);
         Real ca_avg_st_next = Algorithm::calculateMean(ca_list_st_next);
         Real ca_avg_ns_next = Algorithm::calculateMean(ca_listNS);
-        std::cout << "derivative ca = " << ca_avg_st_next << std::endl;
-        std::cout << "ns ca = " << ca_avg_ns_next << std::endl;
 
         // if the solution already satisfies our requirement, break
         if (std::abs(ca_avg_st_next - dgamma_gamma) < 1e-4){
@@ -2398,6 +2396,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     StringTools::WriteTabulatedData(fname + "_volume.out", volume_list);
     StringTools::WriteTabulatedData(fname + "_vnbs.out", vnbs_list);
     StringTools::WriteTabulatedData(fname + "_area.out", area_list);
+    StringTools::WriteTabulatedData(fname + "_k.out", L1_list);
 
     // write the contact angle
     std::vector<Real> ca_list_deriv, ca_list_NS;

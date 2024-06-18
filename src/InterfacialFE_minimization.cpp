@@ -74,14 +74,15 @@ void InterfacialFE_minimization::refine(Mesh& mesh){
         // obtain the vertices
         auto& verts = mesh_->accessvertices();
 
-        Real max=-1e10;
+        // define some variables
+        Real max=std::numeric_limits<Real>::lowest();
         Real avg_step = 0;
         int total_verts=0;
 
         // start updating
         #pragma omp parallel
         {
-            Real local_max = -1e10;
+            Real local_max = std::numeric_limits<Real>::lowest();
             Real sum = 0;
             int n_verts= 0 ;
             #pragma omp for
