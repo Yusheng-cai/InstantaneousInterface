@@ -1594,11 +1594,11 @@ void MeshActions::MeshifyShape(CommandLineArguments& cmd){
     std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
 
     // dr 
-    Real drx = box[0] / num[0];
-    Real dry = box[1] / num[1];
+    Real drx = box[0] / num[0]; Real dry = box[1] / num[1];
 
+    // define the vectors 
     std::vector<double> coords;
-    std::vector<Real3> vertices;
+    std::vector<Real3> vertices, BoundaryVertices;
     std::vector<INT3> faces;
 
     // calculate the boundary points 
@@ -1617,6 +1617,7 @@ void MeshActions::MeshifyShape(CommandLineArguments& cmd){
         p_real[2] = pos[2];
 
         vertices.push_back(p_real);
+        BoundaryVertices.push_back(p_real);
     }
 
     // refine boundary a little if necessary
@@ -1681,7 +1682,6 @@ void MeshActions::MeshifyShape(CommandLineArguments& cmd){
                 if (val > threshold){
                     coords.push_back((double)position[0]);
                     coords.push_back((double)position[1]);
-
                     vertices.push_back(position);
                 }
             }
@@ -2111,8 +2111,9 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     Real BoundaryStepSize, BoundaryStepThreshold=2e-6, dgamma_gamma;
     bool useNumerical=false, debug=false;
     Real L1=0.0, L2=0.0, L1_step_size=0.0,L2_step_size=0.0;
-    Real L2_step_threshold=2e-6;
+    Real L2_step_threshold=2e-6, L1_step_threshold=1e-3;
     Real zstar=0.0f;
+    Real init_k=0.0;
 
     // read input
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
@@ -2129,7 +2130,9 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     cmd.readValue("L2_step_size", CommandLineArguments::Keys::Optional, L2_step_size);
     cmd.readValue("L1_step_size", CommandLineArguments::Keys::Optional, L1_step_size);
     cmd.readValue("L2_step_threshold", CommandLineArguments::Keys::Optional, L2_step_threshold);
+    cmd.readValue("L1_step_threshold", CommandLineArguments::Keys::Optional, L1_step_threshold);
     cmd.readValue("zstar", CommandLineArguments::Keys::Optional, zstar);
+    bool NotPerformShooting = cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
 
     // initialize the shape
     std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
@@ -2141,99 +2144,108 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     MeshTools::readPLYlibr(inputfname, m);
     if (isPBC){m.setBoxLength(box);}
 
-    // update value
+    // get the interfacialFE_minimization ptr
     InterfacialFE_minimization* temp_r = dynamic_cast<InterfacialFE_minimization*>(r.get());
-    Real rho = temp_r->getrho();
-    Real mu  = temp_r->getmu();
-    L1  = temp_r->getL();
+    Real rho   = temp_r->getrho();
+    Real mu    = temp_r->getmu();
+    L1         = temp_r->getL();
     Real gamma = temp_r->getgamma();
 
     // volume shift
     Real3 Volume_shift = -0.5 * box;
-
-    // calculate the boundary average z
-    Real avg_z = MeshTools::CalculateBoundaryAverageHeight(m);
-    Real A_contact = shape->CalculateAreaZ(avg_z);
-    Real P_contact = shape->CalculatePeriZ(avg_z);
-    Real k_max     = P_contact / (2.0f * (box[0] * box[1] - A_contact));
-
-                                    // Shooting Method //
-    std::vector<Real> ca_list_st1, ca_list_st2;
-    std::vector<Real> ca_avgst_list;
     std::vector<Real> k_list, L1_list;
-    Real k0_st1 = 0.0f;
-    Real k0_st2 = 0.05f;
-    Real L11    = k0_st1 * (2 * gamma) / rho - mu;
-    Real L12    = k0_st2 * (2 * gamma) / rho - mu;
+  
+                                    // Shooting Method //
+    if (! NotPerformShooting){
+        // calculate the boundary average z
+        Real avg_z     = MeshTools::CalculateBoundaryAverageHeight(m);
+        Real A_contact = shape->CalculateAreaZ(avg_z);
+        Real P_contact = shape->CalculatePeriZ(avg_z);
+        Real k_max     = P_contact / (2.0f * (box[0] * box[1] - A_contact));
 
-    // first iteration of Shooting
-    temp_r->setL(L11);
-    temp_r->refine(m);
-    MeshTools::CalculateContactAngleDerivative(m, shape.get(),ca_list_st1, k0_st1, Volume_shift);
-    Real ca_avg_st1 = Algorithm::calculateMean(ca_list_st1);
+        std::vector<Real> ca_list_st1, ca_list_st2;
+        std::vector<Real> ca_avgst_list;
 
-    // second iteration of Shooting
-    temp_r->setL(L12);
-    temp_r->refine(m);
-    MeshTools::CalculateContactAngleDerivative(m, shape.get(), ca_list_st2, k0_st2, Volume_shift);
-    Real ca_avg_st2 = Algorithm::calculateMean(ca_list_st2);
-    ca_avgst_list.push_back(ca_avg_st1);
-    ca_avgst_list.push_back(ca_avg_st2);
-    k_list.push_back(k0_st1); L1_list.push_back(L11);
-    k_list.push_back(k0_st2); L1_list.push_back(L12);
+        Real k0_st1 = 0.0f;
+        Real k0_st2 = 0.05f;
+        Real L11    = k0_st1 * (2 * gamma) / rho - mu;
+        Real L12    = k0_st2 * (2 * gamma) / rho - mu;
 
-    std::cout << "WE ARE STARTING TO PERFORM SHOOTING METHODS!" << std::endl;
+        // first iteration of Shooting
+        temp_r->setL(L11);
+        temp_r->refine(m);
+        MeshTools::CalculateContactAngleDerivative(m, shape.get(),ca_list_st1, k0_st1, Volume_shift);
+        Real ca_avg_st1 = Algorithm::calculateMean(ca_list_st1);
 
-    int ind=0;
-    while(true){
-        // create a temporary mesh
-        Mesh temp_m = m;
+        // second iteration of Shooting
+        temp_r->setL(L12);
+        temp_r->refine(m);
+        MeshTools::CalculateContactAngleDerivative(m, shape.get(), ca_list_st2, k0_st2, Volume_shift);
+        Real ca_avg_st2 = Algorithm::calculateMean(ca_list_st2);
+        ca_avgst_list.push_back(ca_avg_st1);
+        ca_avgst_list.push_back(ca_avg_st2);
+        k_list.push_back(k0_st1); L1_list.push_back(L11);
+        k_list.push_back(k0_st2); L1_list.push_back(L12);
 
-        // calculate the derivative
-        Real deriv  = (k_list[ind+1] - k_list[ind]) / (ca_avgst_list[ind+1] - ca_avgst_list[ind]);
-        std::cout << "derivative  = " << deriv << std::endl;
-        std::cout << "ca = " << ca_avgst_list << std::endl;
+        std::cout << "WE ARE STARTING TO PERFORM SHOOTING METHODS!" << std::endl;
 
-        Real next_L, k0_st_next;
+        int ind=0;
+        while(true){
+            // create a temporary mesh
+            Mesh temp_m = m;
 
-        // take steps carefully to ensure that we do not go above the maximum allowed curvature
-        Real step_size = 1;
-        do{
-            k0_st_next = k_list[ind+1] + step_size * deriv * (dgamma_gamma - ca_avgst_list[ind+1]);
-            next_L     = k0_st_next * (2*gamma) / rho - mu;
-            step_size *= 0.5;
+            // calculate the derivative
+            Real deriv  = (k_list[ind+1] - k_list[ind]) / (ca_avgst_list[ind+1] - ca_avgst_list[ind]);
+            std::cout << "ca = " << ca_avgst_list << std::endl;
+
+            Real next_L, k0_st_next;
+
+            // take steps carefully to ensure that we do not go above the maximum allowed curvature
+            Real step_size = 1;
+            do{
+                k0_st_next = k_list[ind+1] + step_size * deriv * (dgamma_gamma - ca_avgst_list[ind+1]);
+                next_L     = k0_st_next * (2*gamma) / rho - mu;
+                step_size *= 0.5;
+            }
+            while(std::abs(k0_st_next) > k_max);
+
+            std::cout << "trying L = " << next_L << " k = " << rho * (mu + next_L) / (2*gamma) << std::endl;
+
+            // use the next L to refine
+            temp_r->setL(next_L);
+            temp_r->refine(temp_m);
+
+            // calculate the contact angles using both the derivative methods and NdotS
+            std::vector<Real> ca_list_st_next, ca_listNS;
+            MeshTools::CalculateContactAngleDerivative(temp_m, shape.get(), ca_list_st_next, k0_st_next, Volume_shift);
+            MeshTools::CalculateContactAngle(temp_m, shape.get(), ca_listNS);
+            Real ca_avg_st_next = Algorithm::calculateMean(ca_list_st_next);
+            Real ca_avg_ns_next = Algorithm::calculateMean(ca_listNS);
+
+            // if the solution already satisfies our requirement, break
+            if (std::abs(ca_avg_st_next - dgamma_gamma) < 1e-4){
+                break;
+            }
+
+            // keep track of all variables
+            k_list.push_back(k0_st_next);
+            L1_list.push_back(next_L);
+            ca_avgst_list.push_back(ca_avg_st_next);
+            ind++;
         }
-        while(std::abs(k0_st_next) > k_max);
-
-        std::cout << "trying L = " << next_L << " k = " << rho * (mu + next_L) / (2*gamma) << std::endl;
-
-        // use the next L to refine
-        temp_r->setL(next_L);
-        temp_r->refine(temp_m);
-
-        // calculate the contact angles using both the derivative methods and NdotS
-        std::vector<Real> ca_list_st_next, ca_listNS;
-        MeshTools::CalculateContactAngleDerivative(temp_m, shape.get(), ca_list_st_next, k0_st_next, Volume_shift);
-        MeshTools::CalculateContactAngle(temp_m, shape.get(), ca_listNS);
-        Real ca_avg_st_next = Algorithm::calculateMean(ca_list_st_next);
-        Real ca_avg_ns_next = Algorithm::calculateMean(ca_listNS);
-
-        // if the solution already satisfies our requirement, break
-        if (std::abs(ca_avg_st_next - dgamma_gamma) < 1e-4){
-            break;
-        }
-
-        // keep track of all variables
-        k_list.push_back(k0_st_next);
-        L1_list.push_back(next_L);
-        ca_avgst_list.push_back(ca_avg_st_next);
-        ind++;
+        // reset L1
+        L1 = L1_list[L1_list.size()-1];
+        temp_r->setL(L1);
     }
+    else{
+        std::cout << "We are not performing shooting methods." << std::endl;
+        L1 = init_k * (2 * gamma) / rho - mu;
+        temp_r->setL(L1);
 
-    // reset L1
-    L1 = L1_list[L1_list.size()-1];
-    temp_r->setL(L1);
-
+        L1_list.push_back(L1);
+        k_list.push_back(init_k);
+    }
+    
     // refine
     std::vector<Real> contact_angle_list, vecArea;
     std::vector<Real3> Normal;
@@ -2245,34 +2257,42 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
 
     std::cout << "WE ARE STARTING TO PERFORM OPTIMIZATION!" << std::endl;
 
-    int cont_ind=0;
+    // outer loop for L1 refinement
     while (true) {
         Real mean_z;
+        Real mean_ca;
 
         // solve for pi*
-        for (int i=0;i<BoundaryStep;i++){
-            // first do the intercial minimization
-            temp_r->refine(m);
-            m.CalcVertexNormals();
+        int iteration = 0;
+        int cont_ind  = 0;
+
+        // reset m to be the original m
+        Mesh curr_m;
+        curr_m = m;
+
+        // inner loop for pi, pib, L2 refinement
+        while (true){
+            // first do pi refinement
+            temp_r->refine(curr_m);
 
             // calculate area derivative --> dAdr at the boundary and volume derivative dVdr 
             std::vector<Real3> dAdr ,dVdr;
-            MeshTools::CalculateAreaDerivatives(m, dAdr);
-            MeshTools::CalculateVolumeDerivatives(m, dVdr, Volume_shift);
+            MeshTools::CalculateAreaDerivatives(curr_m, dAdr);
+            MeshTools::CalculateVolumeDerivatives(curr_m, dVdr, Volume_shift);
 
             // calculate drdu, drdv, boundaryindices, dAnbsdv, dAnbsdu, dVnbsdv, dVnbsdu
             std::vector<int> BoundaryIndices;
             std::vector<Real2> dAnbsduv, dVnbsduv;
             std::vector<Real3> drdu, drdv;
             std::vector<Real> ulist, vlist;
-            MeshTools::CalculatedAVnbsdUV(m, shape.get(), BoundaryIndices, ulist, \
+            MeshTools::CalculatedAVnbsdUV(curr_m, shape.get(), BoundaryIndices, ulist, \
                                     vlist, drdu, drdv, dAnbsduv, dVnbsduv, useNumerical, Volume_shift);
 
             // calculate area and volume before boundary steps
             vecArea.clear(); Normal.clear();
-            a = MeshTools::CalculateArea(m, vecArea, Normal);
-            V = MeshTools::CalculateVolumeDivergenceTheorem(m, vecArea, Normal);
-            MeshTools::CalculateAVnbs(m, shape.get(), BoundaryIndices,
+            a = MeshTools::CalculateArea(curr_m, vecArea, Normal);
+            V = MeshTools::CalculateVolumeDivergenceTheorem(curr_m, vecArea, Normal);
+            MeshTools::CalculateAVnbs(curr_m, shape.get(), BoundaryIndices,
                                       ulist, vlist, Anbs, Vnbs,10000, useNumerical, Volume_shift);
             area_list.push_back(a);
             volume_list.push_back(V);
@@ -2281,29 +2301,32 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
             // if we are debugging, we output each iteration's ply file
             if (debug){
                 std::string new_name = fname + "_" + std::to_string(cont_ind) + ".ply";
-                MeshTools::writePLY(new_name, m);
+                MeshTools::writePLY(new_name, curr_m);
             }
 
             // access to the vertices in m
             contact_angle_list.clear();
 
             // set max boundary step to be lower initially = -3.40282e38
-            Real max_boundary_step=std::numeric_limits<Real>::lowest();
-            auto& verts = m.accessvertices();
-            int N = BoundaryIndices.size();
-            mean_z = 0.0;
+            Real max_boundary_step  = std::numeric_limits<Real>::lowest();
+            auto& verts             = curr_m.accessvertices();
+            int N                   = BoundaryIndices.size();
+            Real kk                 = rho * (L1 + mu) / (2*gamma);
+            mean_z                  = 0.0;
             std::cout << "L1 = " << L1 << std::endl;
             std::cout << "L2 = " << L2 << std::endl;
+            std::cout << "k = "  << kk << std::endl;
 
+            // pib refinement
             for (int j=0;j<BoundaryIndices.size();j++){
                 // get the actual index of boundary
-                int ind = BoundaryIndices[j];
+                int ind       = BoundaryIndices[j];
 
-                Real dAdu = LinAlg3x3::DotProduct(drdu[j], dAdr[ind]);
-                Real dAdv = LinAlg3x3::DotProduct(drdv[j], dAdr[ind]);
+                Real dAdu     = LinAlg3x3::DotProduct(drdu[j], dAdr[ind]);
+                Real dAdv     = LinAlg3x3::DotProduct(drdv[j], dAdr[ind]);
 
-                Real dVdu = LinAlg3x3::DotProduct(drdu[j], dVdr[ind]);
-                Real dVdv = LinAlg3x3::DotProduct(drdv[j], dVdr[ind]);
+                Real dVdu     = LinAlg3x3::DotProduct(drdu[j], dVdr[ind]);
+                Real dVdv     = LinAlg3x3::DotProduct(drdv[j], dVdr[ind]);
 
                 // calculate dAnbsdu and dAnbsdv --> keep drdv the same 
                 Real dAnbsdu  = dAnbsduv[j][0];
@@ -2312,13 +2335,13 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
                 Real dVnbsdv  = dVnbsduv[j][1];
 
                 // calculate dEdv
-                Real dEdv = dAdv - rho * (L1 + mu) / gamma* (dVdv + dVnbsdv) + dgamma_gamma * dAnbsdv + L2 * drdv[j][2] / (Real)N;
+                Real dEdv     = dAdv - rho * (L1 + mu) / gamma* (dVdv + dVnbsdv) + dgamma_gamma * dAnbsdv + L2 * drdv[j][2] / (Real)N;
 
                 // calculate the inverse jacobian
-                auto invjac = shape->InvNumericalJacobian(ulist[j], vlist[j]);
+                auto invjac   = shape->InvNumericalJacobian(ulist[j], vlist[j]);
                 Eigen::MatrixXd dEduv(2,1);
                 dEduv << 0, dEdv;
-                auto dEdr = invjac.transpose() * dEduv;
+                auto dEdr     = invjac.transpose() * dEduv;
                 Real3 step; step[0]=dEdr(0,0); step[1]=dEdr(1,0); step[2]=dEdr(2,0);
 
                 // we can calculate the contact angle by finding the dgamma_gamma where dEdv is 0
@@ -2336,58 +2359,61 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
                 }
             }
 
-            mean_z = mean_z / (Real)N;
-            std::cout << "Mean z = " << mean_z << std::endl;
 
+            // write the contact angle if debug
             if (debug){
                 std::string new_name = fname + "_ca_" + std::to_string(cont_ind) + ".out";
                 StringTools::WriteTabulatedData(new_name, contact_angle_list);
             }
 
+            // calculate mean z
+            mean_z    = mean_z / (Real)N;
+            Real var  = Algorithm::calculateVariance(contact_angle_list);
+            mean_ca   = Algorithm::calculateMean(contact_angle_list);
+            std::cout << "Mean z = " << mean_z << std::endl;
             std::cout << "maxmimum boundary step = " << max_boundary_step << std::endl;
-            Real var = Algorithm::calculateVariance(contact_angle_list);
-            Real mean   = Algorithm::calculateMean(contact_angle_list);
             std::cout << "std of contact angle is " << std::sqrt(var) << std::endl;
-            std::cout << "mean of contact angle is " << mean << std::endl; 
-
-
-            std::cout << "Boundary step threshold = " << BoundaryStepThreshold << std::endl;
+            std::cout << "mean of contact angle is " << mean_ca << std::endl; 
 
             // check if we are optimizing mesh
             if ((cont_ind+1) % optimize_mesh_boundarystep == 0){
-                // first make mesh non-pbc
-                if (isPBC){
-                    MeshTools::ConvertToNonPBCMesh(m,true);
-                }
-
                 // then optimize mesh
-                MeshTools::CGAL_optimize_Mesh(m,10,60);
-
-                // convert the mesh back to pbc and calculate boundary vertices
-                if (isPBC){
-                    m.setBoxLength(box);
-                    MeshTools::MakePBCMesh(m);
-                    MeshTools::ChangeWindingOrder(m);
-                }
+                MeshTools::CGAL_optimize_Mesh(curr_m,10,60);
+                MeshTools::ChangeWindingOrder(curr_m);
             }
 
-            cont_ind++;
-
-            if (max_boundary_step < BoundaryStepThreshold){
+            if (iteration > BoundaryStep){
                 break;
             }
+
+            // update iterations
+            cont_ind++;
+            iteration++;
+
+            // update lagrange L2
+            Real L2_step = (mean_z - zstar);
+            if (std::abs(L2_step) < L2_step_threshold && max_boundary_step < BoundaryStepThreshold){
+                break;
+            }
+            L2 = L2 + L2_step_size * L2_step;
         }
 
-        // Now we have solved pi*, update lagrange
-        Real L2_step = (mean_z - zstar);
-        if (std::abs(L2_step) < L2_step_threshold || L2_step_size == 0.0){
+        // Now we have solved pi*, update L1
+        Real L_step  = (dgamma_gamma - mean_ca);
+        if (L_step < L1_step_threshold){
+            m = curr_m;
             break;
         }
-        L2 = L2 + L2_step_size * L2_step;
+
+        // update L1 and k
+        L1             = L1 - L1_step_size * L_step;
+        Real curr_k    = rho * (L1 + mu) / (2*gamma);
+        L1_list.push_back(L1);
+        k_list.push_back(curr_k);
+
+        // set the L1 in refinement pointer
+        temp_r->setL(L1);
     }
-
-
-    m.CalcVertexNormals();
 
     // write the ply file
     MeshTools::writePLY(outputfname, m);

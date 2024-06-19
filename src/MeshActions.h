@@ -59,7 +59,7 @@ namespace MeshActions
     using Real2= CommonTypes::Real2;
     using curveptr = std::unique_ptr<Curvature>;
     using refineptr= std::unique_ptr<MeshRefineStrategy>;
-    using double3= CommonTypes::double3;
+    using double3  = CommonTypes::double3;
 
     typedef CGAL::Exact_predicates_inexact_constructions_kernel K;
     typedef CGAL::Surface_mesh<K::Point_3>                      M;

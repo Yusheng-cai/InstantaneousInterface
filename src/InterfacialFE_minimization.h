@@ -27,6 +27,7 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         void update_Mesh();
 
         virtual void refine(Mesh& mesh) override;
+        void refineBoundary(Mesh& mesh);
 
         const std::vector<Real>& getFE() {return FE_;}
 

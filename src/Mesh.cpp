@@ -3075,3 +3075,16 @@ Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
 
     return z_height;
 }
+
+bool MeshTools::CheckPointOverlap(Real3 &pos, const std::vector<Real3> &vec_pos, Real threshold){
+    for (auto& p : vec_pos){
+        Real3 diff = p - pos;
+        Real dist  = std::sqrt(LinAlg3x3::DotProduct(diff, diff));
+
+        if (dist < threshold){
+            return true;
+        }
+    }
+
+    return false;
+}

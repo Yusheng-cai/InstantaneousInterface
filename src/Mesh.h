@@ -423,4 +423,6 @@ namespace MeshTools
     void CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V, int v_num=1000, bool useNumerical=true, Real3 Vshift={0,0,0});
 
     Real CalculateBoundaryAverageHeight(Mesh& m);
+
+    bool CheckPointOverlap(Real3& pos, const std::vector<Real3>& vec_pos, Real threshold=1e-5);
 };

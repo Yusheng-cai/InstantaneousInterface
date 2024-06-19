@@ -152,3 +152,7 @@ void InterfacialFE_minimization::refine(Mesh& mesh){
 
     mesh_->CalcVertexNormals();
 }
+
+void InterfacialFE_minimization::refineBoundary(Mesh& m){
+
+}
