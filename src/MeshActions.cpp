@@ -2400,7 +2400,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
 
         // Now we have solved pi*, update L1
         Real L_step  = (dgamma_gamma - mean_ca);
-        if (L_step < L1_step_threshold){
+        if (std::abs(L_step) < L1_step_threshold){
             m = curr_m;
             break;
         }
