@@ -2365,6 +2365,7 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
     StringTools::WriteTabulatedData(fname + "_vnbs.out", vnbs_list);
     StringTools::WriteTabulatedData(fname + "_area.out", a_list);
     StringTools::WriteTabulatedData(fname + "_anbs.out", anbs_list);
+    StringTools::WriteTabulatedData(fname + "_k.out", k_list);
 
     // // write the contact angle
     std::vector<Real> ca_list_deriv, ca_list_NS;

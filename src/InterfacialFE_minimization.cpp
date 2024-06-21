@@ -202,7 +202,6 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
     if (m.isPeriodic()){
         Volume_shift = -0.5 * m.getBoxLength();
     }
-    std::cout << "Volume shift = " << Volume_shift << std::endl;
 
     // outer loop for Lagrange refinement
     int L2_step = 0;
@@ -305,7 +304,6 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             MeshTools::CalculateAVnbs(curr_m, shape, BoundaryIndices,
                                       ulist, vlist, Anbs_, Vnbs_,10000, useNumerical_, Volume_shift);
 
-            std::cout << "Anbs = " << Anbs_ << std::endl;
             area_list_.push_back(a_);
             volume_list_.push_back(V_);
             Vnbs_list_.push_back(Vnbs_);
