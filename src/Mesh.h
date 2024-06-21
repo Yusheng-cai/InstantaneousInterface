@@ -370,7 +370,7 @@ namespace MeshTools
     void TriangleCases(std::vector<INT3>& signs, std::vector<bool>& basic, std::vector<bool>& one_vertex, std::vector<bool>& one_edge);
     void MeshPlaneIntersection(Mesh& m, Real3& point, Real3& normal);
 
-    // calculate the volume enclosed underneath an interface
+    // // calculate the volume enclosed underneath an interface
     Real CalculateVolumeEnclosedByInterface(Mesh& m, Real offset_height, int projected_plane=0);
     
     void CalculateCotangentWeights(Mesh& m, const std::vector<std::vector<int>>& neighborIndices, const std::map<INT2, std::vector<int>>& MapEdgeToFace, const std::map<INT2, std::vector<int>>& MapEdgeToOpposingVerts, std::vector<Real3>& dAdpi);
@@ -384,7 +384,7 @@ namespace MeshTools
     Real CalculateArea(Mesh& m, std::vector<Real>& vecArea, std::vector<Real3>& Normal);
 
     // optimize the mesh with centroidal voronoi calculation
-    void CVT_optimize_Mesh(Mesh& m);
+    void CVT_optimize_Mesh(Mesh& m, Real volume_weight=0.0, int nb_iterations=100);
 
     // CGAL optimize mesh
     void CGAL_optimize_Mesh(Mesh& m, int nb_iterations, Real degree, bool use_restriction=false);
@@ -414,6 +414,7 @@ namespace MeshTools
     std::unique_ptr<AFP_shape> ReadAFPShape(CommandLineArguments& cmd);
 
     refineptr ReadInterfacialMin(CommandLineArguments& cmd);
+    refineptr ReadInterfacialMinBoundary(CommandLineArguments& cmd);
 
     void CalculateContactAngle(Mesh& m, AFP_shape* s, std::vector<Real>& ca);
     void CalculateContactAngleDerivative(Mesh& m, AFP_shape* s, std::vector<Real>& ca, Real k0, Real3 Volume_shift={0,0,0}, bool use_Numerical=true);
@@ -422,7 +423,11 @@ namespace MeshTools
                         std::vector<Real>& vlist, Real& A, Real& V, int v_num=1000, bool useNumerical=true, Real3 Vshift={0,0,0});
     void CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V, int v_num=1000, bool useNumerical=true, Real3 Vshift={0,0,0});
 
+    // Real CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, \
+    //                              std::vector<Real>& vlist, int projected_plane=2, int v_num=1000, bool useNumerical=true);
+    // Real CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, int projected_plane=2, int v_num=1000, bool useNumerical=true);
+
     Real CalculateBoundaryAverageHeight(Mesh& m);
 
-    bool CheckPointOverlap(Real3& pos, const std::vector<Real3>& vec_pos, Real threshold=1e-5);
+    // bool CheckPointOverlap(Real3& pos, const std::vector<Real3>& vec_pos, Real threshold=1e-5);
 };

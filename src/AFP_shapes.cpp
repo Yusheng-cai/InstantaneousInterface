@@ -100,9 +100,9 @@ bool AFP_shape::CalculateNumericalNormalAndTangent(Real u, Real v, Real3& tangen
 
     Real3 norm = LinAlg3x3::CrossProduct(drdu, drdv);
     LinAlg3x3::normalize(norm);
-    normal[xdir] = norm[0];
-    normal[ydir] = norm[1];
-    normal[zdir] = norm[2];
+    normal[xdir] = -norm[0];
+    normal[ydir] = -norm[1];
+    normal[zdir] = -norm[2];
 
     Real3 tang = drdv;
     LinAlg3x3::normalize(tang);

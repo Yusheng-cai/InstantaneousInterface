@@ -237,4 +237,7 @@ void RegisterAllActions(mapFunction& mapF, mapUsage& mapU)
     RegisterAction("CalculateAVnbs", "-op CalculateAVnbs -i" ,\
                                            [](CommandLineArguments& cmd) -> void {return MeshActions::Mesh_AVnbs(cmd);},\
                                            mapF, mapU);
+    RegisterAction("InterfaceVolumeUnderneath", "-op InterfaceVolumeUnderneath -i", \
+                                                [](CommandLineArguments& cmd) -> void {return MeshActions::calculateInterfaceVolumeUnderneath(cmd);},\
+                                                mapF, mapU);
 }

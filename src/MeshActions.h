@@ -80,6 +80,9 @@ namespace MeshActions
     // calculate the mesh of a mesh using the method of curve fitting (second fundamental form)
     void CurveFit(CommandLineArguments& cmd);
 
+    // calculate the curvature of a mesh using derivative
+    void CurvatureDerivative(CommandLineArguments& cmd);
+
     // quadratic curve fit
     void QuadraticCurveFit(CommandLineArguments& cmd);
 
@@ -159,6 +162,8 @@ namespace MeshActions
 
     void InterfacialFE_min_boundary(CommandLineArguments& cmd);
 
+    void InterfacialFE_min_boundary_L1_constraint(CommandLineArguments& cmd);
+
     // function that calculates the contact angle
     void CalculateContactAngle(CommandLineArguments& cmd);
 
@@ -218,6 +223,9 @@ namespace MeshActions
 
     // calculate volume
     void calculateInterfaceVolume(CommandLineArguments& cmd);
+
+    // calculate volume underneath
+    void calculateInterfaceVolumeUnderneath(CommandLineArguments& cmd);
 
     // CVT optimization
     void CVT_Mesh_optimization(CommandLineArguments& cmd);

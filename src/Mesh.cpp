@@ -889,13 +889,10 @@ void MeshTools::CalculateTriangleAreasAndFaceNormals(Mesh& mesh, std::vector<Rea
 
         Real3 diff1 = {};
         Real3 diff2 = {};
-        Real3 diff3 = {};
-        Real norm1, norm2, norm3;
+        Real norm1, norm2;
 
-        mesh.getVertexDistance(vertices[index1], vertices[index2], diff1, norm1);
-        mesh.getVertexDistance(vertices[index3], vertices[index2], diff2, norm2);
-        mesh.getVertexDistance(vertices[index3], vertices[index1], diff3, norm3);
-
+        mesh.getVertexDistance(vertices[index2], vertices[index1], diff1, norm1);
+        mesh.getVertexDistance(vertices[index3], vertices[index1], diff2, norm2);
 
         Real3 crossProduct = LinAlg3x3::CrossProduct(diff1, diff2);
         Real norm = LinAlg3x3::norm(crossProduct);
@@ -2469,7 +2466,7 @@ MeshTools::Real MeshTools::CalculateArea(Mesh& m, std::vector<Real>& vecArea, st
     return sum_area;
 }
 
-void MeshTools::CVT_optimize_Mesh(Mesh& m){
+void MeshTools::CVT_optimize_Mesh(Mesh& m, Real volume_weight, int nb_iterations){
     std::vector<Real3> v = m.getVertexPositions();
     std::vector<INT3>  f = m.getFaces();
 
@@ -2478,8 +2475,8 @@ void MeshTools::CVT_optimize_Mesh(Mesh& m){
     emesh.mark_boundary();
     CMC::CMC_Evolver evolver;
     evolver.set_mesh(&emesh);
-    evolver.set_volume_weight(0.0);
-    evolver.cmc_qnewton(100,1);
+    evolver.set_volume_weight(volume_weight);
+    evolver.cmc_qnewton(nb_iterations,1);
 
     std::vector<Real3> new_v;
     std::vector<INT3> new_f;
@@ -2555,22 +2552,36 @@ void MeshTools::CGAL_optimize_Mesh(Mesh& m, int nb_iterations, Real degree, bool
     m.CalcVertexNormals();
 }
 
-void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryIndices, \
+void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V, int v_num, bool useNumerical, Real3 Vshift){
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+
+    // obtain boundary indices 
+    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
+
+    // find the ulist and vlist --> this also rearranges boundary indices 
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, s,true);
+    MeshTools::CalculateAVnbs(m, s, BoundaryIndices, ulist, vlist, A, V, v_num, useNumerical, Vshift);
+}
+
+
+void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryIndices,\
                                std::vector<Real>& ulist, std::vector<Real>& vlist, Real& A, Real& V,\
                                int num_v, bool useNumerical, Real3 Vshift){
-    A = 0.0; V=0.0;
+    // We assume that the ulist is ordered
+    A = 0.0;
+    V = 0.0;
     int numBoundary = ulist.size();
     const auto& verts = m.getvertices();
-
     for (int i=0;i<vlist.size();i++){
         Real vstep = (Constants::PI/2 - vlist[i]) / num_v;
         Real u = ulist[i];
-
-        int ind = BoundaryIndices[i];
         Real du = ulist[(i+1) % numBoundary] - ulist[i];
         if (du < 0){
             du += 2 * Constants::PI;
         }
+
+        int ind = BoundaryIndices[i];
 
         #pragma omp parallel 
         {
@@ -2584,15 +2595,12 @@ void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryI
                 drdu = s->drdu(u,v, useNumerical);
                 drdv = s->drdv(u,v, useNumerical);
 
-                // perform the cross product
                 Real3 cp = LinAlg3x3::CrossProduct(drdu, drdv);
-
-                // Calculate A local
+                
                 A_local += std::sqrt(LinAlg3x3::DotProduct(cp,cp)) * du * vstep;
 
                 Real3 pos = verts[ind].position_ + Vshift;
 
-                // Calculate V local
                 V_local += LinAlg3x3::DotProduct(pos, cp) * du * vstep;
             }
 
@@ -2603,19 +2611,6 @@ void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryI
             }
         }
     }
-}
-
-void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s, Real& A, Real& V,\
-                               int num_v, bool useNumerical, Real3 Vshift){
-    // calculate ulist vlist and boundaryindices
-    std::vector<Real> ulist, vlist;
-    std::vector<int> BoundaryIndices;
-    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
-    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, s, true);
-
-    MeshTools::CalculateAVnbs(m, s,BoundaryIndices, \
-                              ulist, vlist, A, V,\
-                              num_v, useNumerical, Vshift);
 }
 
 std::unique_ptr<AFP_shape> MeshTools::ReadAFPShape(CommandLineArguments& cmd){
@@ -2714,6 +2709,66 @@ MeshTools::refineptr MeshTools::ReadInterfacialMin(CommandLineArguments& cmd){
     refinePack.insert("tolerance", tolerance);
     refinePack.insert("print_every", printevery);
     refinePack.insert("MaxStepCriteria", MaxStepCriteria);
+    
+    // initialize refine ptr
+    refineptr r;
+    MeshRefineStrategyInput input = {{refinePack}};
+    r = refineptr(MeshRefineStrategyFactory::Factory::instance().create("InterfacialFE_minimization", input));
+
+    return std::move(r);
+}
+
+MeshTools::refineptr MeshTools::ReadInterfacialMinBoundary(CommandLineArguments& cmd){
+    std::string stepsize, ca_file_output="ca.out", T="298", L="0", maxstep="1e5", tolerance="0.00001", printevery="1000", optimize_every="1e10";
+    std::string boundarymaxstep="10000", boundarystepsize="0.5", boundarytolerance="5e-6", L2tolerance="5e-5", boundary_optimize_every="300";
+    std::string MaxStepCriteria="true", L2="0", L2_step_size="10.0",L2maxstep="1e5", zstar, zstar_deviation="0.01";
+    std::string dgamma_gamma, useNumerical="false";
+
+    cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);
+    cmd.readString("temperature", CommandLineArguments::Keys::Required, T);
+    cmd.readString("stepsize", CommandLineArguments::Keys::Optional, stepsize);
+    cmd.readString("tolerance", CommandLineArguments::Keys::Optional, tolerance);
+    cmd.readString("printevery", CommandLineArguments::Keys::Optional, printevery);
+    cmd.readString("Lagrange", CommandLineArguments::Keys::Optional, L);
+    cmd.readString("optimize_every", CommandLineArguments::Keys::Optional, optimize_every);
+
+    // boundary terms
+    cmd.readString("boundarymaxstep", CommandLineArguments::Keys::Optional, boundarymaxstep);
+    cmd.readString("boundarystepsize", CommandLineArguments::Keys::Optional, boundarystepsize);
+    cmd.readString("boundarytolerance", CommandLineArguments::Keys::Optional, boundarytolerance);
+    cmd.readString("boundary_optimize_every", CommandLineArguments::Keys::Optional, boundary_optimize_every);
+    cmd.readString("dgamma_gamma", CommandLineArguments::Keys::Required, dgamma_gamma);
+    cmd.readString("useNumerical", CommandLineArguments::Keys::Optional, useNumerical);
+    cmd.readString("L2_guess", CommandLineArguments::Keys::Optional, L2);
+    cmd.readString("L2_step_size", CommandLineArguments::Keys::Optional, L2_step_size);
+    cmd.readString("L2_tolerance", CommandLineArguments::Keys::Optional, L2tolerance);
+    cmd.readString("L2maxstep", CommandLineArguments::Keys::Optional, L2maxstep);
+    cmd.readString("zstar_deviation", CommandLineArguments::Keys::Optional, zstar_deviation);
+    cmd.readString("zstar", CommandLineArguments::Keys::Optional, zstar);
+
+    // define parameter packs
+    ParameterPack refinePack;
+    refinePack.insert("name", "refine");
+    refinePack.insert("optimize_every", optimize_every);
+    refinePack.insert("maxstep", maxstep);
+    refinePack.insert("temperature", T);
+    refinePack.insert("L", L);
+    refinePack.insert("stepsize", stepsize);
+    refinePack.insert("tolerance", tolerance);
+    refinePack.insert("print_every", printevery);
+    refinePack.insert("MaxStepCriteria", MaxStepCriteria);
+
+    // boundary terms
+    refinePack.insert("boundarymaxstep", boundarymaxstep);
+    refinePack.insert("boundarystepsize", boundarystepsize);
+    refinePack.insert("boundarytolerance", boundarytolerance);
+    refinePack.insert("boundary_optimize_every", boundary_optimize_every);
+    refinePack.insert("dgamma_gamma", dgamma_gamma);
+    refinePack.insert("L2_guess", L2);
+    refinePack.insert("zstar", zstar);
+    refinePack.insert("zstar_deviation", zstar_deviation);
+    refinePack.insert("L2_step_size", L2_step_size);
+    refinePack.insert("L2tolerance", L2tolerance);
     
     // initialize refine ptr
     refineptr r;
@@ -2982,8 +3037,8 @@ void MeshTools::CalculatedAVnbsdUV(Mesh& m,AFP_shape* shape, std::vector<int>& B
         m.getVertexDistance(verts[ind], verts[prev_ind], diff2, dist2);
 
         // calculate dAnbsdu and dAnbsdv --> keep drdv the same 
-        Real3 crossP1          = 0.5 * LinAlg3x3::CrossProduct(drdv[i],diff1);
-        Real3 crossP2          = 0.5 * LinAlg3x3::CrossProduct(drdv[i],diff2);
+        Real3 crossP1          = 0.5 * LinAlg3x3::CrossProduct(diff1, drdv[i]);
+        Real3 crossP2          = 0.5 * LinAlg3x3::CrossProduct(diff2, drdv[i]);
         Real dAnbsdv_this      = - LinAlg3x3::norm(crossP1) - LinAlg3x3::norm(crossP2);
         Real dVnbsdv_this      = -1.0 / 3.0 * LinAlg3x3::DotProduct(verts[ind].position_ + shift, crossP1) \
                                  -1.0 / 3.0 * LinAlg3x3::DotProduct(verts[ind].position_ + shift, crossP2); 
@@ -3059,11 +3114,11 @@ void MeshTools::CalculateContactAngleDerivative(Mesh& m, AFP_shape* shape, \
     }
 }
 
-Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
-    std::vector<int> BoundaryIndices; 
+MeshTools::Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
+    std::vector<int> BoundaryIndices;
     MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices);
 
-    Real z_height=0.0f;
+    Real z_height = 0.f;
     const auto& verts = m.getvertices();
 
     for (int i=0;i<BoundaryIndices.size();i++){
@@ -3071,20 +3126,7 @@ Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
         z_height += verts[ind].position_[2];
     }
 
-    z_height = z_height / BoundaryIndices.size();
+    z_height = z_height / (Real)BoundaryIndices.size();
 
     return z_height;
-}
-
-bool MeshTools::CheckPointOverlap(Real3 &pos, const std::vector<Real3> &vec_pos, Real threshold){
-    for (auto& p : vec_pos){
-        Real3 diff = p - pos;
-        Real dist  = std::sqrt(LinAlg3x3::DotProduct(diff, diff));
-
-        if (dist < threshold){
-            return true;
-        }
-    }
-
-    return false;
 }
