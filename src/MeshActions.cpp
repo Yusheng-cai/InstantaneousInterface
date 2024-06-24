@@ -2229,6 +2229,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     StringTools::WriteTabulatedData(fname + "_area.out", a_list);
     StringTools::WriteTabulatedData(fname + "_anbs.out", anbs_list);
     StringTools::WriteTabulatedData(fname + "_k.out", k_list);
+    StringTools::WriteTabulatedData(fname + "_L2.out", L2_list);
 
     // // write the contact angle
     std::vector<Real> ca_list_deriv, ca_list_NS;
@@ -2240,18 +2241,14 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
 
 void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments& cmd){
     std::string inputfname, outputfname="evolved.ply";
-    std::string MaxStepCriteria="true";
     Real3 box;
-    Real L1=0.0, L2=0.0, L1_step_size=0.0,L2_step_size=0.0;
-    Real L2_step_threshold=2e-6, L1_step_threshold=1e-3;
-    Real zstar_allowed_deviation=0.01;
-    Real zstar=0.0f;
-    Real init_k=0.0;
+    Real target_V, init_k=0.0;
 
     // read input
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    bool NotPerformShooting = cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
+    cmd.readValue("target_V", CommandLineArguments::Keys::Required, target_V);
+    cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
 
     // initialize the shape
     std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
@@ -2267,12 +2264,11 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
     InterfacialFE_minimization* temp_r = dynamic_cast<InterfacialFE_minimization*>(r.get());
     Real rho   = temp_r->getrho();
     Real mu    = temp_r->getmu();
-    L1         = temp_r->getL();
     Real gamma = temp_r->getgamma();
 
     // volume shift
     Real3 Volume_shift = -0.5 * box;
-    std::vector<Real> k_list, L2_list, v_list, vnbs_list, anbs_list, a_list;
+    std::vector<Real> k_list, L2_list, v_list, vnbs_list, anbs_list, a_list, vtot_list;
 
     // first calculate the boundary averages
     Real avg_z     = MeshTools::CalculateBoundaryAverageHeight(m);
@@ -2284,44 +2280,53 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
     Real k1, k2;
     k1 = init_k; k2 = init_k + 0.05;
     ASSERT((std::abs(k1) < k_max && std::abs(k2) < k_max), "The inputted curvature " << init_k << " exceeded max curvature " << k_max);
+    Real A, vtot, V, Anbs, Vnbs, V_underneath, Vnbs_underneath, Vtot;
 
     temp_m = m;
     temp_r->setK(k1);
     temp_r->refineBoundary(temp_m, shape.get());
+    V_underneath = MeshTools::CalculateVolumeUnderneath(temp_m, 2);
+    Vnbs_underneath = MeshTools::CalculateVnbsUnderneath(temp_m, shape.get(), 2, 10000);
+    Vtot = V_underneath - Vnbs_underneath;
+    vtot_list.push_back(Vtot);
     L2_list.push_back(temp_r->getL2());
+    std::cout << "Vtot = " << Vtot << std::endl;
 
     temp_m = m;
     temp_r->setK(k2);
     temp_r->refineBoundary(temp_m, shape.get());
+    V_underneath = MeshTools::CalculateVolumeUnderneath(temp_m, 2);
+    Vnbs_underneath = MeshTools::CalculateVnbsUnderneath(temp_m, shape.get(), 2, 10000);
+    Vtot = V_underneath - Vnbs_underneath;
+    std::cout << "Vtot = " << Vtot << std::endl;
     L2_list.push_back(temp_r->getL2());
-
-    k_list.push_back(k1); k_list.push_back(k2);
+    k_list.push_back(k1);          k_list.push_back(k2);
+    vtot_list.push_back(Vtot);
 
     // calculate the derivative
     int ind = 0;
-    Real deriv  = (k_list[ind+1] - k_list[ind]) / (L2_list[ind+1] - L2_list[ind]);
 
     while(true){
-        std::cout << "L2_list = " << L2_list << std::endl;
+        std::cout << "vtot_list = " << vtot_list << std::endl;
         // create a temporary mesh
         temp_m = m;
 
         // calculate the derivative
-        Real dkdL2  = (k_list[ind+1] - k_list[ind]) / (L2_list[ind+1] - L2_list[ind]);
-        Real dL2dk  = 1.0 / dkdL2;
+        Real dkdvtot  = (k_list[ind+1]  -  k_list[ind]) / (vtot_list[ind+1] - vtot_list[ind]);
+        Real dL2dk    = (L2_list[ind+1] - L2_list[ind]) / (k_list[ind+1] - k_list[ind]);
         Real k0_st_next;
 
         // take steps carefully to ensure that we do not go above the maximum allowed curvature
         Real step_size = 1;
         do{
-            k0_st_next = k_list[ind+1] + step_size * dkdL2 * (0 - L2_list[ind+1]);
+            k0_st_next = k_list[ind+1] + step_size * dkdvtot * (target_V - vtot_list[ind+1]);
             step_size *= 0.5;
         }
         while(std::abs(k0_st_next) > k_max);
+
         Real L2_next = L2_list[ind+1] + dL2dk * (k0_st_next - k_list[ind+1]);
 
         std::cout << "trying  k = " << k0_st_next << std::endl;
-        std::cout << "trying L2 = " << L2_next << std::endl;
 
         // use the next L to refine
         temp_r->setK(k0_st_next);
@@ -2330,22 +2335,26 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
         // refine boundary
         temp_r->refineBoundary(temp_m, shape.get());
 
+        // calculate V underneath
+        V_underneath = MeshTools::CalculateVolumeUnderneath(temp_m, 2);
+        Vnbs_underneath = MeshTools::CalculateVnbsUnderneath(temp_m, shape.get(), 2, 10000);
+        Vtot = V_underneath - Vnbs_underneath;
+
         // get the results
-        Real L2_this = temp_r->getL2();
         Real area    = temp_r->getarea();
-        Real volume  = temp_r->getvolume();
-        Real vnbs    = temp_r->getVnbs();
+        V            = temp_r->getvolume();
+        Vnbs         = temp_r->getVnbs();
         Real anbs    = temp_r->getAnbs();
 
-        L2_list.push_back(L2_this);
         k_list.push_back(k0_st_next);
         a_list.push_back(area);
-        v_list.push_back(volume);
+        v_list.push_back(V);
         anbs_list.push_back(anbs);
-        vnbs_list.push_back(vnbs);
+        vnbs_list.push_back(Vnbs);
+        vtot_list.push_back(Vtot);
 
         // if the solution already satisfies our requirement, break
-        if (std::abs(L2_this) < 1e-4){
+        if (std::abs(target_V - Vtot) < 1e-4){
             m = temp_m;
             break;
         }
@@ -2356,8 +2365,6 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
     // obtain the file name -->  a.ply --> a 
     std::string fname = StringTools::ReadFileName(outputfname);
 
-    std::cout << "WE ARE STARTING TO PERFORM OPTIMIZATION!" << std::endl;
-
     // write the ply file
     MeshTools::writePLY(outputfname, m);
 
@@ -2367,6 +2374,7 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
     StringTools::WriteTabulatedData(fname + "_area.out", a_list);
     StringTools::WriteTabulatedData(fname + "_anbs.out", anbs_list);
     StringTools::WriteTabulatedData(fname + "_k.out", k_list);
+    StringTools::WriteTabulatedData(fname + "_L2.out", L2_list);
 
     // // write the contact angle
     std::vector<Real> ca_list_deriv, ca_list_NS;
@@ -3942,35 +3950,36 @@ void MeshActions::calculateInterfaceVolume(CommandLineArguments& cmd){
 }
 
 void MeshActions::calculateInterfaceVolumeUnderneath(CommandLineArguments& cmd){
-    // std::string inputfname;
-    // Real offset_height;
-    // int projected_plane=2;
-    // bool isPBC=false, calc_shape=false;
-    // Real3 box;
+    std::string inputfname;
+    Real offset_height;
+    int projected_plane=2;
+    bool isPBC=false, calc_shape=false;
+    Real3 box;
 
-    // cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
-    // isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
-    // cmd.readBool("calc_shape", CommandLineArguments::Keys::Optional, calc_shape);
-    // cmd.readValue("projected_plane", CommandLineArguments::Keys::Optional, projected_plane);
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+    cmd.readBool("calc_shape", CommandLineArguments::Keys::Optional, calc_shape);
+    cmd.readValue("projected_plane", CommandLineArguments::Keys::Optional, projected_plane);
 
-    // Mesh m;
-    // MeshTools::readPLYlibr(inputfname, m);
-    // if (isPBC){
-    //     m.setBoxLength(box);
-    // }
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (isPBC){
+        m.setBoxLength(box);
+    }
 
-    // Real V_underneath = MeshTools::CalculateVolumeEnclosedByInterface(m,projected_plane);
+    Real Volume_underneath = MeshTools::CalculateVolumeUnderneath(m, projected_plane);
 
-    // if (calc_shape){
-    //     bool useNumerical=true;
-    //     cmd.readBool("useNumerical", CommandLineArguments::Keys::Optional, useNumerical);
-    //     std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
-    //     Real Vnbs_underneath = MeshTools::CalculateVnbsUnderneath(m, shape.get(), projected_plane,10000, useNumerical);
+    if (calc_shape){
+        bool useNumerical=true;
+        cmd.readBool("useNumerical", CommandLineArguments::Keys::Optional, useNumerical);
+        std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
+        Real Vnbs_underneath = MeshTools::CalculateVnbsUnderneath(m, shape.get(), projected_plane, 10000, useNumerical);
+        std::cout << "Vnbs underneath = " << Vnbs_underneath << std::endl;
 
-    //     V_underneath -= Vnbs_underneath;
-    // }
+        Volume_underneath -= Vnbs_underneath;
+    }
 
-    // std::cout << V_underneath << std::endl;
+    std::cout << Volume_underneath << std::endl;
 }
 
 void MeshActions::CVT_Mesh_optimization(CommandLineArguments& cmd){

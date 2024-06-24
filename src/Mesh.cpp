@@ -146,41 +146,38 @@ void Mesh::scaleVertices(Real num)
     update();
 }
 
-MeshTools::Real MeshTools::CalculateVolumeEnclosedByInterface(Mesh& m, Real offset_height, int projected_plane){
+MeshTools::Real MeshTools::CalculateVolumeUnderneath(Mesh& m, int projected_plane){
     // obtain the vertices and triangles 
     const auto& vertices = m.getvertices();
     const auto& faces    = m.gettriangles();
 
-    int dir1, dir2;
+    std::vector<Real> vecAreas;
+    std::vector<Real3> Normals;
+    MeshTools::CalculateTriangleAreasAndFaceNormals(m, vecAreas, Normals);
 
     Real volume = 0.0;
 
-    // define the projected plane
-    if (projected_plane == 0){
-        dir1 = 1; dir2=2;
-    }
-    else if (projected_plane == 1){
-        dir1 = 0; dir2 = 2;
-    }
-    else{
-        dir1 = 0; dir2= 1;
-    }
+    #pragma omp parallel
+    {
+        Real v_local = 0.0;
 
-    for (int i=0;i<faces.size();i++){
-        // get the vertices
-        auto v1 = vertices[faces[i].triangleindices_[0]];
-        auto v2 = vertices[faces[i].triangleindices_[1]];
-        auto v3 = vertices[faces[i].triangleindices_[2]];
+        #pragma omp for
+        for (int i=0;i<faces.size();i++){
+            // get the vertices
+            auto v1 = vertices[faces[i].triangleindices_[0]];
+            auto v2 = vertices[faces[i].triangleindices_[1]];
+            auto v3 = vertices[faces[i].triangleindices_[2]];
 
-        // calculate the projected area
-        Real A = 0.5 * (v1.position_[dir1] * (v2.position_[dir2] - v3.position_[dir2]) + 
-                        v2.position_[dir1] * (v3.position_[dir2] - v1.position_[dir2]) + 
-                        v3.position_[dir1] * (v1.position_[dir2] - v2.position_[dir2]));
+            // average height
+            Real avg_height = 1.0 / 3.0 * (v1.position_[projected_plane] + v2.position_[projected_plane] + v3.position_[projected_plane] 
+                                            );
+            v_local += vecAreas[i] * avg_height;
+        }
 
-        // average height --> corrected by offset height 
-        Real avg_height = 1.0 / 3.0 * (v1.position_[projected_plane] + v2.position_[projected_plane] + v3.position_[projected_plane] 
-                                      ) + offset_height;
-        volume +=  A * avg_height;
+        #pragma omp critical
+        {
+            volume += v_local;
+        }
     }
 
     return volume;
@@ -3129,4 +3126,71 @@ MeshTools::Real MeshTools::CalculateBoundaryAverageHeight(Mesh& m){
     z_height = z_height / (Real)BoundaryIndices.size();
 
     return z_height;
+}
+
+void MeshTools::CalculateAV(Mesh& m, Real& A, Real& V){
+    std::vector<Real> vecArea;
+    std::vector<Real3> Normal;
+    A =  CalculateArea(m, vecArea, Normal);
+    V =  CalculateVolumeDivergenceTheorem(m, vecArea, Normal);
+}
+
+MeshTools::Real MeshTools::CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, int projected_plane, int v_num, bool useNumerical)
+{
+    // for the shape, we calculate s --> obtain u and v 
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculateBoundaryVerticesIndex(m,  BoundaryIndices);
+
+    // in this function, we also ordered the boundaryindices
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, s, true);
+
+    return MeshTools::CalculateVnbsUnderneath(m, s, BoundaryIndices, ulist, vlist, projected_plane, v_num, useNumerical);
+}
+
+
+
+MeshTools::Real MeshTools::CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, std::vector<int>& BoundaryIndices, std::vector<Real>& ulist, \
+                                  std::vector<Real>& vlist, int projected_plane, int num_v, bool useNumerical)
+{
+    // We assume that the ulist is ordered
+    Real V = 0.0;
+    int numBoundary = ulist.size();
+    const auto& verts = m.getvertices();
+    for (int i=0;i<vlist.size();i++){
+        Real vstep = (Constants::PI/2 - vlist[i]) / num_v;
+        Real u = ulist[i];
+        Real du = ulist[(i+1) % numBoundary] - ulist[i];
+        if (du < 0){
+            du += 2 * Constants::PI;
+        }
+
+        int ind = BoundaryIndices[i];
+
+        #pragma omp parallel 
+        {
+            Real V_local= 0.0;
+            #pragma omp for
+            for (int j=0;j<num_v;j++){
+                Real3 drdu, drdv, pos;
+                Real v = vlist[i] + j * vstep;
+
+                drdu = s->drdu(u,v, useNumerical);
+                drdv = s->drdv(u,v, useNumerical);
+                pos  = s->calculatePos(u,v);
+
+                Real3 cp = LinAlg3x3::CrossProduct(drdu, drdv);
+                Real A_projected = std::abs(cp[projected_plane]) * du * vstep;
+
+                V_local += A_projected * pos[projected_plane];
+            }
+
+            #pragma omp critical
+            {
+                V += V_local;
+            }
+        }
+    }
+
+    return V;
 }
