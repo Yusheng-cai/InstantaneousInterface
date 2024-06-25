@@ -171,7 +171,7 @@ MeshTools::Real MeshTools::CalculateVolumeUnderneath(Mesh& m, int projected_plan
             // average height
             Real avg_height = 1.0 / 3.0 * (v1.position_[projected_plane] + v2.position_[projected_plane] + v3.position_[projected_plane] 
                                             );
-            v_local += vecAreas[i] * avg_height;
+            v_local += vecAreas[i] * Normals[i][projected_plane] * avg_height;
         }
 
         #pragma omp critical
@@ -2598,7 +2598,7 @@ void MeshTools::CalculateAVnbs(Mesh& m, AFP_shape* s,std::vector<int>& BoundaryI
 
                 Real3 pos = verts[ind].position_ + Vshift;
 
-                V_local += LinAlg3x3::DotProduct(pos, cp) * du * vstep;
+                V_local += 1.0/3.0 * LinAlg3x3::DotProduct(pos, cp) * du * vstep;
             }
 
             #pragma omp critical

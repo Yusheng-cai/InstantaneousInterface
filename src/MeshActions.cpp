@@ -2345,6 +2345,7 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
         V            = temp_r->getvolume();
         Vnbs         = temp_r->getVnbs();
         Real anbs    = temp_r->getAnbs();
+        Real L2_this = temp_r->getL2();
 
         k_list.push_back(k0_st_next);
         a_list.push_back(area);
@@ -2352,6 +2353,7 @@ void MeshActions::InterfacialFE_min_boundary_L1_constraint(CommandLineArguments&
         anbs_list.push_back(anbs);
         vnbs_list.push_back(Vnbs);
         vtot_list.push_back(Vtot);
+        L2_list.push_back(L2_this);
 
         // if the solution already satisfies our requirement, break
         if (std::abs(target_V - Vtot) < 1e-4){
@@ -3931,9 +3933,11 @@ void MeshActions::calculateInterfaceVolume(CommandLineArguments& cmd){
     Real offset_height;
     int projected_plane=0;
     Real3 box;
+    bool calc_shape=false;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional,box);
+    cmd.readBool("calc_shape", CommandLineArguments::Keys::Optional, calc_shape);
 
     Mesh m;
     MeshTools::readPLYlibr(inputfname, m);
@@ -3943,8 +3947,18 @@ void MeshActions::calculateInterfaceVolume(CommandLineArguments& cmd){
 
     std::vector<Real3> Normal;
     std::vector<Real> vecArea;
-    Real a = MeshTools::CalculateArea(m, vecArea, Normal);
-    Real V = MeshTools::CalculateVolumeDivergenceTheorem(m, vecArea, Normal);
+    Real A,V;
+    A = MeshTools::CalculateArea(m, vecArea, Normal);
+    V = MeshTools::CalculateVolumeDivergenceTheorem(m, vecArea, Normal);
+
+    if (calc_shape){
+        bool useNumerical=true;
+        cmd.readBool("useNumerical", CommandLineArguments::Keys::Optional, useNumerical);
+        std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
+        Real Anbs, Vnbs;
+        MeshTools::CalculateAVnbs(m, shape.get(), Anbs, Vnbs, 100000, useNumerical, -0.5 * box);
+        V += Vnbs;
+    }
 
     std::cout << "volume = " << V << std::endl;
 }
@@ -3968,6 +3982,7 @@ void MeshActions::calculateInterfaceVolumeUnderneath(CommandLineArguments& cmd){
     }
 
     Real Volume_underneath = MeshTools::CalculateVolumeUnderneath(m, projected_plane);
+    std::cout << "Volume underneath = " << Volume_underneath << std::endl;
 
     if (calc_shape){
         bool useNumerical=true;
