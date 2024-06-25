@@ -2108,17 +2108,17 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     std::string inputfname, outputfname="evolved.ply";
     std::string MaxStepCriteria="true";
     Real3 box;
-    Real init_k=0.0;
+    Real init_k=0.0, max_k_percentage=0.95;
 
     // read input
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readValue("max_k_percentage", CommandLineArguments::Keys::Optional, max_k_percentage);
     bool NotPerformShooting = cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
 
     // initialize the shape
     std::unique_ptr<AFP_shape> shape = MeshTools::ReadAFPShape(cmd);
     refineptr r = MeshTools::ReadInterfacialMinBoundary(cmd);
-    //refineptr r = MeshTools::ReadInterfacialMin(cmd);
 
     // read input mesh 
     bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
@@ -2134,13 +2134,13 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
 
     // volume shift
     Real3 Volume_shift = -0.5 * box;
-    std::vector<Real> k_list, L2_list, v_list, vnbs_list, anbs_list, a_list;
+    std::vector<Real> k_list, L2_list, v_list, vnbs_list, anbs_list, a_list, vtot_list;
 
     // first calculate the boundary averages
     Real avg_z     = MeshTools::CalculateBoundaryAverageHeight(m);
     Real A_contact = shape->CalculateAreaZ(avg_z);
     Real P_contact = shape->CalculatePeriZ(avg_z);
-    Real k_max     = P_contact / (2.0f * (box[0] * box[1] - A_contact));
+    Real k_max     = max_k_percentage * P_contact / (2.0f * (box[0] * box[1] - A_contact));
 
     // set the first 2 k0's
     Real k1, k2;
@@ -2151,11 +2151,21 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     temp_r->setK(k1);
     temp_r->refineBoundary(temp_m, shape.get());
     L2_list.push_back(temp_r->getL2());
+    a_list.push_back(temp_r->getarea());
+    v_list.push_back(temp_r->getvolume());
+    vnbs_list.push_back(temp_r->getVnbs());
+    anbs_list.push_back(temp_r->getAnbs());
+    vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
 
     temp_m = m;
     temp_r->setK(k2);
     temp_r->refineBoundary(temp_m, shape.get());
     L2_list.push_back(temp_r->getL2());
+    a_list.push_back(temp_r->getarea());
+    v_list.push_back(temp_r->getvolume());
+    vnbs_list.push_back(temp_r->getVnbs());
+    anbs_list.push_back(temp_r->getAnbs());
+    vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
 
     k_list.push_back(k1); k_list.push_back(k2);
 
@@ -2192,12 +2202,18 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
         // refine boundary
         temp_r->refineBoundary(temp_m, shape.get());
 
+        // calculate volume underneath
+        Real V_under    = MeshTools::CalculateVolumeUnderneath(temp_m, 2);
+        Real Vnbs_under = MeshTools::CalculateVnbsUnderneath(temp_m, shape.get(), 2, 10000);
+
         // get the results
-        Real L2_this = temp_r->getL2();
-        Real area    = temp_r->getarea();
-        Real volume  = temp_r->getvolume();
-        Real vnbs    = temp_r->getVnbs();
-        Real anbs    = temp_r->getAnbs();
+        Real L2_this   = temp_r->getL2();
+        Real area      = temp_r->getarea();
+        Real volume    = temp_r->getvolume();
+        Real vnbs      = temp_r->getVnbs();
+        Real anbs      = temp_r->getAnbs();
+        Real Vunder    = temp_r->getVunderneath();
+        Real Vnbsunder = temp_r->getVnbs_underneath(); 
 
         L2_list.push_back(L2_this);
         k_list.push_back(k0_st_next);
@@ -2205,6 +2221,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
         v_list.push_back(volume);
         anbs_list.push_back(anbs);
         vnbs_list.push_back(vnbs);
+        vtot_list.push_back(Vunder - Vnbsunder);
 
         // if the solution already satisfies our requirement, break
         if (std::abs(L2_this) < 1e-4){
@@ -2218,8 +2235,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     // obtain the file name -->  a.ply --> a 
     std::string fname = StringTools::ReadFileName(outputfname);
 
-    std::cout << "WE ARE STARTING TO PERFORM OPTIMIZATION!" << std::endl;
-
     // write the ply file
     MeshTools::writePLY(outputfname, m);
 
@@ -2230,6 +2245,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     StringTools::WriteTabulatedData(fname + "_anbs.out", anbs_list);
     StringTools::WriteTabulatedData(fname + "_k.out", k_list);
     StringTools::WriteTabulatedData(fname + "_L2.out", L2_list);
+    StringTools::WriteTabulatedData(fname + "_Vtot.out", vtot_list);
 
     // // write the contact angle
     std::vector<Real> ca_list_deriv, ca_list_NS;
@@ -3964,13 +3980,14 @@ void MeshActions::calculateInterfaceVolume(CommandLineArguments& cmd){
 }
 
 void MeshActions::calculateInterfaceVolumeUnderneath(CommandLineArguments& cmd){
-    std::string inputfname;
+    std::string inputfname, outputfname="volume_underneath.out";
     Real offset_height;
     int projected_plane=2;
     bool isPBC=false, calc_shape=false;
     Real3 box;
 
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
     cmd.readBool("calc_shape", CommandLineArguments::Keys::Optional, calc_shape);
     cmd.readValue("projected_plane", CommandLineArguments::Keys::Optional, projected_plane);
@@ -3994,7 +4011,10 @@ void MeshActions::calculateInterfaceVolumeUnderneath(CommandLineArguments& cmd){
         Volume_underneath -= Vnbs_underneath;
     }
 
-    std::cout << Volume_underneath << std::endl;
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    ofs << Volume_underneath << "\n";
+    ofs.close();
 }
 
 void MeshActions::CVT_Mesh_optimization(CommandLineArguments& cmd){
