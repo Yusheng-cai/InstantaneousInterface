@@ -191,6 +191,8 @@ void InterfacialFE_minimization::refine(Mesh& mesh){
 void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
     area_list_.clear(); volume_list_.clear();
     Vnbs_list_.clear(); Anbs_list_.clear();
+    Vunderneath_ = 0.0;
+    Vnbs_underneath_ = 0.0;
     std::vector<Real> contact_angle_list, vecArea;
     std::vector<Real3> Normal;
 
@@ -349,4 +351,7 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
 
         L2_step++;
     }
+
+    Vunderneath_     = MeshTools::CalculateVolumeUnderneath(m, 2);
+    Vnbs_underneath_ = MeshTools::CalculateVnbsUnderneath(m, shape, 2, 10000, useNumerical_); 
 }
