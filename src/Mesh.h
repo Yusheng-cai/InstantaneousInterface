@@ -430,4 +430,6 @@ namespace MeshTools
     Real CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, int projected_plane=2, int v_num=1000, bool useNumerical=true);
 
     Real CalculateBoundaryAverageHeight(Mesh& m);
+
+    Real CalculateMaxCurvature(Mesh& m, const std::vector<int>& BoundaryIndices);
 };

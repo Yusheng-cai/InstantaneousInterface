@@ -296,6 +296,15 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
                 }
             }
 
+            // calculate mean z
+            mean_z    = mean_z / (Real)N;
+
+            // once we updated the boundary, let's check its perimeter and area again
+            Real max_k = MeshTools::CalculateMaxCurvature(curr_m, BoundaryIndices);
+            if (std::abs(kk / max_k) > 0.95){
+                break;
+            }
+
             // then do pi refinement
             this->refine(curr_m);
 
@@ -311,8 +320,6 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             Vnbs_list_.push_back(Vnbs_);
             Anbs_list_.push_back(Anbs_);
 
-            // calculate mean z
-            mean_z    = mean_z / (Real)N;
             Real var  = Algorithm::calculateVariance(contact_angle_list);
             mean_ca   = Algorithm::calculateMean(contact_angle_list);
             std::cout << "Mean z = " << mean_z << std::endl;

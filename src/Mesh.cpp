@@ -2666,6 +2666,24 @@ std::unique_ptr<AFP_shape> MeshTools::ReadAFPShape(CommandLineArguments& cmd){
 
         shape = std::make_unique<Sphere>(shapePack);
     }
+    else if (shape_name == "BulgingSphere"){
+        std::string radius;
+        std::string bulge_factor;
+        std::string theta_phi_factor;
+        std::vector<std::string> center;
+
+        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
+        cmd.readValue("radius", CommandLineArguments::Keys::Required, radius);
+        cmd.readValue("bulge_factor", CommandLineArguments::Keys::Optional, bulge_factor);
+        cmd.readValue("theta_phi_factor", CommandLineArguments::Keys::Optional, theta_phi_factor);
+
+        shapePack.insert("radius", radius);
+        shapePack.insert("center", center);
+        shapePack.insert("bulge_factor", bulge_factor);
+        shapePack.insert("theta_phi_factor", theta_phi_factor);
+
+        shape = std::make_unique<BulgingSphere>(shapePack);
+    }
 
     return std::move(shape);
 }
@@ -2742,6 +2760,7 @@ MeshTools::refineptr MeshTools::ReadInterfacialMinBoundary(CommandLineArguments&
     cmd.readString("L2maxstep", CommandLineArguments::Keys::Optional, L2maxstep);
     cmd.readString("zstar_deviation", CommandLineArguments::Keys::Optional, zstar_deviation);
     cmd.readString("zstar", CommandLineArguments::Keys::Optional, zstar);
+    cmd.readString("MaxStepCriteria", CommandLineArguments::Keys::Optional, MaxStepCriteria);
 
     // define parameter packs
     ParameterPack refinePack;
@@ -3193,4 +3212,43 @@ MeshTools::Real MeshTools::CalculateVnbsUnderneath(Mesh& m, AFP_shape* s, std::v
     }
 
     return V;
+}
+
+MeshTools::Real MeshTools::CalculateMaxCurvature(Mesh& m, const std::vector<int>& BoundaryIndices){
+    Real Pbar=0.0, Abar=0.0;
+    const auto& vertices = m.getvertices();
+    const auto& faces    = m.getFaces();
+
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int this_index = BoundaryIndices[i];
+        int next_index = BoundaryIndices[(i+1) % BoundaryIndices.size()];
+        Real3 dist_vec;
+        Real dist;
+
+        m.getVertexDistance(vertices[this_index], vertices[next_index], dist_vec, dist);
+
+        Pbar += std::sqrt(std::pow(dist_vec[0],2) + std::pow(dist_vec[1],2));
+    }
+
+    // calculate Abar
+    std::vector<Real> vecArea;
+    std::vector<Real3> Normal;
+    MeshTools::CalculateArea(m, vecArea, Normal);
+
+    #pragma omp parallel
+    {
+        Real A_local=0.0;
+        #pragma omp for
+        for (int i=0;i<vecArea.size();i++){
+            A_local += vecArea[i] * Normal[i][2];
+        }
+
+        #pragma omp critical
+        {
+            Abar += A_local;
+        }
+    }
+    
+
+    return Pbar / (2 * Abar);
 }

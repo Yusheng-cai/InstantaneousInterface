@@ -2108,12 +2108,13 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     std::string inputfname, outputfname="evolved.ply";
     std::string MaxStepCriteria="true";
     Real3 box;
-    Real init_k=0.0, max_k_percentage=0.95;
+    Real init_k=0.0, max_k_percentage=0.95, Shooting_Step=1.0;
 
     // read input
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readValue("max_k_percentage", CommandLineArguments::Keys::Optional, max_k_percentage);
+    cmd.readValue("Shooting_Step", CommandLineArguments::Keys::Optional, Shooting_Step);
     bool NotPerformShooting = cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
 
     // initialize the shape
@@ -2184,10 +2185,10 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
         Real k0_st_next;
 
         // take steps carefully to ensure that we do not go above the maximum allowed curvature
-        Real step_size = 1;
+        Real step_size = Shooting_Step;
         do{
             k0_st_next = k_list[ind+1] + step_size * dkdL2 * (0 - L2_list[ind+1]);
-            step_size *= 0.5;
+            step_size *= 0.75;
         }
         while(std::abs(k0_st_next) > k_max);
         Real L2_next = L2_list[ind+1] + dL2dk * (k0_st_next - k_list[ind+1]);
@@ -3038,53 +3039,12 @@ void MeshActions::calculateSurfaceProperties(CommandLineArguments& cmd){
     // declare the shape 
     std::unique_ptr<AFP_shape> shape;
     std::string inputfname, outputfname;
-    std::string surface_shape_name;
-    ParameterPack param;
+    bool useNumerical=false;
 
-    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
-    cmd.readString("shape", CommandLineArguments::Keys::Required, surface_shape_name);
+    cmd.readBool("useNumerical", CommandLineArguments::Keys::Optional,useNumerical);
 
-    if (surface_shape_name == "superegg"){
-        std::string a,b,n,zmax,a_taper,b_taper,a_alpha,b_alpha;
-        std::vector<std::string> center;
-        bool read;
-        cmd.readValue("a", CommandLineArguments::Keys::Required, a);
-        param.insert("a", a);
-        cmd.readValue("b", CommandLineArguments::Keys::Required, b);
-        param.insert("b", b);
-        cmd.readValue("zmax", CommandLineArguments::Keys::Required, zmax);
-        param.insert("zmax", zmax);
-        cmd.readVector("center", CommandLineArguments::Keys::Required, center);
-        param.insert("center", center);
-        read = cmd.readValue("n", CommandLineArguments::Keys::Optional, n);
-        if (read){
-            param.insert("n", n);
-        }
-        read = cmd.readValue("a_taper", CommandLineArguments::Keys::Optional, a_taper);
-        if (read){
-            param.insert("a_taper", a_taper);
-        }
-        read = cmd.readValue("b_taper", CommandLineArguments::Keys::Optional, b_taper);
-        if (read){
-            param.insert("b_taper", b_taper);
-        }
-        read = cmd.readValue("a_alpha", CommandLineArguments::Keys::Optional, a_alpha);
-        if (read){
-            param.insert("a_alpha", a_alpha);
-        }
-        read = cmd.readValue("b_alpha", CommandLineArguments::Keys::Optional, b_alpha);
-        if (read){
-            param.insert("b_alpha", b_alpha);
-        }
-
-        // initialize the shape 
-        shape = std::make_unique<SuperEgg>(param);
-    }
-    else{
-        ASSERT((true == false), "The shape " << surface_shape_name << " is not implemented yet.");
-    }
-
+    shape = MeshTools::ReadAFPShape(cmd);
     Real num_Steps = 100;
     Real v_step = Constants::PI / (2 * num_Steps);
     std::vector<Real3> normals, tangents;
@@ -3092,14 +3052,19 @@ void MeshActions::calculateSurfaceProperties(CommandLineArguments& cmd){
 
     for (float v = 0; v < Constants::PI / 2; v += v_step){
         Real3 tangent, normal;
-        shape->CalculateNumericalNormalAndTangent(0, v, tangent, normal, 0, 1, 2);
+        if (useNumerical){
+            shape->CalculateNumericalNormalAndTangent(0, v, tangent, normal, 0, 1, 2);
+        }
+        else{
+            shape->CalculateAnalyticalNormalAndTangent(0, v, tangent, normal, 0,1,2);
+        }
         pos.push_back(shape->calculatePos(0,v));
         normals.push_back(normal);
         tangents.push_back(tangent);
     }
 
     std::ofstream ofs;
-    ofs.open("output.out");
+    ofs.open(outputfname);
     for (int i=0;i<normals.size();i++){
         ofs << pos[i][0] << " " << pos[i][1] << " " << pos[i][2] << " " <<  \
                normals[i][0] << " " << normals[i][1] << " " << normals[i][2] << \

@@ -81,6 +81,30 @@ class Sphere : public AFP_shape{
         Real radius_;
 };
 
+class BulgingSphere : public AFP_shape{
+    public:
+        BulgingSphere(const ParameterPack& pack);
+
+        // calculate position given u,v
+        Real rBulging(Real v);
+        Real dradius_dv(Real u, Real v);
+        Real dradius_du(Real u, Real v);
+        virtual Real CalculateValue(Real3 position, int xdir=0, int ydir=1, int zdir=2) override;
+        virtual Real CalculateV(Real3 pos, int xdir=0, int ydir=1, int zdir=2) override;
+        virtual Real CalculateU(Real3 pos, int xdir=0, int ydir=1, int zdir=2) override;
+        virtual Real CalculateU(Real3 pos, Real3 box, int xdir=0, int ydir=1, int zdir=2) override;
+        virtual Real3 calculatePos(Real u, Real v) override;
+        virtual Real3 Analyticaldrdu(Real u, Real v) override;
+        virtual Real3 Analyticaldrdv(Real u, Real v) override;
+        virtual Real CalculateAreaZ(Real z) override;
+        virtual Real CalculatePeriZ(Real z) override;
+
+    private:
+        Real radius_=1.0;
+        Real bulge_factor_;
+        Real theta_phi_factor_=2.0;
+};
+
 class SuperEgg : public AFP_shape{
     public:
         using Real3 = CommonTypes::Real3;

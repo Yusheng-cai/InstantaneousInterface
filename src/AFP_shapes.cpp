@@ -169,15 +169,15 @@ Real Sphere::CalculateValue(Real3 position, int xdir, int ydir, int zdir){
 }
 
 Real Sphere::CalculateAreaZ(Real z){
-    Real theta = std::acos(z);
-    Real r = radius_ * std::sin(theta);
+    Real phi = std::acos(z);
+    Real r   = radius_ * std::sin(phi);
 
     return Constants::PI * r * r;
 }
 
 Real Sphere::CalculatePeriZ(Real z){
-    Real theta = std::acos(z);
-    Real r = radius_ * std::sin(theta);
+    Real phi = std::acos(z);
+    Real r   = radius_ * std::sin(phi);
 
     return 2.0f * Constants::PI * r;
 }
@@ -230,6 +230,117 @@ Real3 Sphere::Analyticaldrdv(Real u, Real v){
 
     return ret;
 }
+
+
+                                    ///// bulging sphere ////////
+BulgingSphere::BulgingSphere(const ParameterPack& pack) : AFP_shape(pack){
+    pack.ReadNumber("radius", ParameterPack::KeyType::Optional, radius_);
+    pack.ReadArrayNumber("center", ParameterPack::KeyType::Required, center_);
+    pack.ReadNumber("theta_phi_factor", ParameterPack::KeyType::Optional, theta_phi_factor_);
+    pack.ReadNumber("bulge_factor", ParameterPack::KeyType::Optional, bulge_factor_);
+}
+
+BulgingSphere::Real BulgingSphere::rBulging(Real v){
+    return radius_ * std::sin(v) + bulge_factor_ * std::sin(theta_phi_factor_ * v);
+}
+
+BulgingSphere::Real BulgingSphere::dradius_dv(Real u, Real v){
+    return radius_ * std::cos(v) + bulge_factor_ * std::cos(theta_phi_factor_ * v) * theta_phi_factor_;
+}
+
+BulgingSphere::Real BulgingSphere::dradius_du(Real u, Real v){
+    return 0.0f;
+}
+
+BulgingSphere::Real3 BulgingSphere::calculatePos(Real u, Real v){
+    Real3 ret;
+
+    Real r = rBulging(v);
+    ret[0] = r * std::cos(u) + center_[0];
+    ret[1] = r * std::sin(u) + center_[1];
+    ret[2] = radius_ * std::cos(v);
+
+    return ret;
+}
+
+BulgingSphere::Real BulgingSphere::CalculateAreaZ(Real z){
+    Real v   = std::acos(z);
+    Real r   = rBulging(v);
+
+    return Constants::PI * r * r;
+}
+
+BulgingSphere::Real BulgingSphere::CalculatePeriZ(Real z){
+    Real v   = std::acos(z);
+    Real r   = rBulging(v);
+
+    return 2.0f * Constants::PI * r;
+}
+
+BulgingSphere::Real BulgingSphere::CalculateValue(Real3 position, int xdir, int ydir, int zdir){
+    Real v   = CalculateV(position, xdir, ydir, zdir);
+    Real r   = rBulging(v);
+
+    Real rsq = r * r;
+    Real val = std::pow(position[xdir] - center_[0],2) / rsq + std::pow(position[ydir] - center_[1],2) / rsq;
+
+    return val;
+}
+
+BulgingSphere::Real BulgingSphere::CalculateV(Real3 pos, int xdir, int ydir, int zdir){
+    return std::acos(pos[zdir] / radius_);
+}
+
+BulgingSphere::Real BulgingSphere::CalculateU(Real3 pos, int xdir, int ydir, int zdir){
+    Real dx = pos[xdir] - center_[0];
+    Real dy = pos[ydir] - center_[1];
+
+    // we strictly follow a 0->2pi U
+    Real U  = std::atan2(dy, dx);
+    U = shift_u_in_range(U);
+
+    return U;
+}
+
+BulgingSphere::Real BulgingSphere::CalculateU(Real3 pos, Real3 box, int xdir, int ydir, int zdir){
+    Real dx = pos[xdir] - center_[0];
+    Real dy = pos[ydir] - center_[1];
+
+    if (dx > 0.5 * box[0]) {dx -= box[0];}
+    else if (dx < -0.5 * box[0]) {dx += box[0];}
+
+    if (dy > 0.5 * box[1]) {dy -= box[1];}
+    else if (dy < -0.5 * box[1]) {dy += box[1];}
+
+    Real U = std::atan2(dy, dx);
+    U = shift_u_in_range(U);
+
+    return U;
+}
+
+BulgingSphere::Real3 BulgingSphere::Analyticaldrdu(Real u, Real v){
+    Real3 ret;
+    Real dra_du = BulgingSphere::dradius_du(u,v);
+    Real r      = BulgingSphere::rBulging(v);
+
+    ret[0] = dra_du * std::cos(u) - r * std::sin(u); 
+    ret[1] = dra_du * std::cos(u) + r * std::cos(u);
+    ret[2] = 0;
+
+    return ret;
+}
+
+BulgingSphere::Real3 BulgingSphere::Analyticaldrdv(Real u, Real v){
+    Real3 ret;
+
+    Real dra_dv = BulgingSphere::dradius_dv(u,v);
+    ret[0] = dra_dv * std::cos(u);
+    ret[1] = dra_dv * std::sin(u);
+    ret[2] = -radius_ * std::sin(v);
+
+    return ret;
+}
+
 
 
                                     ///// Super Egg ////////////
