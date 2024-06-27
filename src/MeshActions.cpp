@@ -1377,29 +1377,24 @@ void MeshActions::FindVertexNeighbors(CommandLineArguments& cmd)
 void MeshActions::FindBoundaryVertices(CommandLineArguments& cmd){
     std::string inputfname, outputfname="boundary.out";
 
+    Real3 box, boundary_center={0,0,0};
+    bool order=false, isPBC=false;
     cmd.readValue("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readValue("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readBool("order", CommandLineArguments::Keys::Optional, order);
+    if (order){
+        isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+        cmd.readArray("boundary_center", CommandLineArguments::Keys::Optional, boundary_center);
+    }
 
     Mesh mesh;
     MeshTools::readPLYlibr(inputfname, mesh);
+    if(isPBC){mesh.setBoxLength(box);}
 
-    std::map<INT2, std::vector<int>> MapEdgeToFace;
-    std::vector<std::vector<INT2>> MapVertexToEdge;
-    std::vector<bool> BoundaryIndicator;
+    std::vector<int> BoundaryIndices;
+    MeshTools::CalculateBoundaryVerticesIndex(mesh, BoundaryIndices, order, boundary_center);
 
-    MeshTools::MapEdgeToFace(mesh,MapEdgeToFace, MapVertexToEdge);
-    MeshTools::CalculateBoundaryVertices(mesh, MapEdgeToFace,BoundaryIndicator);
-
-    std::ofstream ofs;
-    ofs.open(outputfname);
-
-    for (int i=0;i<BoundaryIndicator.size();i++){
-        if (BoundaryIndicator[i]){
-            ofs << i << " ";
-        }
-    }
-
-    ofs.close();
+    StringTools::WriteTabulatedData(outputfname, BoundaryIndices);
 }
 
 void MeshActions::CutOverlappedRegion(CommandLineArguments& cmd)
@@ -2108,13 +2103,14 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     std::string inputfname, outputfname="evolved.ply";
     std::string MaxStepCriteria="true";
     Real3 box;
-    Real init_k=0.0, max_k_percentage=0.95, Shooting_Step=1.0;
+    Real init_k=0.0, max_k_percentage=0.95, Shooting_Step=1.0, Shooting_first_step=0.05;
 
     // read input
     cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
     cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
     cmd.readValue("max_k_percentage", CommandLineArguments::Keys::Optional, max_k_percentage);
     cmd.readValue("Shooting_Step", CommandLineArguments::Keys::Optional, Shooting_Step);
+    cmd.readValue("Shooting_first_Step", CommandLineArguments::Keys::Optional, Shooting_first_step);
     bool NotPerformShooting = cmd.readValue("init_k", CommandLineArguments::Keys::Optional, init_k);
 
     // initialize the shape
@@ -2145,7 +2141,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
 
     // set the first 2 k0's
     Real k1, k2;
-    k1 = init_k; k2 = init_k + 0.05;
+    k1 = init_k; k2 = init_k + Shooting_first_step;
     ASSERT((std::abs(k1) < k_max && std::abs(k2) < k_max), "The inputted curvature " << init_k << " exceeded max curvature " << k_max);
 
     temp_m = m;
@@ -4039,4 +4035,28 @@ void MeshActions::Mesh_AVnbs(CommandLineArguments& cmd){
     MeshTools::CalculateAVnbs(m, shape.get(), A, V,\
                                    num_v,useNumerical, -0.5*box);
     std::cout << "Area = " << A << " Volume = " << V << std::endl;
+}
+
+
+void MeshActions::Mesh_Eta(CommandLineArguments& cmd){
+    std::string inputfname, outputfname="eta.out";
+    Real3 box={0,0,0};
+    Real3 boundary_center={0,0,0};
+
+    cmd.readString("i", CommandLineArguments::Keys::Required, inputfname);
+    cmd.readString("o", CommandLineArguments::Keys::Optional, outputfname);
+    cmd.readArray("boundary_center", CommandLineArguments::Keys::Optional, boundary_center);
+    bool isPBC = cmd.readArray("box", CommandLineArguments::Keys::Optional, box);
+
+    Mesh m;
+    MeshTools::readPLYlibr(inputfname, m);
+    if (isPBC) {m.setBoxLength(box);}
+
+    Real Pbar;
+    Real eta = MeshTools::CalculateEta(m, Pbar, boundary_center);
+    std::ofstream ofs;
+    ofs.open(outputfname);
+    ofs << eta << "\n";
+    ofs << Pbar << "\n";
+    ofs.close();
 }

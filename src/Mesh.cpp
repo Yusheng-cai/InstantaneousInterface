@@ -214,7 +214,7 @@ void Mesh::CalculateShift(const Real3& v1, const Real3& v2, Real3& shiftVec)
     }
 }
 
-Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2)
+Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2) const
 {
     Real3 dist;
     Real distsq;
@@ -222,6 +222,18 @@ Mesh::Real3 Mesh::getShiftedVertexPosition(const vertex& v1, const vertex& v2)
     // v1 - v2
     getVertexDistance(v1, v2, dist, distsq);
     Real3 ret = v2.position_ + dist;
+
+    return ret;
+}
+
+Mesh::Real3 Mesh::getShiftedVertexPosition(const Real3& v1, const Real3& v2) const
+{
+    Real3 dist;
+    Real distsq;
+
+    // v1 - v2
+    getVertexDistance(v1, v2, dist, distsq);
+    Real3 ret = v2 + dist;
 
     return ret;
 }
@@ -2688,7 +2700,7 @@ std::unique_ptr<AFP_shape> MeshTools::ReadAFPShape(CommandLineArguments& cmd){
     return std::move(shape);
 }
 
-void MeshTools::CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices){
+void MeshTools::CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices, bool order, Real3 center){
     std::vector<bool> boundaryIndicator;
     boundaryIndices.clear();
     CalculateBoundaryVertices(mesh, boundaryIndicator);
@@ -2697,6 +2709,43 @@ void MeshTools::CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int
         if (IsBoundary(i, boundaryIndicator)){
             boundaryIndices.push_back(i);
         }
+    }
+
+    if (order){
+        const auto& vertices = mesh.getvertices();
+        std::vector<Real> theta;
+        // shift all the vertices wrt to the first vertex 
+        int first_ind = boundaryIndices[0];
+        std::vector<Real3> shifted_pos;
+        Real3 shifted_pos_sum = {0,0,0};
+
+        for (int ind : boundaryIndices){
+            // find the shifted vertex position
+            Real3 s_p = mesh.getShiftedVertexPosition(vertices[ind].position_, center);
+            shifted_pos.push_back(s_p);
+        }
+
+        // find the center
+        Real3 center = shifted_pos_sum / (Real)boundaryIndices.size();
+
+        // shift all the position by the center and calculate the atan2
+        for (int i=0;i<shifted_pos.size();i++){
+            Real t = std::atan2(shifted_pos[i][1], shifted_pos[i][0]);
+            if (t < 0.0f){
+                t += Constants::PI * 2.0f;
+            }
+            theta.push_back(t);
+        }
+
+        std::vector<int> index = Algorithm::argsort(theta);
+
+        // rewrite the boundary indices 
+        std::vector<int> newBoundaryIndex;
+        for (int i=0;i<index.size();i++){
+            newBoundaryIndex.push_back(boundaryIndices[index[i]]);
+        }
+
+        boundaryIndices = newBoundaryIndex;
     }
 }
 
@@ -3251,4 +3300,49 @@ MeshTools::Real MeshTools::CalculateMaxCurvature(Mesh& m, const std::vector<int>
     
 
     return Pbar / (2 * Abar);
+}
+
+MeshTools::Real MeshTools::CalculateEta(Mesh& m, Real& Pbar, Real3 Boundary_center){
+    // calculate the vertex normal of the mesh
+    m.CalcVertexNormals();
+
+    // we calculate the arrange boundary indices
+    std::vector<int> BoundaryIndices;
+    MeshTools::CalculateBoundaryVerticesIndex(m,  BoundaryIndices, true, Boundary_center);
+
+    // then we calculate Pbar 
+    const auto& verts = m.getvertices();
+    std::vector<Real3> tdr;
+    Pbar = MeshTools::CalculatePbar(m, BoundaryIndices,tdr);
+    Real eta=0.0;
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int vert_ind = BoundaryIndices[i];
+        Real3 mvec   = LinAlg3x3::CrossProduct({0,0,1}, tdr[i]);
+        Real mdotN   = LinAlg3x3::DotProduct(-1.0 * mvec, verts[vert_ind].normals_);
+        eta += mdotN;
+    }
+
+    eta = eta / Pbar;
+    return eta;
+}
+
+MeshTools::Real MeshTools::CalculatePbar(Mesh& m, const std::vector<int>& BoundaryIndices, std::vector<Real3>& tdr){
+    tdr.clear();
+
+    const auto& vertices = m.getvertices();
+    Real Pbar = 0.0;
+
+    for (int i=0;i<BoundaryIndices.size();i++){
+        int this_index = BoundaryIndices[i];
+        int next_index = BoundaryIndices[(i+1) % BoundaryIndices.size()];
+        Real3 dist_vec;
+        Real dist;
+
+        m.getVertexDistance(vertices[this_index], vertices[next_index], dist_vec, dist);
+        tdr.push_back(dist_vec);
+
+        Pbar += std::sqrt(std::pow(dist_vec[0],2) + std::pow(dist_vec[1],2));
+    }
+
+    return Pbar;
 }

@@ -153,7 +153,8 @@ class Mesh
         // move a vertex into pbc box
         void MoveVertexIntoBox(const Real3& OldVertPos, Real3& NewVertexPos);
         // find shifted vertex position
-        Real3 getShiftedVertexPosition(const vertex& v1, const vertex& v2);
+        Real3 getShiftedVertexPosition(const vertex& v1, const vertex& v2) const;
+        Real3 getShiftedVertexPosition(const Real3& v1, const Real3& v2) const;
         // find the shit that takes a position into the box 
         Real3 getShiftIntoBox(const Real3& v1);
     
@@ -276,7 +277,7 @@ namespace MeshTools
     // find boundary vertices 
     void CalculateBoundaryVertices(const Mesh& mesh, const std::map<INT2, std::vector<int>>& mapEdgeToFace, std::vector<bool>& boundaryIndicator);
     void CalculateBoundaryVertices(const Mesh& mesh, std::vector<bool>& boundaryIndicator);
-    void CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices);
+    void CalculateBoundaryVerticesIndex(const Mesh& mesh, std::vector<int>& boundaryIndices, bool order=false, Real3 center={0,0,0});
 
     // check if point is on boundary
     bool IsBoundary(int Index, const std::vector<bool>& boundaryIndicator);
@@ -432,4 +433,8 @@ namespace MeshTools
     Real CalculateBoundaryAverageHeight(Mesh& m);
 
     Real CalculateMaxCurvature(Mesh& m, const std::vector<int>& BoundaryIndices);
+
+    Real CalculateEta(Mesh& m, Real& Pbar, Real3 Boundary_center={0,0,0});
+
+    Real CalculatePbar(Mesh& m, const std::vector<int>& BoundaryIndices, std::vector<Real3>& tdr);
 };

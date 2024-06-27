@@ -232,4 +232,7 @@ namespace MeshActions
 
     // Calculate Anbs and Vnbs
     void Mesh_AVnbs(CommandLineArguments& cmd);
+
+    // Calculate Eta
+    void Mesh_Eta(CommandLineArguments& cmd);
 };
