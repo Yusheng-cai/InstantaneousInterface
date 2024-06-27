@@ -52,6 +52,7 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         Real getAnbs() {return Anbs_list_[Anbs_list_.size()-1];}
         Real getVunderneath() {return Vunderneath_;}
         Real getVnbs_underneath() {return Vnbs_underneath_;}
+        Mesh getMeshFlatContact() {return m_flatContact_;}
 
         void setL(Real L) {L_=L;}
         void setL2(Real L2) {L2_=L2;}
@@ -105,4 +106,6 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         // list of things to keep track of
         std::vector<Real> volume_list_, area_list_, Vnbs_list_, Anbs_list_, L2_list_;
         Real a_,V_, Vnbs_, Anbs_, Vunderneath_, Vnbs_underneath_;
+
+        Mesh m_flatContact_;
 };

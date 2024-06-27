@@ -2144,6 +2144,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     k1 = init_k; k2 = init_k + Shooting_first_step;
     ASSERT((std::abs(k1) < k_max && std::abs(k2) < k_max), "The inputted curvature " << init_k << " exceeded max curvature " << k_max);
 
+    // first iteration of shooting method --> first set temp_r to m
     temp_m = m;
     temp_r->setK(k1);
     temp_r->refineBoundary(temp_m, shape.get());
@@ -2153,6 +2154,8 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     vnbs_list.push_back(temp_r->getVnbs());
     anbs_list.push_back(temp_r->getAnbs());
     vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
+    // reset m to the flat mesh that we generated in temp_r
+    m = temp_r->getMeshFlatContact();
 
     temp_m = m;
     temp_r->setK(k2);
@@ -2163,6 +2166,7 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     vnbs_list.push_back(temp_r->getVnbs());
     anbs_list.push_back(temp_r->getAnbs());
     vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
+    m = temp_r->getMeshFlatContact();
 
     k_list.push_back(k1); k_list.push_back(k2);
 
@@ -2225,6 +2229,9 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
             m = temp_m;
             break;
         }
+
+        // set mesh to be the last one with the flat contact line
+        m = temp_r->getMeshFlatContact();
 
         ind++;
     }

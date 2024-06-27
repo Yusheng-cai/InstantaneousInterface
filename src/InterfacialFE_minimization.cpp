@@ -197,7 +197,8 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
     std::vector<Real3> Normal;
 
     // first do we refine --> refine updates the mesh
-    this->refine(m);
+    m_flatContact_ = m;
+    this->refine(m_flatContact_);
 
     Real3 Volume_shift={0,0,0};
 
@@ -206,7 +207,6 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
     }
 
     // outer loop for Lagrange refinement
-    int L2_step = 0;
     while (true) {
         Real mean_z;
         Real mean_ca;
@@ -215,7 +215,7 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
         int iteration = 0;
         int cont_ind  = 0;
 
-        Mesh curr_m = m;
+        Mesh curr_m = m_flatContact_;
 
         // inner loop for pi, pib, L2 refinement
         while (true){
@@ -305,20 +305,8 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
                 break;
             }
 
-            // then do pi refinement
+            // then do pi refinement --> again
             this->refine(curr_m);
-
-            // calculate area and volume after boundary steps
-            vecArea.clear(); Normal.clear();
-            a_ = MeshTools::CalculateArea(curr_m, vecArea, Normal);
-            V_ = MeshTools::CalculateVolumeDivergenceTheorem(curr_m, vecArea, Normal);
-            MeshTools::CalculateAVnbs(curr_m, shape, BoundaryIndices,
-                                      ulist, vlist, Anbs_, Vnbs_,10000, useNumerical_, Volume_shift);
-
-            area_list_.push_back(a_);
-            volume_list_.push_back(V_);
-            Vnbs_list_.push_back(Vnbs_);
-            Anbs_list_.push_back(Anbs_);
 
             Real var  = Algorithm::calculateVariance(contact_angle_list);
             mean_ca   = Algorithm::calculateMean(contact_angle_list);
@@ -358,6 +346,24 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
 
         L2_step++;
     }
+
+    // get the information about the boundary indices 
+    std::vector<int> BoundaryIndices;
+    std::vector<Real> ulist, vlist;
+    MeshTools::CalculateBoundaryVerticesIndex(m, BoundaryIndices,false);
+    MeshTools::FindBoundaryUV(m, ulist, vlist, BoundaryIndices, shape);
+
+    // calculate area and volume after boundary steps
+    vecArea.clear(); Normal.clear();
+    a_ = MeshTools::CalculateArea(m, vecArea, Normal);
+    V_ = MeshTools::CalculateVolumeDivergenceTheorem(m, vecArea, Normal);
+    MeshTools::CalculateAVnbs(m, shape, BoundaryIndices,
+                                ulist, vlist, Anbs_, Vnbs_,10000, useNumerical_, Volume_shift);
+
+    area_list_.push_back(a_);
+    volume_list_.push_back(V_);
+    Vnbs_list_.push_back(Vnbs_);
+    Anbs_list_.push_back(Anbs_);
 
     Vunderneath_     = MeshTools::CalculateVolumeUnderneath(m, 2);
     Vnbs_underneath_ = MeshTools::CalculateVnbsUnderneath(m, shape, 2, 10000, useNumerical_); 
