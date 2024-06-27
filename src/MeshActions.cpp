@@ -2154,8 +2154,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     vnbs_list.push_back(temp_r->getVnbs());
     anbs_list.push_back(temp_r->getAnbs());
     vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
-    // reset m to the flat mesh that we generated in temp_r
-    m = temp_r->getMeshFlatContact();
 
     temp_m = m;
     temp_r->setK(k2);
@@ -2166,7 +2164,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
     vnbs_list.push_back(temp_r->getVnbs());
     anbs_list.push_back(temp_r->getAnbs());
     vtot_list.push_back(temp_r->getVunderneath() - temp_r->getVnbs_underneath());
-    m = temp_r->getMeshFlatContact();
 
     k_list.push_back(k1); k_list.push_back(k2);
 
@@ -2229,9 +2226,6 @@ void MeshActions::InterfacialFE_min_boundary(CommandLineArguments& cmd){
             m = temp_m;
             break;
         }
-
-        // set mesh to be the last one with the flat contact line
-        m = temp_r->getMeshFlatContact();
 
         ind++;
     }

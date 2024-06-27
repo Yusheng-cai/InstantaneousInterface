@@ -217,8 +217,12 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
 
         Mesh curr_m = m_flatContact_;
 
+        Real L2_g;
+
         // inner loop for pi, pib, L2 refinement
         while (true){
+            L2_g = 0.0f;
+
             // check if we are optimizing mesh
             if ((cont_ind+1) % boundary_optimize_every == 0){
                 // then optimize mesh
@@ -273,6 +277,7 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
 
                 // calculate dEdv
                 Real dEdv     = dAdv - rho_ * (L_ + mu_) / gamma_* (dVdv + dVnbsdv) + dgamma_gamma_ * dAnbsdv + L2_ * drdv[j][2] / (Real)N;
+                L2_g         += (0 - dAdv + rho_ * (L_ + mu_) / gamma_ * (dVdv + dVnbsdv) - dgamma_gamma_ * dAnbsdv) / drdv[j][2]; 
 
                 // calculate the inverse jacobian
                 auto invjac   = shape->InvNumericalJacobian(ulist[j], vlist[j]);
@@ -333,6 +338,7 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             }
 
         }
+        std::cout << "L2_g = " << L2_g << std::endl;
 
         Real L2_step = (mean_z - zstar_);
         L2_list_.push_back(L2_);
