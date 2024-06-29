@@ -38,6 +38,7 @@ class AFP_shape {
         virtual Eigen::MatrixXd InvNumericalJacobian(Real u, Real v);
         virtual Eigen::MatrixXd AnalyticalJacobian(Real u, Real v);
         virtual Eigen::MatrixXd InvAnalyticalJacobian(Real u, Real v);
+        virtual Eigen::MatrixXd InvJacobian(Real u, Real v, bool useNumerical=true);
 
                                 // pure virtual functions //
         // calculate the function value given position

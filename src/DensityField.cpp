@@ -37,6 +37,7 @@ DensityField::DensityField(const DensityFieldInput& input)
 
     // read whether or not we are cutting the mesh
     cut_mesh_ = input.pack_.ReadArrayNumber("cut_volume", ParameterPack::KeyType::Optional,cut_vec_);
+    input.pack_.Readbool("cut_below", ParameterPack::KeyType::Optional, cut_below_);
 
     // read in the output names 
     input.pack_.ReadVectorString("outputs", ParameterPack::KeyType::Optional, OutputNames_);

@@ -6,6 +6,7 @@
 #include "MeshCurvatureflow.h"
 #include "AFP_shapes.h"
 #include "Eigen/Core"
+#include "tools/CommonOperations.h"
 
 #include <vector>
 #include <string>
@@ -57,6 +58,7 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         void setL(Real L) {L_=L;}
         void setL2(Real L2) {L2_=L2;}
         void setK(Real k) {L_ = ConvertKToL(k);}
+        void setSquaredGradients(Mesh& m);
         Real ConvertKToL(Real k) {return k * (2 * gamma_) / rho_ - mu_;}
 
         Real getrho() {return rho_;}
@@ -93,7 +95,7 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         Real rho_=5.0333e-23; // mol/nm3
         Real dgamma_gamma_;
         Real zstar_;
-        Real zstar_deviation_=0.01;
+        Real zstar_deviation_=0.003;
 
         bool debug_=false, useNumerical_=true;
 
@@ -108,4 +110,7 @@ class InterfacialFE_minimization : public MeshRefineStrategy{
         Real a_,V_, Vnbs_, Anbs_, Vunderneath_, Vnbs_underneath_;
 
         Mesh m_flatContact_;
+
+        std::vector<Real3> squared_gradients_;
+        Real3 epsilon_={1e-10,1e-10,1e-10};
 };

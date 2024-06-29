@@ -1351,7 +1351,7 @@ void MeshTools::MapEdgeToOpposingVertices(Mesh& mesh, std::map<INT2, std::vector
     }
 }
 
-void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>& vertices, Real3 volume)
+void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>& vertices, Real3 volume, bool below)
 {
     vertices.clear();
     faces.clear();
@@ -1363,11 +1363,21 @@ void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>
     std::map<int,int> MapOldIndexToNew;
     for (int i=0;i<verts.size();i++){
         auto& v = verts[i];
-        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
-            int newindex = index;
-            vertices.push_back(v.position_);
-            MapOldIndexToNew.insert(std::make_pair(i, newindex));
-            index ++;
+        if (! below){
+            if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
+                int newindex = index;
+                vertices.push_back(v.position_);
+                MapOldIndexToNew.insert(std::make_pair(i, newindex));
+                index ++;
+            }
+        }
+        else{
+            if (v.position_[0] <= volume[0] && v.position_[1] <= volume[1] && v.position_[2] <= volume[2]){
+                int newindex = index;
+                vertices.push_back(v.position_);
+                MapOldIndexToNew.insert(std::make_pair(i, newindex));
+                index ++;
+            }
         }
     }
 
@@ -1388,7 +1398,7 @@ void MeshTools::CutMesh(Mesh& mesh, std::vector<INT3>& faces, std::vector<Real3>
     }
 }
 
-void MeshTools::CutMesh(Mesh& mesh, Real3& volume){
+void MeshTools::CutMesh(Mesh& mesh, Real3& volume, bool below){
     const auto& verts = mesh.getvertices();
     const auto& tri   = mesh.gettriangles();
     std::vector<vertex> newV;
@@ -1398,10 +1408,19 @@ void MeshTools::CutMesh(Mesh& mesh, Real3& volume){
     std::map<int,int> MapOldIndexToNew;
     for (int i=0;i<verts.size();i++){
         auto& v = verts[i];
-        if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
-            newV.push_back(v);
-            MapOldIndexToNew.insert(std::make_pair(i, index));
-            index ++;
+        if (! below){
+            if (v.position_[0] >= volume[0] && v.position_[1] >= volume[1] && v.position_[2] >= volume[2]){
+                newV.push_back(v);
+                MapOldIndexToNew.insert(std::make_pair(i, index));
+                index ++;
+            }
+        }
+        else{
+            if (v.position_[0] <= volume[0] && v.position_[1] <= volume[1] && v.position_[2] <= volume[2]){
+                newV.push_back(v);
+                MapOldIndexToNew.insert(std::make_pair(i, index));
+                index ++;
+            }
         }
     }
 
@@ -2319,15 +2338,15 @@ void MeshTools::CalculateCotangentWeights(Mesh& m, const std::vector<std::vector
             int index2 = edge[1];
 
             // calculate the cosine theta with respect to opposing points 
-            for (int OpposingIdx : OpposingVerts)
-            {
+            for (int OpposingIdx : OpposingVerts){
                 Real3 vec1, vec2;
                 Real vec1sq, vec2sq;
 
                 // calculate the vertex distance and vector 
-                m.getVertexDistance(vertices[index1], vertices[OpposingIdx], vec1, vec1sq);
-                m.getVertexDistance(vertices[index2], vertices[OpposingIdx], vec2, vec2sq);
+                m.getVertexDistance(vertices[OpposingIdx], vertices[index1], vec1, vec1sq);
+                m.getVertexDistance(vertices[OpposingIdx], vertices[index2], vec2, vec2sq);
 
+                // normalize the vector
                 LinAlg3x3::normalize(vec1);
                 LinAlg3x3::normalize(vec2);
 
@@ -2785,7 +2804,7 @@ MeshTools::refineptr MeshTools::ReadInterfacialMin(CommandLineArguments& cmd){
 MeshTools::refineptr MeshTools::ReadInterfacialMinBoundary(CommandLineArguments& cmd){
     std::string stepsize, ca_file_output="ca.out", T="298", L="0", maxstep="1e5", tolerance="0.00001", printevery="1000", optimize_every="1e10";
     std::string boundarymaxstep="10000", boundarystepsize="0.5", boundarytolerance="5e-6", L2tolerance="5e-5", boundary_optimize_every="300";
-    std::string MaxStepCriteria="true", L2="0", L2_step_size="10.0",L2maxstep="1e5", zstar, zstar_deviation="0.01";
+    std::string MaxStepCriteria="true", L2="0", L2_step_size="10.0",L2maxstep="1e5", zstar, zstar_deviation="0.003";
     std::string dgamma_gamma, useNumerical="false";
 
     cmd.readString("maxstep", CommandLineArguments::Keys::Optional, maxstep);

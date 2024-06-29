@@ -44,7 +44,7 @@ InterfacialFE_minimization::InterfacialFE_minimization(MeshRefineStrategyInput& 
     pack_.ReadNumber("boundarytolerance", ParameterPack::KeyType::Optional, boundarytol_);
     pack_.ReadNumber("L2maxstep", ParameterPack::KeyType::Optional, maxL2step_);
     pack_.ReadNumber("boundary_optimize_every", ParameterPack::KeyType::Optional, boundary_optimize_every);
-    pack_.ReadNumber("dgamma_gamma", ParameterPack::KeyType::Required, dgamma_gamma_);
+    pack_.ReadNumber("dgamma_gamma", ParameterPack::KeyType::Optional, dgamma_gamma_);
     pack_.ReadNumber("L2_guess", ParameterPack::KeyType::Optional, L2_);
     pack_.ReadNumber("zstar", ParameterPack::KeyType::Optional, zstar_);
     pack_.ReadNumber("L2_step_size", ParameterPack::KeyType::Optional, L2_stepsize_);
@@ -87,6 +87,12 @@ Real InterfacialFE_minimization::CalculateGamma(Real temperature){
 
 Real InterfacialFE_minimization::CalculateMu(Real temperature){
     return 0.021 * temperature - 5.695;
+}
+
+void InterfacialFE_minimization::setSquaredGradients(Mesh& m){
+    squared_gradients_.clear();
+    const auto& vertices = m.getvertices();
+    squared_gradients_.resize(vertices.size(), {0,0,0});
 }
 
 
@@ -206,6 +212,7 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
         Volume_shift = -0.5 * m.getBoxLength();
     }
 
+    int num_L2_step=0;
     // outer loop for Lagrange refinement
     while (true) {
         Real mean_z;
@@ -216,13 +223,11 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
         int cont_ind  = 0;
 
         Mesh curr_m = m_flatContact_;
-
-        Real L2_g;
+        Real L2_g   = 0.0f;
+        bool exceed_zstar_deviation=false;
 
         // inner loop for pi, pib, L2 refinement
         while (true){
-            L2_g = 0.0f;
-
             // check if we are optimizing mesh
             if ((cont_ind+1) % boundary_optimize_every == 0){
                 // then optimize mesh
@@ -254,9 +259,6 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             int N                   = BoundaryIndices.size();
             Real kk                 = rho_ * (L_ + mu_) / (2*gamma_);
             mean_z                  = 0.0;
-            std::cout << "L1 = " << L_ << std::endl;
-            std::cout << "L2 = " << L2_ << std::endl;
-            std::cout << "k = "  << kk << std::endl;
 
             // pib refinement
             for (int j=0;j<BoundaryIndices.size();j++){
@@ -277,10 +279,12 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
 
                 // calculate dEdv
                 Real dEdv     = dAdv - rho_ * (L_ + mu_) / gamma_* (dVdv + dVnbsdv) + dgamma_gamma_ * dAnbsdv + L2_ * drdv[j][2] / (Real)N;
-                L2_g         += (0 - dAdv + rho_ * (L_ + mu_) / gamma_ * (dVdv + dVnbsdv) - dgamma_gamma_ * dAnbsdv) / drdv[j][2]; 
+                if (cont_ind == 0){
+                    L2_g          += (-dAdv + rho_*(L_+mu_)/gamma_ * (dVdv + dVnbsdv) - dgamma_gamma_ * dAnbsdv) / (drdv[j][2]);
+                }
 
                 // calculate the inverse jacobian
-                auto invjac   = shape->InvNumericalJacobian(ulist[j], vlist[j]);
+                auto invjac   = shape->InvJacobian(ulist[j], vlist[j],useNumerical_);
                 Eigen::MatrixXd dEduv(2,1);
                 dEduv << 0, dEdv;
                 auto dEdr     = invjac.transpose() * dEduv;
@@ -304,6 +308,12 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             // calculate mean z
             mean_z    = mean_z / (Real)N;
 
+            // check if we deviated too much from zstar
+            if (std::abs(mean_z - zstar_) > zstar_deviation_){
+                exceed_zstar_deviation = true;
+                break;
+            }
+
             // once we updated the boundary, let's check its perimeter and area again
             Real max_k = MeshTools::CalculateMaxCurvature(curr_m, BoundaryIndices);
             if (std::abs(kk / max_k) > 0.95){
@@ -319,17 +329,10 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
             std::cout << "maxmimum boundary step = " << max_boundary_step << std::endl;
             std::cout << "std of contact angle is " << std::sqrt(var) << std::endl;
             std::cout << "mean of contact angle is " << mean_ca << std::endl; 
+            std::cout << "Using L2 = " << L2_ << std::endl;
+            std::cout << "Zstar deviation = " << zstar_deviation_ << std::endl;
 
             if (iteration > maxBoundaryStep_){
-                break;
-            }
-
-            // update iterations
-            cont_ind++;
-            iteration++;
-
-            // check if we deviated too much from zstar
-            if (std::abs(mean_z - zstar_) > zstar_deviation_){
                 break;
             }
 
@@ -337,20 +340,33 @@ void InterfacialFE_minimization::refineBoundary(Mesh& m, AFP_shape* shape){
                 break;
             }
 
+            // update iterations
+            cont_ind++;
+            iteration++;
         }
+
         std::cout << "L2_g = " << L2_g << std::endl;
 
         Real L2_step = (mean_z - zstar_);
         L2_list_.push_back(L2_);
 
         // break the while loop
-        if (std::abs(L2_step) < L2tol_ || L2_step > maxL2step_){
+        if (std::abs(L2_step) < L2tol_ || num_L2_step > maxL2step_){
             m = curr_m;
             break;
         }
-        L2_ = L2_ + L2_stepsize_ * L2_step;
 
-        L2_step++;
+        // if we are on the first step --> then we make a better guess
+        if (num_L2_step == 0){
+            if (exceed_zstar_deviation){
+                L2_ = L2_g;
+            }
+        }
+        else{
+            L2_ = L2_ + L2_stepsize_ * L2_step;
+        }
+        
+        num_L2_step++;
     }
 
     // get the information about the boundary indices 

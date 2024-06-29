@@ -15,6 +15,9 @@ namespace Algorithm
     void Permutation(int max, int numSamples, std::vector<int>& samples);
 
     template <typename T, std::size_t dim>
+    std::array<T,dim> sqrt(std::array<T,dim>& arr);
+
+    template <typename T, std::size_t dim>
     int argmin(std::array<T,dim>& arr);
 
     template <typename T, std::size_t dim>
@@ -92,6 +95,16 @@ namespace Algorithm
     return (T(0) < val) - (val < T(0));
     }
 };
+
+template <typename T, std::size_t dim>
+std::array<T,dim> Algorithm::sqrt(std::array<T,dim>& arr){
+    std::array<T,dim> res;
+    for (std::size_t i=0;i<dim;i++){
+        res[i] = std::sqrt(arr[i]);
+    }
+
+    return res;
+}
 
 template<typename T>
 std::vector<T> Algorithm::arange(T start, T stop, T step) {

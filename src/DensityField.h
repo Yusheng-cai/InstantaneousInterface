@@ -184,6 +184,7 @@ class DensityField
         // check whether or not we are cutting a mesh 
         Real3 cut_vec_;
         bool cut_mesh_=false;
+        bool cut_below_=false;
 
         // CUDA stuff --> only defined if cuda is enabled 
         #ifdef CUDA_ENABLED

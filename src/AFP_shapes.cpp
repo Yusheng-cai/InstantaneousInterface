@@ -45,6 +45,15 @@ Eigen::MatrixXd AFP_shape::InvNumericalJacobian(Real u, Real v){
     return invjac;
 }
 
+Eigen::MatrixXd AFP_shape::InvJacobian(Real u, Real v, bool useNumerical){
+    if (useNumerical){
+        return InvNumericalJacobian(u,v);
+    }
+    else{
+        return InvAnalyticalJacobian(u,v);
+    }
+}
+
 Eigen::MatrixXd AFP_shape::AnalyticalJacobian(Real u, Real v){
     Real3 drdu = Analyticaldrdu(u,v);
     Real3 drdv = Analyticaldrdv(u,v);

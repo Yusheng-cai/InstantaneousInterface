@@ -307,10 +307,10 @@ namespace MeshTools
     void CalculateCornerArea(Mesh& mesh, std::vector<Real3>& CornerArea, std::vector<Real>& VertexArea);
 
     // cut mesh and give a new mesh 
-    void CutMesh(Mesh& mesh, std::vector<INT3>& face, std::vector<Real3>& vertices, Real3 volume);
+    void CutMesh(Mesh& mesh, std::vector<INT3>& face, std::vector<Real3>& vertices, Real3 volume, bool below=false);
 
     // cut mesh and give new mesh
-    void CutMesh(Mesh& mesh, Real3& volume);
+    void CutMesh(Mesh& mesh, Real3& volume, bool below=false);
 
     // Moller Trumbore Ray-Triangle intersection method 
     bool MTRayTriangleIntersection(Real3& A, Real3& B, Real3& C, Real3& O, Real3& D, Real& t, Real& u, Real& v);

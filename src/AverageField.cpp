@@ -31,7 +31,7 @@ void AverageField::finishCalculate()
 
     // if we are cutting mesh
     if (cut_mesh_){
-        MeshTools::CutMesh(*mesh_, cut_vec_);
+        MeshTools::CutMesh(*mesh_, cut_vec_, cut_below_);
     }
     std::cout << "Done cut mesh" << "\n";
 
