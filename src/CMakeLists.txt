@@ -26,18 +26,12 @@ set(IIsrc_CPU_source
     "Registry.cpp"
     "marching_cubes.cpp"
     "MeshGen2d.cpp"
-    "MeshActions.cpp"
     "ShortEdgeRemoval.cpp"
     "ObtuseTriangleRemoval.cpp"
     "surface_nets.cpp"
     "LongEdgeRemoval.cpp"
     "CurvatureQuadraticFit.cpp"
-    "Contour.cpp"
     "AverageFieldProperty.cpp"
-    "AFP_shapes.cpp"
-    "fsolve.cpp"
-    "fsolve_wrapper.cpp"
-    "InterfacialFE_minimization.cpp"
 )
 
 set(IIsrc_GPU_source 
@@ -80,19 +74,12 @@ set(IIsrc_HEADER
     "Registry.h"
     "marching_cubes.hpp"
     "MeshGen2d.h"
-    "MeshActions.h"
     "MeshPlaneIntersection.hpp"
     "ShortEdgeRemoval.h"
     "ObtuseTriangleRemoval.h"
-    "surface_nets.h"
     "LongEdgeRemoval.h"
     "CurvatureQuadraticFit.hpp"
-    "Contour.h"
     "AverageFieldProperty.h"
-    "AFP_shapes.h"
-    "fsolve.hpp"
-    "fsolve_wrapper.hpp"
-    "InterfacialFE_minimization.h"
 )
 
 target_include_directories(IIsrc
@@ -101,24 +88,22 @@ target_include_directories(IIsrc
                         $<INSTALL_INTERFACE:${PROJECT_BINARY_DIR}/include>
 )
 
-add_subdirectory(ICP)
-
 if (CGAL_FOUND)
    target_include_directories(IIsrc PUBLIC ${CGAL_INCLUDE_DIRS})
 endif()
 
-if (Ceres_FOUND)
-    target_include_directories(IIsrc PUBLIC ${CERES_INCLUDE_DIRS})
-endif()
+#if (Ceres_FOUND)
+#    target_include_directories(IIsrc PUBLIC ${CERES_INCLUDE_DIRS})
+#endif()
 
 if (ENABLE_CUDA)
    target_include_directories(IIsrc PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 endif()
 
 if (ENABLE_IGL)
-    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL igl::glfw ${CERES_LIBRARIES})
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel CGAL::CGAL igl::glfw ${CERES_LIBRARIES})
 else()
-    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel IIICP CGAL::CGAL ${CERES_LIBRARIES})
+    target_link_libraries(IIsrc PUBLIC IIxdr IItools IIparallel CGAL::CGAL ${CERES_LIBRARIES})
 endif()
 
 

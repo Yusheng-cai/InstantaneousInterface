@@ -64,13 +64,13 @@ if (CGAL_FOUND)
 endif()
 #message("CMAKE ROOT = ${CMAKE_ROOT}")
 
-set(Ceres_DIR "/home/yusheng/programs/ceres/lib/cmake/Ceres")
-find_package(Ceres NO_DEFAULT_PATH)
-if (Ceres_FOUND)
-  message("Ceres FOUND")
-  message("Ceres INCLUDE DIR = ${CERES_INCLUDE_DIRS}")
-  message("Ceres LIBRARIES = ${CERES_LIBRARIES}")
-endif()
+#set(Ceres_DIR "/home/yusheng/programs/ceres/lib/cmake/Ceres")
+#find_package(Ceres NO_DEFAULT_PATH)
+#if (Ceres_FOUND)
+#  message("Ceres FOUND")
+#  message("Ceres INCLUDE DIR = ${CERES_INCLUDE_DIRS}")
+#  message("Ceres LIBRARIES = ${CERES_LIBRARIES}")
+#endif()
 
 
 # install the libraries as well as the executables in lib & bin folder in build/
@@ -90,18 +90,18 @@ add_subdirectory(cmc_surface)
 #add_subdirectory(ModelViewer)
 
 add_executable(InstantaneousInterface main.cpp)
-add_executable(mesh_op mesh_op.cpp)
+#add_executable(mesh_op mesh_op.cpp)
 #add_executable(mesh_display mesh_display.cpp)
 
 target_include_directories(InstantaneousInterface PUBLIC ${CMAKE_SOURCE_DIR})
-target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
+#target_include_directories(mesh_op PUBLIC ${CMAKE_SOURCE_DIR})
 #target_include_directories(mesh_display PUBLIC ${CMAKE_SOURCE_DIR} ${OPENGL_INCLUDE_DIR} ${GLFW3_INCLUDE_DIR})
 
 target_link_libraries(InstantaneousInterface PUBLIC IIxdr IIsrc IItools IIparallel IIcmc_surface)
-target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel IIcmc_surface)
+#target_link_libraries(mesh_op PUBLIC IIxdr IIsrc IItools IIparallel IIcmc_surface)
 #target_link_libraries(mesh_display PUBLIC IIxdr IIsrc IItools IIparallel IIModelViewer ${GLFW3_LIBRARY})
 
 
 install(TARGETS InstantaneousInterface DESTINATION bin) 
-install(TARGETS mesh_op DESTINATION bin)
+#install(TARGETS mesh_op DESTINATION bin)
 #install(TARGETS mesh_display DESTINATION bin)
