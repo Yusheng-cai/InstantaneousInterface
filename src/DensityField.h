@@ -55,7 +55,7 @@ class DensityField
         virtual void update() {};
         virtual void calculate() = 0;
         virtual void finishCalculate() {};
-        virtual void printOutputIfOnStep() {};
+        virtual void printOutputIfOnStep();
         virtual void printFinalOutput(bool bootstrap=false, int numTimes=0);
 
         // initialize curvature calculations 
@@ -79,6 +79,10 @@ class DensityField
         // calculate the instantaneous concentration field but now is with some property 
         // e.g. q_i * sigma 
         void CalculateInstantaneousFieldProperty(const std::vector<Real>& property);
+
+        // gpu to cpu field copying
+        void FieldCopy_cuda();
+        void InstantaneousFieldCopy_cuda();
 
         // function that adds the atom group to the current object 
         void addAtomGroup(std::string& name);
@@ -171,6 +175,11 @@ class DensityField
         // output names 
         std::vector<std::string> OutputNames_;
         std::vector<std::string> OutputFileNames_;
+        std::vector<std::string> perIterOutputNames_;
+        std::vector<std::string> perIterOutputFileNames_;
+        std::vector<std::string> perIterIndOutputNames_;
+        std::vector<std::string> perIterIndOutputFileNames_;
+        int iter_=0;
 
         // ParamterPack 
         ParameterPack& pack_;

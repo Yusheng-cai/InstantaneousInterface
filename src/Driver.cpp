@@ -329,6 +329,7 @@ void Driver::run()
 
             // perform the calculations
             calculate();
+            std::cout << "Done calc." << std::endl;
 
             printOutputfileIfOnStep();
             auto end = std::chrono::high_resolution_clock::now();

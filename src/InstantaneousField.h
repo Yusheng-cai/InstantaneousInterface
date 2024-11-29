@@ -11,7 +11,7 @@
 class InstantaneousField : public DensityField 
 {
     public:
-        InstantaneousField(DensityFieldInput& input);
+        InstantaneousField(const DensityFieldInput& input);
 
         virtual void calculate();
     private:

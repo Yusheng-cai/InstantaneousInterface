@@ -32,6 +32,7 @@ set(IIsrc_CPU_source
     "LongEdgeRemoval.cpp"
     "CurvatureQuadraticFit.cpp"
     "AverageFieldProperty.cpp"
+    "InstantaneousField.cpp"
 )
 
 set(IIsrc_GPU_source 
@@ -80,6 +81,7 @@ set(IIsrc_HEADER
     "LongEdgeRemoval.h"
     "CurvatureQuadraticFit.hpp"
     "AverageFieldProperty.h"
+    "InstantaneousField.h"
 )
 
 target_include_directories(IIsrc

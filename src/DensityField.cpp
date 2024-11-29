@@ -45,6 +45,16 @@ DensityField::DensityField(const DensityFieldInput& input)
     ASSERT(( OutputFileNames_.size() == OutputNames_.size()), "The number of outputs does not agree with number of \
     outputs files.");
 
+    input.pack_.ReadVectorString("perIterOutputs", ParameterPack::KeyType::Optional, perIterOutputNames_);
+    input.pack_.ReadVectorString("perIterOutputFileNames", ParameterPack::KeyType::Optional, perIterOutputFileNames_);
+    ASSERT((perIterOutputFileNames_.size() == perIterOutputNames_.size()), "The number of per Iter outputs does not agree with the number of \
+    per iter output files.");
+
+    input.pack_.ReadVectorString("perIterIndOutput", ParameterPack::KeyType::Optional, perIterIndOutputNames_);
+    input.pack_.ReadVectorString("perIterIndOutputFileNames", ParameterPack::KeyType::Optional, perIterIndOutputFileNames_);
+    ASSERT((perIterIndOutputNames_.size() == perIterIndOutputFileNames_.size()), "The number of per iter ind outputs does not agree with the number of \
+    per iter ind output files.");
+
     // calculate the actual cut off
     cutoff_ = n_*sigma_;
 
@@ -119,6 +129,7 @@ DensityField::DensityField(const DensityFieldInput& input)
     outputs_.registerOutputFunc("ply", [this](std::string name)-> void {this -> printPLY(name);});
     outputs_.registerOutputFunc("stl", [this](std::string name)-> void {this -> printSTL(name);});
     outputs_.registerOutputFunc("nonpbcMesh", [this](std::string name) -> void {this -> printnonPBCMesh(name);});
+    outputs_.registerPerIterIndOutputFunc("ply", [this](std::string name) -> void {this->printPLY(name);});
 }
 
 void DensityField::initializeRefinement()
@@ -169,6 +180,15 @@ void DensityField::printFinalOutput(bool bootstrap, int numTimes){
     for (int i=0;i<curvatures_.size();i++){
         curvatures_[i]->printOutput(bootstrap, numTimes);
     }
+}
+void DensityField::printOutputIfOnStep(){
+    for (int i=0;i<perIterIndOutputNames_.size();i++){
+        std::string name = StringTools::AppendIndexToFileName(perIterIndOutputNames_[i], iter_);
+        auto& func = outputs_.getPerIterIndOutputFuncByName(perIterIndOutputNames_[i]);
+        func(name);
+    }
+    
+    iter_++;
 }
 
 inline DensityField::Real DensityField::GaussianCoarseGrainFunction(const Real3& dx)
@@ -468,6 +488,30 @@ void DensityField::CalculateInstantaneousField(){
     #endif
 }
 
+void DensityField::FieldCopy_cuda(){
+    auto& fieldVec = field_.accessField();
+    #ifdef CUDA_ENABLED
+    // copy data from device 
+    _field.memcpyDeviceToHost();
+    ASSERT((_field.getTotalSize() == fieldVec.size()), "The GPU and CPU size are different.");
+    for (int i=0;i<_field.getTotalSize();i++){
+        fieldVec[i] = _field[i];
+    }
+    #endif
+}
+
+void DensityField::InstantaneousFieldCopy_cuda(){
+    auto& fieldVec = field_.accessField();
+    #ifdef CUDA_ENABLED
+    // copy data from device 
+    _instantaneous_field.memcpyDeviceToHost();
+    ASSERT((_instantaneous_field.getTotalSize() == fieldVec.size()), "The GPU and CPU size are different.");
+    for (int i=0;i<_instantaneous_field.getTotalSize();i++){
+        fieldVec[i] = _instantaneous_field[i];
+    }
+    #endif
+}
+
 void DensityField::printSTL(std::string name){
     MeshTools::writeSTL(name, *mesh_);
 }
@@ -503,3 +547,5 @@ void DensityField::printBoundaryVertices(std::string name){
 void DensityField::printnonPBCMesh(std::string name){
     MeshTools::writeNonPBCMesh(name, *mesh_);
 }
+
+

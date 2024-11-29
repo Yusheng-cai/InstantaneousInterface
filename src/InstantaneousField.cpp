@@ -1,6 +1,10 @@
 #include "InstantaneousField.h"
+namespace DensityFieldRegistry
+{
+    registry_<InstantaneousField> registerInstantaneousField("InstantaneousField");
+}
 
-InstantaneousField::InstantaneousField(DensityFieldInput& input)
+InstantaneousField::InstantaneousField(const DensityFieldInput& input)
 : DensityField(input)
 {
     index_=1;
@@ -13,6 +17,10 @@ void InstantaneousField::calculate()
 
     // calculate instantaneous field 
     CalculateInstantaneousField();
+
+    #ifdef CUDA_ENABLED
+    InstantaneousFieldCopy_cuda();
+    #endif
 
     // triangulate the field --> clears the vertices and triangles of mesh inside this function 
     MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, MCpbc_);
@@ -27,4 +35,5 @@ void InstantaneousField::calculate()
             faceMeanC[j] = faceC[j][0];
         }
     }
+    std::cout << "Done." << std::endl;
 }
