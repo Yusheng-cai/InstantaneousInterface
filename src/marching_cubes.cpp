@@ -288,7 +288,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
 
     // spacing of lattice points in the field 
     spacing_= field.getSpacing();
-    tol_ = {{1e-5,1e-5,1e-5}};
+    tol_ = {{1e-3,1e-3,1e-3}};
     for (int i =0;i<3;i++){
         end_[i] = N_[i];
     }
