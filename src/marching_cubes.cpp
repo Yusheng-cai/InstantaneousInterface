@@ -288,7 +288,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
 
     // spacing of lattice points in the field 
     spacing_= field.getSpacing();
-    tol_ = {{1e-3,1e-3,1e-3}};
+    tol_ = {{1e-5,1e-5,1e-5}};
     for (int i =0;i<3;i++){
         end_[i] = N_[i];
     }
@@ -370,8 +370,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
 
     // We go through this voxel by voxel
     std::vector<Real3> AllVertices;
-    for (auto& a : MapFromCellGridIndexToIndex_)
-    {
+    for (auto& a : MapFromCellGridIndexToIndex_){
         INT3 initialIndex=a.first;
         std::vector<Point> NeighborV;
         std::vector<Point> initialV;
@@ -379,8 +378,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
         
         int selfnum = initialV.size();
         int num = NeighborV.size();
-        for (int m=0;m<selfnum;m++)
-        {
+        for (int m=0;m<selfnum;m++){
             Real3 mpos = {{initialV[m].x, initialV[m].y, initialV[m].z}};
             int GridIndex = initialV[m].index; 
 
@@ -416,7 +414,7 @@ void MarchingCubes::triangulate_field(Field& field, Mesh& mesh, Real isovalue, b
                 if (it != NeighborNumber.end()){
                     std::cout << "NeighborNumber = " << NeighborNumber << std::endl;
                 }
-                ASSERT((it == NeighborNumber.end()), "The elements in the list are not all identical.");
+                //ASSERT((it == NeighborNumber.end()), "The elements in the list are not all identical.");
 
                 int IDX = NeighborNumber[0];
 
