@@ -25,6 +25,11 @@ void InstantaneousField::calculate()
     // triangulate the field --> clears the vertices and triangles of mesh inside this function 
     MarchingCubes_.triangulate_field(field_, *mesh_, isoSurfaceVal_, MCpbc_);
 
+    // if we are cutting mesh
+    if (cut_mesh_){
+        MeshTools::CutMesh(*mesh_, cut_vec_, cut_below_);
+    }
+
     // once we triangulate the field, we calculate the curvature 
     for (int i=0;i<curvatures_.size();i++){
         curvatures_[i]->calculate(*mesh_);
