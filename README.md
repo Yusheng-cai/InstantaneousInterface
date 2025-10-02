@@ -16,6 +16,7 @@ Using this code, we can start with some predefined surface and boundary conditio
 | ----------  | -------- |
 | ![flat](test/Images/flat.png) |  ![evolved](test/Images/evolved.png) |
 
+![Demo Animation](docs/demo.gif)
 
 
 # References
