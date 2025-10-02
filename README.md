@@ -1,4 +1,18 @@
 # InstantaneousInterface
+
+[![License](https://img.shields.io/github/license/YOUR_USERNAME/YOUR_REPO)](./LICENSE)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/YOUR_USERNAME/YOUR_REPO/ci.yml)](https://github.com/YOUR_USERNAME/YOUR_REPO/actions)
+[![Issues](https://img.shields.io/github/issues/YOUR_USERNAME/YOUR_REPO)](https://github.com/YOUR_USERNAME/YOUR_REPO/issues)
+
+A high-performance C++ and CUDA package for obtaining **molecular interfaces** from molecular simulations
+---
+
+## 🚀 Features
+- 📈 Curvature analysis for surfaces
+- 🔗 GROMACS compatible
+- 🧵 Parallelized with CUDA/OpenMP
+---
+
 ## Generating Averaged Interface
 Using the method of obtaining instantaneous liquid interface from ref[1] to obtain instantaneous and average liquid interfaces. Shown below is a snapshot of an average water/oil interface where we can clearly that the interface (in blue) on average separates the liquid and the oil (not shown). It does not look perfect because the molecular picture shown is for a particular frame while the interface is averaged over many frames.
 ![WI](test/Images/waterInterface.png)
